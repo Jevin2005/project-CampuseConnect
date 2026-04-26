@@ -1,6 +1,6 @@
 # Admin Panel Pages — Build Progress
 
-## Status: ✅ A1–A4 Complete
+## Status: ✅ A1–A8 Complete — All Admin Pages Done!
 
 | ID | Page | Stitch Screen ID | File Path | Status |
 |----|------|-----------------|-----------|--------|
@@ -8,10 +8,10 @@
 | A2 | Admin Registration Page | `4d64124095c14aa2acaa3c713d7a5b64` | `app/admin/register/page.tsx` | ✅ Done |
 | A3 | Admin Dashboard Page | `60e436c11f1d4da889bd0a24c0fdd317` | `app/admin/dashboard/page.tsx` | ✅ Done |
 | A4 | Student Requests Page | `0a8bf8e181474641963794cf321552d7` | `app/admin/requests/page.tsx` | ✅ Done |
-| A5 | Product Management Page | — | `app/admin/products/page.tsx` | ⬜ Pending |
-| A6 | Advertisement Manager Page | — | `app/admin/advertisements/page.tsx` | ⬜ Pending |
-| A7 | College Revenue Page | — | `app/admin/revenue/page.tsx` | ⬜ Pending |
-| A8 | Admin Profile/Settings Page | — | `app/admin/settings/page.tsx` | ⬜ Pending |
+| A5 | Product Management Page | `60a77a68d3d0495d814a5d5e91ba2e1e` | `app/admin/products/page.tsx` | ✅ Done |
+| A6 | Advertisement Manager Page | `846deba5295449ae9015749550b1fb80` | `app/admin/advertisements/page.tsx` | ✅ Done |
+| A7 | College Revenue Page | `6342611493774a10aee5aba27824627f` | `app/admin/revenue/page.tsx` | ✅ Done |
+| A8 | Admin Profile/Settings Page | `74f1f56250874f579cbfdd2b427e9ed2` | `app/admin/settings/page.tsx` | ✅ Done |
 
 ## File System Layout (Admin Panel)
 
@@ -28,13 +28,13 @@ frontend/app/admin/
 ├── requests/
 │   └── page.tsx                      ← A4: Student Requests (pending/approved tabs + modal)
 ├── products/
-│   └── page.tsx                      ← A5: Product Management (⬜ next)
+│   └── page.tsx                      ← A5: Product Management ✅
 ├── advertisements/
-│   └── page.tsx                      ← A6: Advertisement Manager (⬜ next)
+│   └── page.tsx                      ← A6: Advertisement Manager ✅
 ├── revenue/
-│   └── page.tsx                      ← A7: College Revenue (⬜ next)
+│   └── page.tsx                      ← A7: College Revenue ✅
 └── settings/
-    └── page.tsx                      ← A8: Admin Settings (⬜ next)
+    └── page.tsx                      ← A8: Admin Profile/Settings ✅
 ```
 
 ## Design System Applied
@@ -80,3 +80,44 @@ frontend/app/admin/
 - Rejection modal with optional reason textarea
 - Approved tab: searchable student table with View Profile + Suspend actions
 - State management for approve/reject
+
+### A5 — Product Management
+- Filter tabs: All / Pending Review / Active / Removed (with live counts)
+- Search input + product type dropdown filter
+- Table: Product icon + title, Seller, Type badge, Price (mono), Date, Status badge, Actions
+- Pending rows: Approve ✓ + Remove ✗ buttons
+- Active rows: Remove ✗ button only
+- Removed rows: ↩ Restore button
+- Remove confirmation modal (with cancel/confirm)
+- Restore confirmation modal
+- Pulsing dot on Pending count
+- Emerald Ledger status-coded color system
+
+### A6 — Advertisement Manager
+- Dual option cards: Own College (FREE, green) + Cross-College (₹500, gold)
+- Duration pill selectors (7/14/30 days) within each card
+- Create Ad Form: title, description (200-char counter), banner image upload zone, scope selector, duration dropdown
+- Publish button shows cost context (Pay ₹500 vs Publish Free)
+- Active Ads section: horizontal banner cards with gradient preview
+- Live badge with animated pulse dot
+- Stats: views + clicks + calculated CTR
+- End Ad modal with confirmation
+
+### A7 — College Revenue
+- Period filter: This Week / This Month (active) / This Year / Custom Range
+- 3 stat cards: Listing Fees (blue), Transaction Fees (green), Total Earned (gold glow)
+- SVG line chart: smooth green line with gradient fill, hover tooltip on data points
+- Revenue chart: 7-day weekly view with y-axis labels
+- Transactions table: Product, Buyer, Seller, Sale Price, Platform Cut (5%, green), Date
+- Export CSV button
+- Pagination controls
+
+### A8 — Admin Profile / Settings
+- Profile card: gradient initials avatar, name, role badge, email (mono), college name
+- Personal Info form: Full Name, Display Name, Phone — Save with success toast
+- College Details card: read-only rows with JetBrains Mono for college code
+- Security card: Current/New/Confirm Password with strength bar (Weak/Fair/Good/Strong)
+- 2FA toggle with label feedback
+- Active Sessions row with Revoke All action
+- Notification Preferences: 4 toggle rows for different alert types
+- Danger Zone: Deactivate Marketplace with red-border card + confirmation modal
