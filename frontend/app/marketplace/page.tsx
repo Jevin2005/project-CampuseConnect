@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell, Plus, Home, Package, MessageSquare, Heart, Settings, Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, Plus } from "lucide-react";
+import { StudentLayout } from "@/components/StudentLayout";
 
 /* ─── types ──────────────────────────────────────────────────────── */
 type ProductType = "physical" | "pdf" | "video" | "sponsored";
@@ -178,145 +179,9 @@ export default function MarketplacePage() {
   const filters = ["All", "Notes PDF", "Video Course", "Physical"];
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0A0E1A" }}>
+    <StudentLayout>
 
-      {/* ── LEFT SIDEBAR ── */}
-      <aside style={{
-        width: 220, flexShrink: 0,
-        background: "#0d1120",
-        borderRight: "1px solid #1e2d45",
-        display: "flex", flexDirection: "column",
-        position: "sticky", top: 0, height: "100vh",
-      }}>
-        {/* college badge */}
-        <div style={{ padding: "24px 20px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 10,
-              background: "rgba(79,142,247,0.15)",
-              border: "1px solid rgba(79,142,247,0.3)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18,
-            }}>🏫</div>
-            <div>
-              <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 700, color: "#F0F4FF" }}>MIT Academy</p>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#6B7280" }}>MARKETPLACE · ACTIVE</p>
-            </div>
-          </div>
-        </div>
 
-        <div style={{ height: 1, background: "#1e2d45", margin: "0 20px" }} />
-
-        {/* nav links */}
-        <nav style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-          {[
-            { icon: <Home size={16} />, label: "Home",        active: false, href: "/marketplace" },
-            { icon: <Package size={16} />, label: "My Listings", active: true,  href: "/marketplace/listings" },
-            { icon: <MessageSquare size={16} />, label: "Messages",   active: false, href: "/messages", dot: true },
-            { icon: <Heart size={16} />, label: "Watchlist",   active: false, href: "/watchlist" },
-            { icon: <Settings size={16} />, label: "Settings",    active: false, href: "/settings" },
-          ].map(item => (
-            <Link key={item.label} href={item.href} style={{ textDecoration: "none" }}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "10px 12px", borderRadius: 8,
-                background: item.active ? "rgba(79,142,247,0.12)" : "transparent",
-                color: item.active ? "#4F8EF7" : "#6B7280",
-                transition: "all 0.15s",
-                position: "relative",
-              }}>
-                {item.icon}
-                <span style={{
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: item.active ? 700 : 500,
-                }}>
-                  {item.label}
-                </span>
-                {item.dot && (
-                  <div style={{
-                    position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-                    width: 7, height: 7, borderRadius: "50%", background: "#EF4444",
-                  }} />
-                )}
-              </div>
-            </Link>
-          ))}
-        </nav>
-
-        {/* bottom — switch role */}
-        <div style={{ padding: 16 }}>
-          <button style={{
-            width: "100%", height: 38, borderRadius: 8,
-            background: "rgba(245,158,11,0.08)",
-            border: "1px solid rgba(245,158,11,0.25)",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700,
-            color: "#F7C948", cursor: "pointer",
-          }}>
-            SWITCH TO BUYER
-          </button>
-        </div>
-      </aside>
-
-      {/* ── MAIN CONTENT ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-
-        {/* top navbar */}
-        <header style={{
-          height: 60,
-          background: "#0d1120",
-          borderBottom: "1px solid #1e2d45",
-          display: "flex", alignItems: "center",
-          padding: "0 24px", gap: 24,
-          position: "sticky", top: 0, zIndex: 10,
-        }}>
-          <span style={{
-            fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280",
-          }}>MIT College of Engineering</span>
-
-          <div style={{ flex: 1 }} />
-
-          {/* nav tabs */}
-          <nav style={{ display: "flex", gap: 0 }}>
-            {["Marketplace", "Textbooks", "Services", "Housing"].map((t, i) => (
-              <Link key={t} href="#" style={{
-                fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: i === 0 ? 700 : 500,
-                color: i === 0 ? "#F0F4FF" : "#6B7280",
-                textDecoration: "none",
-                padding: "0 16px", height: 60, display: "flex", alignItems: "center",
-                borderBottom: i === 0 ? "2px solid #4F8EF7" : "2px solid transparent",
-              }}>{t}</Link>
-            ))}
-          </nav>
-
-          <div style={{ flex: 1 }} />
-
-          {/* right actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ position: "relative" }}>
-              <Bell size={18} style={{ color: "#6B7280" }} />
-              <div style={{
-                position: "absolute", top: -3, right: -3,
-                width: 7, height: 7, borderRadius: "50%", background: "#EF4444",
-              }} />
-            </div>
-            <div style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: "#4F8EF7",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 800, color: "#fff",
-            }}>RS</div>
-            <Link href="/marketplace/sell">
-              <button style={{
-                height: 34, borderRadius: 9999,
-                background: "#10B981", border: "none", cursor: "pointer",
-                padding: "0 16px",
-                fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, color: "#fff",
-                display: "flex", alignItems: "center", gap: 6,
-              }}>
-                <Plus size={14} /> Sell
-              </button>
-            </Link>
-          </div>
-        </header>
 
         <div style={{ padding: "24px 28px" }}>
 
@@ -433,7 +298,6 @@ export default function MarketplacePage() {
             ))}
           </div>
         </div>
-      </div>
-    </div>
+    </StudentLayout>
   );
 }
