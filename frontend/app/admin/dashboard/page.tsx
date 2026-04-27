@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 const STAT_CARDS = [
-  { icon: '👥', label: 'TOTAL STUDENTS', value: '247', sub: '+12 this month', color: '#10B981' },
-  { icon: '📦', label: 'ACTIVE PRODUCTS', value: '89', sub: '18 pending review', color: '#4F8EF7' },
-  { icon: '💰', label: 'REVENUE THIS MONTH', value: '₹9,670', sub: '+₹1,240 from fees', color: '#F7C948' },
-  { icon: '⏳', label: 'PENDING REQUESTS', value: '3', sub: 'Needs attention', color: '#F59E0B', pulse: true },
+  { icon: '👥', label: 'TOTAL STUDENTS', value: '247', sub: '+12 this month', color: '#10B981', href: '/admin/requests' },
+  { icon: '📦', label: 'ACTIVE PRODUCTS', value: '89', sub: '18 pending review', color: '#4F8EF7', href: '/admin/products' },
+  { icon: '💰', label: 'REVENUE THIS MONTH', value: '₹9,670', sub: '+₹1,240 from fees', color: '#F7C948', href: '/admin/revenue' },
+  { icon: '⏳', label: 'PENDING REQUESTS', value: '3', sub: 'Needs attention', color: '#F59E0B', pulse: true, href: '/admin/requests' },
 ];
 
 const PENDING_REQUESTS = [
@@ -27,7 +29,15 @@ const ACTIVITY = [
 ];
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  // Quick-action state for dashboard cards
+  const [reqStatuses, setReqStatuses] = useState<Record<string, 'approved' | 'rejected'>>({});
+  const [prodStatuses, setProdStatuses] = useState<Record<string, 'approved' | 'removed'>>({});
+
+  const handleLogout = () => router.push('/admin/login');
+  const pendingCount = PENDING_REQUESTS.filter(r => !reqStatuses[r.email]).length;
 
   return (
     <>
@@ -92,8 +102,11 @@ export default function AdminDashboardPage() {
           border-radius: 14px;
           padding: 22px;
           transition: border-color 0.2s, transform 0.2s;
+          text-decoration: none;
+          display: block;
+          cursor: pointer;
         }
-        .stat-card:hover { transform: translateY(-2px); }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
 
         .stat-card-icon { font-size: 28px; margin-bottom: 12px; display: block; }
         .stat-label {
@@ -279,7 +292,7 @@ export default function AdminDashboardPage() {
         {/* Stat Cards */}
         <div className="stat-grid">
           {STAT_CARDS.map((card) => (
-            <div key={card.label} className="stat-card" style={{ borderColor: `${card.color}22` }}>
+            <Link key={card.label} href={card.href} className="stat-card" style={{ borderColor: `${card.color}22` }}>
               <span className="stat-card-icon">{card.icon}</span>
               <div className="stat-label">{card.label}</div>
               <div className="stat-value" style={{ color: card.color }}>{card.value}</div>
@@ -287,7 +300,7 @@ export default function AdminDashboardPage() {
                 {card.pulse && <span className="pulse-dot" />}
                 {card.sub}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
@@ -310,8 +323,16 @@ export default function AdminDashboardPage() {
                   <div className="request-date">Requested: {req.date}</div>
                 </div>
                 <div className="request-actions">
-                  <button className="btn-approve">✅</button>
-                  <button className="btn-reject">❌</button>
+                  {!reqStatuses[req.email] ? (
+                    <>
+                      <button className="btn-approve" onClick={() => setReqStatuses(s => ({...s, [req.email]: 'approved'}))}>✅</button>
+                      <button className="btn-reject" onClick={() => setReqStatuses(s => ({...s, [req.email]: 'rejected'}))}>❌</button>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: reqStatuses[req.email] === 'approved' ? '#10B981' : '#EF4444' }}>
+                      {reqStatuses[req.email] === 'approved' ? '✅ Approved' : '❌ Rejected'}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -335,8 +356,16 @@ export default function AdminDashboardPage() {
                 <span className="product-price">{prod.price}</span>
                 <span className={`type-badge ${prod.type.toLowerCase()}`}>{prod.type}</span>
                 <div style={{ display: 'flex', gap: '6px', marginLeft: '8px' }}>
-                  <button className="btn-approve" style={{ fontSize: '11px' }}>Approve ✓</button>
-                  <button className="btn-reject" style={{ fontSize: '11px' }}>Remove ✗</button>
+                  {!prodStatuses[prod.name] ? (
+                    <>
+                      <button className="btn-approve" style={{ fontSize: '11px' }} onClick={() => setProdStatuses(s => ({...s, [prod.name]: 'approved'}))}>Approve ✓</button>
+                      <button className="btn-reject" style={{ fontSize: '11px' }} onClick={() => setProdStatuses(s => ({...s, [prod.name]: 'removed'}))}>Remove ✗</button>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: prodStatuses[prod.name] === 'approved' ? '#10B981' : '#EF4444' }}>
+                      {prodStatuses[prod.name] === 'approved' ? '✅ Approved' : '🗑 Removed'}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

@@ -24,6 +24,9 @@ export default function StudentRequestsPage() {
   const [search, setSearch] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [suspendModal, setSuspendModal] = useState<string | null>(null);
+  const [suspended, setSuspended] = useState<Set<string>>(new Set());
+  const [profileToast, setProfileToast] = useState<string | null>(null);
 
   const handleApprove = (email: string) => {
     setStatuses(prev => ({ ...prev, [email]: 'approved' }));
@@ -41,10 +44,23 @@ export default function StudentRequestsPage() {
     }
   };
 
+  const confirmSuspend = () => {
+    if (suspendModal) {
+      setSuspended(prev => new Set([...prev, suspendModal]));
+      setSuspendModal(null);
+    }
+  };
+
+  const showProfile = (name: string) => {
+    setProfileToast(name);
+    setTimeout(() => setProfileToast(null), 2500);
+  };
+
   const pendingCount = PENDING.filter(r => !statuses[r.email]).length;
   const filteredApproved = APPROVED.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase())
+    (s.name.toLowerCase().includes(search.toLowerCase()) ||
+    s.email.toLowerCase().includes(search.toLowerCase())) &&
+    !suspended.has(s.email)
   );
 
   return (
@@ -447,8 +463,15 @@ export default function StudentRequestsPage() {
                   <div className="table-date">{student.date}</div>
                   <div className="table-products">{student.products}</div>
                   <div className="table-actions">
-                    <button className="btn-view">View Profile</button>
-                    <button className="btn-suspend">Suspend</button>
+                    <button className="btn-view" onClick={() => showProfile(student.name)}>View Profile</button>
+                    <button
+                      className="btn-suspend"
+                      onClick={() => setSuspendModal(student.email)}
+                      disabled={suspended.has(student.email)}
+                      style={suspended.has(student.email) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                    >
+                      {suspended.has(student.email) ? 'Suspended' : 'Suspend'}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -474,6 +497,37 @@ export default function StudentRequestsPage() {
               <button className="btn-confirm-reject" onClick={confirmReject}>Confirm Rejection</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SUSPEND MODAL */}
+      {suspendModal && (
+        <div className="modal-overlay" onClick={() => setSuspendModal(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title" style={{ color: '#EF4444' }}>⚠️ Suspend Student?</h2>
+            <p className="modal-sub">
+              {APPROVED.find(s => s.email === suspendModal)?.name} will lose marketplace access immediately.
+              Their listings will be hidden until you unsuspend them.
+            </p>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setSuspendModal(null)}>Cancel</button>
+              <button className="btn-confirm-reject" onClick={confirmSuspend}>Confirm Suspend</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW PROFILE TOAST */}
+      {profileToast && (
+        <div style={{
+          position: 'fixed', top: '24px', right: '28px',
+          background: 'rgba(79,142,247,0.15)', border: '1px solid rgba(79,142,247,0.4)',
+          color: '#4F8EF7', padding: '12px 20px', borderRadius: '10px',
+          fontSize: '13px', fontWeight: 700, zIndex: 2000,
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          👤 Viewing profile: {profileToast}
+          <span style={{ marginLeft: '8px', fontSize: '11px', opacity: 0.7 }}>(Backend integration pending)</span>
         </div>
       )}
     </>

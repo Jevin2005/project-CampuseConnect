@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
 
 export default function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   // Auth pages (login, register) — render without sidebar
   const isAuthPage = pathname === '/admin/login' || pathname === '/admin/register';
@@ -197,7 +198,7 @@ export default function AdminLayoutClient({ children }: AdminLayoutClientProps) 
           </nav>
 
           <div className="sidebar-footer">
-            <button className="logout-btn" onClick={() => { /* TODO: logout */ }}>
+            <button className="logout-btn" onClick={() => router.push('/admin/login')}>
               <span>→</span>
               <span>Logout</span>
             </button>

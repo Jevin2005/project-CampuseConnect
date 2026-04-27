@@ -17,6 +17,21 @@ const TRANSACTIONS = [
   { product:'📕 Calculus Book', buyer:'Rahul S.', seller:'Vijay K.', price:'₹350', cut:'₹17.50', date:'Dec 15, 2024' },
 ];
 
+function downloadCSV() {
+  const headers = ['Product','Buyer','Seller','Sale Price','Platform Cut (5%)','Date'];
+  const rows = TRANSACTIONS.map(t => [
+    t.product.replace(/[^a-zA-Z0-9 ]/g, ''), t.buyer, t.seller, t.price, t.cut, t.date
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `MIT_College_Revenue_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function RevenueAdminPage() {
   const [period, setPeriod] = useState<Period>('month');
   const [tooltip, setTooltip] = useState<{day:string;v:number}|null>(null);
@@ -158,7 +173,7 @@ export default function RevenueAdminPage() {
         <div className="tx-card">
           <div className="tx-header">
             <div className="tx-title">Recent Transactions</div>
-            <button className="export-btn">↓ Export CSV</button>
+            <button className="export-btn" onClick={downloadCSV}>↓ Export CSV</button>
           </div>
           <div className="th">
             <div>Product</div><div>Buyer</div><div>Seller</div>
@@ -177,11 +192,11 @@ export default function RevenueAdminPage() {
           <div className="pag">
             <button className="pag-btn">← Prev</button>
             <span className="pag-num">1</span>
-            <span className="pag-other">2</span>
-            <span className="pag-other">3</span>
+            <span className="pag-other" style={{cursor:'pointer'}}>2</span>
+            <span className="pag-other" style={{cursor:'pointer'}}>3</span>
             <button className="pag-btn">Next →</button>
           </div>
-        </div>
+      </div>
       </div>
     </>
   );
