@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import api from "@/lib/axios";
+import { useAuthStore } from "@/store/authStore";
 import {
   ShoppingBag, Package, User, LayoutDashboard,
   Bell, ShoppingCart, Search, ChevronDown, LogOut, HelpCircle, Plus,
@@ -24,6 +26,18 @@ const TOP_TABS = [
 
 export function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (e) {
+      console.error('Logout failed', e);
+    }
+    clearAuth();
+    router.push('/login');
+  };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0A0E1A", fontFamily: "'DM Sans', sans-serif" }}>
@@ -118,7 +132,9 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
             <HelpCircle size={15} />
             <span style={{ fontSize: 13 }}>Support</span>
           </div>
-          <div style={{
+          <div 
+            onClick={handleLogout}
+            style={{
             display: "flex", alignItems: "center", gap: 10,
             padding: "8px 12px", borderRadius: 8, cursor: "pointer", color: "#EF4444",
             transition: "color 0.15s",
@@ -253,12 +269,11 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div style={{ display: "flex", gap: 20 }}>
-            {["Privacy", "Terms", "Support", "Contact"].map(l => (
-              <Link key={l} href="#" style={{
-                fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151",
-                textDecoration: "none", transition: "color 0.15s",
-              }}>{l}</Link>
-            ))}
+            <Link href="/privacy" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151", textDecoration: "none", transition: "color 0.15s" }}>Privacy</Link>
+            <Link href="/terms" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151", textDecoration: "none", transition: "color 0.15s" }}>Terms</Link>
+            <Link href="/support" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151", textDecoration: "none", transition: "color 0.15s" }}>Support</Link>
+            <Link href="/contact" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151", textDecoration: "none", transition: "color 0.15s" }}>Contact</Link>
+            <Link href="/master/login" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#F7C948", textDecoration: "none", transition: "color 0.15s", opacity: 0.8 }}>Master Admin</Link>
           </div>
         </footer>
       </div>

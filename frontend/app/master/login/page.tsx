@@ -2,24 +2,43 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/axios';
+import { useAuthStore } from '@/store/authStore';
 
 export default function MasterLoginPage() {
   const router = useRouter();
+  const { setAuth } = useAuthStore();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const { data } = await api.post<{
+        accessToken: string;
+        master: { id: string; name: string; email: string };
+      }>('/api/auth/master/login', { email: email.trim(), password });
+
+      setAuth(data.accessToken, {
+        id: data.master.id,
+        email: data.master.email,
+        name: data.master.name,
+      }, 'MASTER_ADMIN');
+
       router.push('/master/dashboard');
-    }, 1200);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Invalid credentials. Please try again.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

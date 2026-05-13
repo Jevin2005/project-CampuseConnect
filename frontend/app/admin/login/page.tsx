@@ -3,23 +3,52 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/axios';
+import { useAuthStore } from '@/store/authStore';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { setAuth } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: '', collegeCode: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isPending, setIsPending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsPending(false);
     setLoading(true);
-    // TODO: Connect to /api/auth/admin/login
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const { data } = await api.post<{
+        accessToken: string;
+        admin: { id: string; name: string; email: string; collegeId: string; collegeName: string };
+      }>('/api/auth/admin/login', {
+        email: form.email.trim(),
+        collegeCode: form.collegeCode.trim(),
+        password: form.password,
+      });
+
+      setAuth(data.accessToken, {
+        id: data.admin.id,
+        email: data.admin.email,
+        name: data.admin.name,
+        collegeId: data.admin.collegeId,
+        collegeName: data.admin.collegeName,
+      }, 'COLLEGE_ADMIN', data.admin.collegeId);
+
       router.push('/admin/dashboard');
-    }, 1200);
+    } catch (err: unknown) {
+      const resp = (err as { response?: { status?: number; data?: { message?: string } } })?.response;
+      if (resp?.status === 403) {
+        setIsPending(true);
+      } else {
+        setError(resp?.data?.message ?? 'Invalid credentials. Please check your email, college code, and password.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -456,6 +485,19 @@ export default function AdminLoginPage() {
           <h2 className="form-heading">Welcome back 👋</h2>
           <p className="form-sub">Sign in to your admin dashboard</p>
 
+          {isPending && (
+            <div style={{
+              background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.3)',
+              borderRadius: 10, padding: '12px 14px',
+              fontSize: 13, color: '#F59E0B',
+              marginBottom: 16,
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+            }}>
+              <span>⏳</span>
+              <span>Your registration is under review by our team. You'll receive an email once approved (24–48 hours).</span>
+            </div>
+          )}
           {error && (
             <div className="error-box">⚠️ {error}</div>
           )}

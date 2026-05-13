@@ -1,7 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckCircle, Loader2, Circle, AlertTriangle, Info, ArrowLeft, Home } from "lucide-react";
+import api from "@/lib/axios";
+import { useAuthStore } from "@/store/authStore";
 
 /* ─── progress step data ──────────────────────────────────────── */
 const STEPS = [
@@ -40,6 +44,44 @@ const WHAT_NEXT = [
 
 /* ═══ PAGE ════════════════════════════════════════════════════════ */
 export default function PendingApprovalPage() {
+  const router = useRouter();
+  const { pendingEmail, setAuth } = useAuthStore();
+  const [approvedToast, setApprovedToast] = useState(false);
+
+  /**
+   * Poll GET /api/auth/student/approval-status every 30 seconds.
+   * Spec: authentication.md § S3 — "Poll GET … every 30 seconds"
+   */
+  useEffect(() => {
+    if (!pendingEmail) return;
+
+    const checkApproval = async () => {
+      try {
+        const { data } = await api.get<{
+          status: "PENDING" | "APPROVED";
+          accessToken?: string;
+          user?: import("@/store/authStore").AuthUser;
+        }>("/api/auth/student/approval-status", {
+          params: { email: pendingEmail },
+        });
+
+        if (data.status === "APPROVED" && data.accessToken && data.user) {
+          setAuth(data.accessToken, data.user, "STUDENT", data.user.collegeId);
+          setApprovedToast(true);
+          setTimeout(() => router.push("/marketplace"), 1800);
+        }
+      } catch {
+        // silently ignore poll errors; keep polling
+      }
+    };
+
+    // Initial check + 30s interval
+    checkApproval();
+    const interval = setInterval(checkApproval, 30_000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingEmail]);
+
   return (
     <div style={{
       minHeight: "100vh", background: "#0A0E1A",
@@ -107,8 +149,31 @@ export default function PendingApprovalPage() {
           color: "#9CA3AF", marginBottom: 48, textAlign: "center",
           lineHeight: 1.6,
         }}>
-          Your request has been submitted to <strong style={{ color: "#F0F4FF" }}>MIT College</strong> admin.
+          {pendingEmail ? (
+            <>
+              We sent an OTP to{" "}
+              <strong style={{ color: "#F0F4FF" }}>{pendingEmail}</strong>.
+              <br />Your request is under review by your college admin.
+            </>
+          ) : (
+            "Your request has been submitted to your college admin."
+          )}
         </p>
+
+        {/* approved toast */}
+        {approvedToast && (
+          <div style={{
+            position: "fixed", top: 24, left: "50%", transform: "translateX(-50%)",
+            background: "#10B981", color: "#fff",
+            fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700,
+            padding: "12px 28px", borderRadius: 9999,
+            boxShadow: "0 4px 24px rgba(16,185,129,0.4)",
+            zIndex: 9999,
+            animation: "fade-in 0.3s ease",
+          }}>
+            ✅ Approved! Redirecting to marketplace…
+          </div>
+        )}
 
         {/* vertical stepper */}
         <div style={{ width: "100%", marginBottom: 40 }}>
@@ -302,6 +367,10 @@ export default function PendingApprovalPage() {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
       `}</style>
     </div>

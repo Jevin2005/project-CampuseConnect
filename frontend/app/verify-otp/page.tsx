@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowLeft, RefreshCw, Clock } from "lucide-react";
+import api from "@/lib/axios";
+import { useAuthStore } from "@/store/authStore";
 
 /* ─── left decorative panel (shared) ───────────────────────────── */
 function AuthLeftPanel() {
@@ -135,15 +137,17 @@ function useTimer(initial: number) {
 /* ═══ S2 CONTENT ══════════════════════════════════════════════════ */
 function OtpContent() {
   const rtr = useRouter();
-  const params = useSearchParams();
-  const email = params.get("email") || "your.name@college.edu";
+  const { pendingEmail, maskedEmail, setPendingEmail, setAuth } = useAuthStore();
+
+  // Fall back gracefully if store is empty (e.g. hard refresh to /verify-otp)
+  const displayEmail = maskedEmail ?? pendingEmail ?? "your.name@college.edu";
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [focusIdx, setFocusIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const refs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
-  const timer = useTimer(5 * 60);
+  const timer = useTimer(5 * 60); // 5 min per spec (S2 shows 4:00 min countdown)
 
   const setValue = (idx: number, val: string) => {
     const next = [...otp];
@@ -179,9 +183,49 @@ function OtpContent() {
     if (!filled) return;
     setLoading(true);
     setError("");
-    await new Promise(r => setTimeout(r, 900));
-    // For demo: any 6-digit OTP proceeds
-    rtr.push("/pending-approval");
+    try {
+      const { data } = await api.post<{
+        status: "PENDING" | "APPROVED";
+        accessToken?: string;
+        user?: import("@/store/authStore").AuthUser;
+      }>("/api/auth/student/verify-otp", {
+        email: pendingEmail,
+        otp: otp.join(""),
+      });
+
+      if (data.status === "PENDING") {
+        rtr.push("/pending-approval");
+      } else if (data.status === "APPROVED" && data.accessToken && data.user) {
+        setAuth(data.accessToken, data.user, "STUDENT", data.user.collegeId);
+        rtr.push("/marketplace");
+      }
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Invalid or expired OTP. Please try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!pendingEmail) return;
+    try {
+      const { data } = await api.post<{ message: string; maskedEmail: string }>(
+        "/api/auth/student/send-otp",
+        { email: pendingEmail }
+      );
+      setPendingEmail(pendingEmail, data.maskedEmail);
+      timer.reset();
+      setOtp(["", "", "", "", "", ""]);
+      setError("");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to resend OTP.";
+      setError(msg);
+    }
   };
 
   return (
@@ -228,7 +272,7 @@ function OtpContent() {
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 14, fontWeight: 600, color: "#4F8EF7",
         }}>
-          {email}
+          {displayEmail}
         </span>
       </div>
 
@@ -276,7 +320,7 @@ function OtpContent() {
         <button
           type="button"
           disabled={!timer.expired}
-          onClick={() => { timer.reset(); setOtp(["","","","","",""]); setError(""); }}
+          onClick={handleResend}
           style={{
             display: "flex", alignItems: "center", gap: 6,
             background: "transparent", border: "none",

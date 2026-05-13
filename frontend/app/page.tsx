@@ -270,7 +270,7 @@ export default function LandingPage() {
           animation: "fadeInUp 0.55s ease 0.28s both",
         }}>
           <Link
-            href="/login"
+            href="/marketplace"
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               background: "#4F8EF7", color: "#fff",
@@ -533,7 +533,7 @@ export default function LandingPage() {
               borderGradient="linear-gradient(135deg, rgba(79,142,247,0.55), rgba(79,142,247,0.04))"
               accentGlow="rgba(79,142,247,0.12)"
               visible={ptVis} delay={0}
-              href="/login"
+              href="/marketplace"
             />
             {/* Digital */}
             <ProductTypeCard
@@ -547,7 +547,7 @@ export default function LandingPage() {
               borderGradient="linear-gradient(135deg, rgba(124,58,237,0.55), rgba(124,58,237,0.04))"
               accentGlow="rgba(124,58,237,0.12)"
               visible={ptVis} delay={0.15}
-              href="/login"
+              href="/marketplace"
             />
           </div>
         </div>

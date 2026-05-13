@@ -1,37 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-
-const PENDING = [
-  {
-    id: 1,
-    name: 'XYZ Engineering Institute',
-    admin: 'Rajesh Kumar',
-    email: 'admin@xyz.edu.in',
-    city: 'Pune',
-    type: 'Engineering',
-    domain: '@xyz.edu.in',
-    code: 'XYZ-2024',
-    submitted: '2 days ago',
-  },
-  {
-    id: 2,
-    name: 'City Arts College',
-    admin: 'Priya Singh',
-    email: 'admin@cityarts.edu',
-    city: 'Mumbai',
-    type: 'Arts',
-    domain: '@cityarts.edu',
-    code: 'CAC-24',
-    submitted: '5 days ago',
-  },
-];
-
-const ACTIVE = [
-  { name: 'MIT Campus',      city: 'Pune',   code: 'MIT-23', students: 920,  products: 1740, revenue: '₹9,670',  joined: 'Jan 2024' },
-  { name: 'ABC Engineering', city: 'Mumbai', code: 'ABC-22', students: 550,  products: 1100, revenue: '₹6,010',  joined: 'Mar 2023' },
-];
+import { useState, useEffect } from 'react';
+import { useAuthStore } from '../../../store/authStore';
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
@@ -74,11 +44,58 @@ const S = `
 `;
 
 export default function CollegeRequestsPage() {
-  const [approved, setApproved] = useState<number[]>([]);
-  const [rejected, setRejected] = useState<number[]>([]);
-  const [modal, setModal]       = useState<string | null>(null);
+  const [pending, setPending] = useState<any[]>([]);
+  const [active, setActive] = useState<any[]>([]);
+  const [modal, setModal] = useState<string | null>(null);
+  const { accessToken } = useAuthStore();
 
-  const pending = PENDING.filter(p => !approved.includes(p.id) && !rejected.includes(p.id));
+  const fetchColleges = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/master/colleges', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPending(data.pending);
+        setActive(data.active);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (accessToken) fetchColleges();
+  }, [accessToken]);
+
+  const handleApprove = async (id: string, name: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/master/colleges/${id}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (res.ok) {
+        setModal(name);
+        fetchColleges(); // refresh
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/master/colleges/${id}/reject`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (res.ok) {
+        fetchColleges(); // refresh
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <>
@@ -112,10 +129,10 @@ export default function CollegeRequestsPage() {
                   <span className="pill" key={t}>{t}</span>
                 ))}
               </div>
-              <div className="req-date">Submitted: {r.submitted}</div>
+              <div className="req-date">Submitted: {new Date(r.submitted).toLocaleDateString()}</div>
               <div className="req-actions">
-                <button className="btn-reject" onClick={() => setRejected(v => [...v, r.id])}>❌ Reject Request</button>
-                <button className="btn-approve" onClick={() => { setApproved(v => [...v, r.id]); setModal(r.name); }}>
+                <button className="btn-reject" onClick={() => handleReject(r.id)}>❌ Reject Request</button>
+                <button className="btn-approve" onClick={() => handleApprove(r.id, r.name)}>
                   ✅ Approve &amp; Create Marketplace
                 </button>
               </div>
@@ -126,7 +143,7 @@ export default function CollegeRequestsPage() {
         {/* Active Colleges table */}
         <div className="section-header" style={{ marginTop: 32 }}>
           <span className="m3-section-title" style={{ margin: 0 }}>Active Colleges</span>
-          <span className="count-badge">{ACTIVE.length} Active</span>
+          <span className="count-badge">{active.length} Active</span>
         </div>
 
         <div className="table-card">
@@ -139,16 +156,16 @@ export default function CollegeRequestsPage() {
               </tr>
             </thead>
             <tbody>
-              {ACTIVE.map(a => (
-                <tr key={a.code}>
+              {active.map(a => (
+                <tr key={a.id}>
                   <td style={{ color: '#F0F4FF', fontWeight: 600 }}>{a.name}</td>
                   <td>{a.city}</td>
                   <td style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{a.code}</td>
-                  <td style={{ color: '#4F8EF7' }}>{a.students.toLocaleString()}</td>
-                  <td style={{ color: '#10B981' }}>{a.products.toLocaleString()}</td>
+                  <td style={{ color: '#4F8EF7' }}>{a.students?.toLocaleString()}</td>
+                  <td style={{ color: '#10B981' }}>{a.products?.toLocaleString()}</td>
                   <td style={{ color: '#F7C948', fontWeight: 700 }}>{a.revenue}</td>
                   <td><span className="badge-active">✅ Active</span></td>
-                  <td>{a.joined}</td>
+                  <td>{new Date(a.joined).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -173,3 +190,4 @@ export default function CollegeRequestsPage() {
     </>
   );
 }
+

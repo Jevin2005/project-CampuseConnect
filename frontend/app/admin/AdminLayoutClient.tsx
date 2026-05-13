@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import api from '@/lib/axios';
+import { useAuthStore } from '@/store/authStore';
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
@@ -19,6 +21,17 @@ const NAV_ITEMS = [
 export default function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (e) {
+      console.error('Logout failed', e);
+    }
+    clearAuth();
+    router.push('/admin/login');
+  };
 
   // Auth pages (login, register) — render without sidebar
   const isAuthPage = pathname === '/admin/login' || pathname === '/admin/register';
@@ -198,7 +211,7 @@ export default function AdminLayoutClient({ children }: AdminLayoutClientProps) 
           </nav>
 
           <div className="sidebar-footer">
-            <button className="logout-btn" onClick={() => router.push('/admin/login')}>
+            <button className="logout-btn" onClick={handleLogout}>
               <span>→</span>
               <span>Logout</span>
             </button>

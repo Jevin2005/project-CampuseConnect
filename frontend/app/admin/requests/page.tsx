@@ -1,53 +1,100 @@
 'use client';
 
-import { useState } from 'react';
-
-const PENDING = [
-  { initials: 'AM', name: 'Arjun Mehta', email: 'arjun.mehta@mit.edu', date: 'Dec 24, 2024', domain: '@mit.edu', match: true },
-  { initials: 'PS', name: 'Priya Sharma', email: 'priya.s@mit.edu', date: 'Dec 23, 2024', domain: '@mit.edu', match: true },
-  { initials: 'RK', name: 'Rahul Kumar', email: 'rahul.k@mit.edu', date: 'Dec 22, 2024', domain: '@mit.edu', match: true },
-];
-
-const APPROVED = [
-  { initials: 'PP', name: 'Priya Patel', email: 'priya.p@mit.edu', date: 'Dec 20, 2024', products: 5, color: '#10B981' },
-  { initials: 'RS', name: 'Rahul Singh', email: 'rahul.s@mit.edu', date: 'Dec 18, 2024', products: 3, color: '#4F8EF7' },
-  { initials: 'SM', name: 'Sneha Mehta', email: 'sneha.m@mit.edu', date: 'Dec 15, 2024', products: 8, color: '#7C3AED' },
-  { initials: 'VK', name: 'Vijay Kumar', email: 'vijay.k@mit.edu', date: 'Dec 10, 2024', products: 2, color: '#F59E0B' },
-  { initials: 'AN', name: 'Anjali Nair', email: 'anjali.n@mit.edu', date: 'Dec 8, 2024', products: 6, color: '#10B981' },
-];
+import { useState, useEffect } from 'react';
+import { useAuthStore } from '../../../store/authStore';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
 export default function StudentRequestsPage() {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
-  const [statuses, setStatuses] = useState<Record<string, RequestStatus>>({});
+  const [pending, setPending] = useState<any[]>([]);
+  const [approved, setApproved] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [suspendModal, setSuspendModal] = useState<string | null>(null);
-  const [suspended, setSuspended] = useState<Set<string>>(new Set());
   const [profileToast, setProfileToast] = useState<string | null>(null);
+  const { accessToken } = useAuthStore();
 
-  const handleApprove = (email: string) => {
-    setStatuses(prev => ({ ...prev, [email]: 'approved' }));
+  const fetchStudents = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/students', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPending(data.pending);
+        setApproved(data.approved);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (accessToken) fetchStudents();
+  }, [accessToken]);
+
+  const handleApprove = async (email: string) => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/students/approve', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}` 
+        },
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) fetchStudents();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleReject = (email: string) => {
     setShowRejectModal(email);
   };
 
-  const confirmReject = () => {
+  const confirmReject = async () => {
     if (showRejectModal) {
-      setStatuses(prev => ({ ...prev, [showRejectModal]: 'rejected' }));
-      setShowRejectModal(null);
-      setRejectReason('');
+      try {
+        const res = await fetch('http://localhost:5000/api/admin/students/reject', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}` 
+          },
+          body: JSON.stringify({ email: showRejectModal, reason: rejectReason })
+        });
+        if (res.ok) {
+          setShowRejectModal(null);
+          setRejectReason('');
+          fetchStudents();
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
-  const confirmSuspend = () => {
+  const confirmSuspend = async () => {
     if (suspendModal) {
-      setSuspended(prev => new Set([...prev, suspendModal]));
-      setSuspendModal(null);
+      try {
+        const res = await fetch('http://localhost:5000/api/admin/students/suspend', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}` 
+          },
+          body: JSON.stringify({ email: suspendModal })
+        });
+        if (res.ok) {
+          setSuspendModal(null);
+          fetchStudents();
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -56,11 +103,10 @@ export default function StudentRequestsPage() {
     setTimeout(() => setProfileToast(null), 2500);
   };
 
-  const pendingCount = PENDING.filter(r => !statuses[r.email]).length;
-  const filteredApproved = APPROVED.filter(s =>
+  const pendingCount = pending.length;
+  const filteredApproved = approved.filter(s =>
     (s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase())) &&
-    !suspended.has(s.email)
+    s.email.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -367,10 +413,9 @@ export default function StudentRequestsPage() {
         {/* PENDING TAB */}
         {activeTab === 'pending' && (
           <div className="request-cards">
-            {PENDING.map((req) => {
-              const status = statuses[req.email];
+            {pending.map((req) => {
               return (
-                <div key={req.email} className={`request-card ${status || ''}`}>
+                <div key={req.email} className={`request-card`}>
                   <div className="req-left">
                     <div className="req-avatar">{req.initials}</div>
                   </div>
@@ -387,16 +432,19 @@ export default function StudentRequestsPage() {
                     </div>
                     <div className="req-detail-row">
                       <span className="req-detail-label">Request Date:</span>
-                      <span className="req-detail-value">{req.date}</span>
+                      <span className="req-detail-value">{new Date(req.date).toLocaleDateString()}</span>
                     </div>
                     <div className="req-detail-row">
                       <span className="req-detail-label">Email Domain:</span>
-                      <span className="domain-badge">✓ Matches college domain</span>
+                      {req.match ? (
+                        <span className="domain-badge">✓ Matches college domain</span>
+                      ) : (
+                        <span className="domain-badge" style={{ background: 'rgba(245,158,11,0.1)', color: '#F59E0B', borderColor: 'rgba(245,158,11,0.2)' }}>⚠️ Domain mismatch</span>
+                      )}
                     </div>
                   </div>
 
                   <div className="req-actions">
-                    {!status ? (
                       <>
                         <button className="btn-approve-lg" onClick={() => handleApprove(req.email)}>
                           ✅ Approve
@@ -405,11 +453,6 @@ export default function StudentRequestsPage() {
                           ❌ Reject
                         </button>
                       </>
-                    ) : (
-                      <div className={`status-pill ${status}`}>
-                        {status === 'approved' ? '✅ Approved' : '❌ Rejected'}
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -467,10 +510,8 @@ export default function StudentRequestsPage() {
                     <button
                       className="btn-suspend"
                       onClick={() => setSuspendModal(student.email)}
-                      disabled={suspended.has(student.email)}
-                      style={suspended.has(student.email) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                     >
-                      {suspended.has(student.email) ? 'Suspended' : 'Suspend'}
+                      Suspend
                     </button>
                   </div>
                 </div>
@@ -506,7 +547,7 @@ export default function StudentRequestsPage() {
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <h2 className="modal-title" style={{ color: '#EF4444' }}>⚠️ Suspend Student?</h2>
             <p className="modal-sub">
-              {APPROVED.find(s => s.email === suspendModal)?.name} will lose marketplace access immediately.
+              {approved.find(s => s.email === suspendModal)?.name} will lose marketplace access immediately.
               Their listings will be hidden until you unsuspend them.
             </p>
             <div className="modal-actions">

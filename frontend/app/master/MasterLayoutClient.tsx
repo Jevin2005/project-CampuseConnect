@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import api from '@/lib/axios';
+import { useAuthStore } from '@/store/authStore';
 
 const NAV_ITEMS = [
   { href: '/master/dashboard', icon: '👑', label: 'Dashboard' },
@@ -15,6 +17,17 @@ const NAV_ITEMS = [
 export default function MasterLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (e) {
+      console.error('Logout failed', e);
+    }
+    clearAuth();
+    router.push('/master/login');
+  };
 
   const isAuthPage = pathname === '/master/login';
   if (isAuthPage) {
@@ -162,7 +175,7 @@ export default function MasterLayoutClient({ children }: { children: React.React
               <div className="admin-card-name">Platform Team</div>
               <div className="admin-card-email">master@campusconnect.in</div>
             </div>
-            <button className="logout-btn" onClick={() => router.push('/master/login')}>
+            <button className="logout-btn" onClick={handleLogout}>
               <span>→</span>
               <span>Logout</span>
             </button>

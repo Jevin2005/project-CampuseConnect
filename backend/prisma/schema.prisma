@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MasterAdmin {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  password     String
+  name         String
+  tokenVersion Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model College {
+  id          String    @id @default(cuid())
+  name        String
+  code        String    @unique
+  emailDomain String
+  city        String?
+  type        String?
+  isApproved  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  admins      Admin[]
+  products    Product[]
+  students    Student[]
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  password     String
+  isApproved   Boolean  @default(false)
+  tokenVersion Int      @default(0)
+  collegeId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  college      College  @relation(fields: [collegeId], references: [id])
+}
+
+model Student {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  isApproved   Boolean   @default(false)
+  tokenVersion Int       @default(0)
+  collegeId    String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  password     String?
+  enrollmentId String?
+  phone        String?
+  purchases    Order[]   @relation("BuyerOrders")
+  sales        Order[]   @relation("SellerOrders")
+  products     Product[]
+  college      College   @relation(fields: [collegeId], references: [id])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  price       Float
+  imageUrl    String?
+  category    String?
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sellerId    String
+  collegeId   String
+  orders      Order[]
+  college     College  @relation(fields: [collegeId], references: [id])
+  seller      Student  @relation(fields: [sellerId], references: [id])
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  amount    Float
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  buyerId   String
+  sellerId  String
+  productId String
+  buyer     Student  @relation("BuyerOrders", fields: [buyerId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  seller    Student  @relation("SellerOrders", fields: [sellerId], references: [id])
+}
+
+model AuditLog {
+  id          String       @id @default(cuid())
+  action      String
+  ipAddress   String?
+  userAgent   String?
+  adminId     String?
+  createdAt   DateTime     @default(now())
+  masterAdmin MasterAdmin? @relation(fields: [adminId], references: [id])
+}

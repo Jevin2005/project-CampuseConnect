@@ -120,20 +120,10 @@ export default function Footer() {
             © 2024 CampusConnect. Built for students, by students.
           </p>
           <div style={{ display: "flex", gap: 20 }}>
-            {["Terms", "Privacy", "Security"].map(item => (
-              <Link
-                key={item} href="#"
-                style={{
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 12,
-                  color: "#6B7280", textDecoration: "none",
-                  transition: "color 0.2s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = "#9CA3AF")}
-                onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}
-              >
-                {item}
-              </Link>
-            ))}
+            <Link href="/terms" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", textDecoration: "none", transition: "color 0.2s" }} onMouseEnter={e => (e.currentTarget.style.color = "#9CA3AF")} onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}>Terms</Link>
+            <Link href="/privacy" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", textDecoration: "none", transition: "color 0.2s" }} onMouseEnter={e => (e.currentTarget.style.color = "#9CA3AF")} onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}>Privacy</Link>
+            <Link href="/security" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", textDecoration: "none", transition: "color 0.2s" }} onMouseEnter={e => (e.currentTarget.style.color = "#9CA3AF")} onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}>Security</Link>
+            <Link href="/master/login" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F7C948", textDecoration: "none", transition: "color 0.2s", opacity: 0.8 }} onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.8")}>Master Admin</Link>
           </div>
         </div>
       </div>

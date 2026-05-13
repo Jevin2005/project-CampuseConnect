@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/axios';
 
 const COLLEGE_TYPES = ['Engineering', 'Medical', 'Arts', 'Commerce', 'Science', 'Management', 'Law'];
 
@@ -10,6 +11,10 @@ export default function AdminRegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [codeAvailable, setCodeAvailable] = useState<boolean | null>(null);
+  const [checkingCode, setCheckingCode] = useState(false);
 
   const [step1, setStep1] = useState({
     collegeName: '',
@@ -39,16 +44,53 @@ export default function AdminRegisterPage() {
 
   const strength = passwordStrength(step2.password);
 
+  // Check college code uniqueness on blur
+  const handleCodeBlur = async () => {
+    if (!step1.collegeCode.trim()) return;
+    setCheckingCode(true);
+    try {
+      const { data } = await api.get<{ available: boolean }>('/api/auth/admin/check-code', {
+        params: { code: step1.collegeCode.toUpperCase() },
+      });
+      setCodeAvailable(data.available);
+    } catch {
+      setCodeAvailable(null);
+    } finally {
+      setCheckingCode(false);
+    }
+  };
+
   const handleStep1Submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (codeAvailable === false) return;
     setStep(2);
   };
 
   const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (step2.password !== step2.confirmPassword) return;
+    setSubmitError('');
     setLoading(true);
-    // TODO: Connect to /api/auth/admin/register
-    setTimeout(() => router.push('/admin/login'), 1500);
+    try {
+      await api.post('/api/auth/admin/register', {
+        collegeName: step1.collegeName,
+        city: step1.city,
+        emailDomain: step1.emailDomain,
+        collegeCode: step1.collegeCode,
+        collegeType: step1.collegeType,
+        adminName: step2.adminName,
+        adminEmail: step2.adminEmail,
+        password: step2.password,
+      });
+      setSubmitted(true);
+      setTimeout(() => router.push('/admin/login'), 3000);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Registration failed. Please try again.';
+      setSubmitError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -287,8 +329,20 @@ export default function AdminRegisterPage() {
           </div>
         </div>
 
+        {/* SUCCESS STATE */}
+        {submitted && (
+          <div className="form-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+            <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 24, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>Registration Submitted!</h2>
+            <p style={{ color: '#9CA3AF', fontSize: 14, lineHeight: 1.6 }}>
+              Your college registration is under review. You will hear back within <strong style={{ color: '#F0F4FF' }}>24–48 hours</strong>.
+              <br />Redirecting to login…
+            </p>
+          </div>
+        )}
+
         {/* STEP 1 */}
-        {step === 1 && (
+        {!submitted && step === 1 && (
           <div className="form-card">
             <h2 className="card-title">College Information</h2>
             <form onSubmit={handleStep1Submit}>
@@ -312,28 +366,37 @@ export default function AdminRegisterPage() {
                   </select>
                 </div>
                 <div className="form-group full">
-                  <label className="form-label" htmlFor="email-domain">College Email Domain</label>
-                  <input id="email-domain" type="text" className="form-input" placeholder="mit.edu"
+                  <label className="form-label" htmlFor="email-domain">Student Email Domain <span style={{color:'#6B7280',fontSize:10,fontWeight:500,textTransform:'none',letterSpacing:0}}>(for student verification)</span></label>
+                  <input id="email-domain" type="text" className="form-input" placeholder="college.edu"
                     value={step1.emailDomain} onChange={e => setStep1({...step1, emailDomain: e.target.value})} required />
-                  <p className="helper-text">Students must register using this domain (e.g. 12345@mit.edu)</p>
+                  <p className="helper-text">Optional domain used to identify your college's student emails (e.g. @ssit.edu). Students can use any email but this helps associate them.</p>
                 </div>
                 <div className="form-group full">
-                  <label className="form-label" htmlFor="college-code">Unique College Code</label>
-                  <input id="college-code" type="text" className="form-input mono" placeholder="MIT2024"
+                  <label className="form-label" htmlFor="college-code">
+                    Unique College Code
+                    <span style={{marginLeft:8,display:'inline-flex',alignItems:'center',background:'rgba(247,201,72,0.12)',color:'#F7C948',borderRadius:9999,padding:'2px 8px',fontSize:10,fontWeight:700,letterSpacing:'0.5px'}}>VERY IMPORTANT</span>
+                  </label>
+                  <input id="college-code" type="text" className="form-input mono" placeholder="SSVEC2024"
                     value={step1.collegeCode}
-                    onChange={e => setStep1({...step1, collegeCode: e.target.value.toUpperCase()})} required />
-                  <p className="helper-text">Students and admins use this code. Cannot be changed later.</p>
+                    onChange={e => { setStep1({...step1, collegeCode: e.target.value.toUpperCase()}); setCodeAvailable(null); }}
+                    onBlur={handleCodeBlur}
+                    required />
+                  {checkingCode && <p className="helper-text">Checking availability…</p>}
+                  {!checkingCode && codeAvailable === true && <p className="helper-text" style={{ color: '#10B981' }}>✓ Code is available</p>}
+                  {!checkingCode && codeAvailable === false && <p className="helper-text" style={{ color: '#EF4444' }}>✗ Code already taken. Choose a different code.</p>}
+                  {!checkingCode && codeAvailable === null && step1.collegeCode && <p className="helper-text">This code creates your college's marketplace. Students use it to join. Cannot be changed later.</p>}
+                  {!step1.collegeCode && <p className="helper-text">This code creates your college's marketplace. Students use it to join. Cannot be changed later.</p>}
                 </div>
               </div>
               <div className="action-row">
-                <button type="submit" className="btn-primary">Next: Admin Account →</button>
+                <button type="submit" className="btn-primary" disabled={codeAvailable === false}>Next: Admin Account →</button>
               </div>
             </form>
           </div>
         )}
 
         {/* STEP 2 */}
-        {step === 2 && (
+        {!submitted && step === 2 && (
           <div className="form-card">
             <h2 className="card-title">Admin Account Details</h2>
             <form onSubmit={handleStep2Submit}>
@@ -344,9 +407,10 @@ export default function AdminRegisterPage() {
                     value={step2.adminName} onChange={e => setStep2({...step2, adminName: e.target.value})} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="admin-email">Admin Official Email</label>
-                  <input id="admin-email" type="email" className="form-input" placeholder={`admin@${step1.emailDomain || 'college.edu'}`}
+                  <label className="form-label" htmlFor="admin-email">Your Personal Email</label>
+                  <input id="admin-email" type="email" className="form-input" placeholder="any.valid@gmail.com"
                     value={step2.adminEmail} onChange={e => setStep2({...step2, adminEmail: e.target.value})} required />
+                  <p className="helper-text">Use any valid personal or professional email — no restriction</p>
                 </div>
                 <div className="form-group full">
                   <label className="form-label" htmlFor="reg-password">Password</label>
@@ -387,9 +451,12 @@ export default function AdminRegisterPage() {
                   </div>
                 </div>
               </div>
+              {submitError && (
+                <p style={{ color: '#EF4444', fontSize: 13, marginTop: 12 }}>⚠️ {submitError}</p>
+              )}
               <div className="action-row">
                 <button type="button" className="btn-back" onClick={() => setStep(1)}>← Back to College Info</button>
-                <button type="submit" className="btn-primary" disabled={loading || step2.password !== step2.confirmPassword}>
+                <button type="submit" className="btn-primary" disabled={loading || step2.password !== step2.confirmPassword || !step2.authorized}>
                   {loading ? '⏳ Submitting...' : 'Submit Registration →'}
                 </button>
               </div>
