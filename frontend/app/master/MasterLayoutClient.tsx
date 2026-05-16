@@ -1,13 +1,14 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { useAuthStore } from '@/store/authStore';
 
-const NAV_ITEMS = [
+const BASE_NAV = [
   { href: '/master/dashboard', icon: '👑', label: 'Dashboard' },
-  { href: '/master/requests',  icon: '🏫', label: 'College Requests', badge: 1 },
+  { href: '/master/requests',  icon: '🏫', label: 'College Requests' },
   { href: '/master/colleges',  icon: '🎓', label: 'All Colleges' },
   { href: '/master/students',  icon: '👤', label: 'All Students' },
   { href: '/master/revenue',   icon: '💰', label: 'Platform Revenue' },
@@ -15,9 +16,20 @@ const NAV_ITEMS = [
 ];
 
 export default function MasterLayoutClient({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router   = useRouter();
-  const clearAuth = useAuthStore((state) => state.clearAuth);
+  const pathname  = usePathname();
+  const router    = useRouter();
+  const { clearAuth, accessToken, user } = useAuthStore();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    fetch('http://localhost:5000/api/master/stats', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.stats?.pendingRequests) setPendingCount(d.stats.pendingRequests); })
+      .catch(() => {});
+  }, [accessToken]);
 
   const handleLogout = async () => {
     try {
@@ -157,14 +169,15 @@ export default function MasterLayoutClient({ children }: { children: React.React
           </div>
 
           <nav className="sidebar-nav">
-            {NAV_ITEMS.map(item => {
-              const exact = pathname === item.href;
+            {BASE_NAV.map(item => {
+              const exact  = pathname === item.href;
               const active = item.href === '/master/dashboard' ? exact : (exact || pathname?.startsWith(item.href));
+              const badge  = item.href === '/master/requests' && pendingCount > 0 ? pendingCount : null;
               return (
                 <Link key={item.href} href={item.href} className={`nav-item ${active ? 'active' : ''}`}>
                   <span className="nav-icon">{item.icon}</span>
                   <span className="nav-label">{item.label}</span>
-                  {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
+                  {badge ? <span className="nav-badge">{badge}</span> : null}
                 </Link>
               );
             })}
@@ -172,8 +185,8 @@ export default function MasterLayoutClient({ children }: { children: React.React
 
           <div className="sidebar-footer">
             <div className="sidebar-admin-card">
-              <div className="admin-card-name">Platform Team</div>
-              <div className="admin-card-email">master@campusconnect.in</div>
+              <div className="admin-card-name">{user?.name || 'Master Admin'}</div>
+              <div className="admin-card-email">{user?.email || 'master@campusconnect.in'}</div>
             </div>
             <button className="logout-btn" onClick={handleLogout}>
               <span>→</span>

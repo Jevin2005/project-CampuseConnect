@@ -1,49 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuthStore } from '../../../store/authStore';
 
-const COLLEGES = [
-  {
-    id: 1,
-    name: 'MIT Campus',
-    city: 'Pune',
-    type: 'Engineering',
-    status: 'active',
-    students: 920,
-    products: 1740,
-    revenue: 9670,
-    ads: 4,
-    revPct: 61,
-    joined: 'Jan 2024',
-  },
-  {
-    id: 2,
-    name: 'ABC Engineering',
-    city: 'Mumbai',
-    type: 'Engineering',
-    status: 'active',
-    students: 550,
-    products: 1100,
-    revenue: 6010,
-    ads: 2,
-    revPct: 39,
-    joined: 'Mar 2023',
-  },
-  {
-    id: 3,
-    name: 'City Arts College',
-    city: 'Mumbai',
-    type: 'Arts',
-    status: 'pending',
-    students: 0,
-    products: 0,
-    revenue: 0,
-    ads: 0,
-    revPct: 0,
-    joined: '—',
-  },
-];
+const API = 'http://localhost:5000/api/master';
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
@@ -72,10 +33,10 @@ const S = `
 .col-name{font-family:'Sora',sans-serif;font-size:18px;font-weight:700;color:var(--t1);}
 .badge-active{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#10B981;font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px;}
 .badge-pending{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#F59E0B;font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px;}
-.col-meta{display:flex;gap:8px;margin-bottom:14px;}
+.col-meta{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .meta-pill{background:var(--card2);border:1px solid var(--border);border-radius:9999px;padding:3px 10px;font-size:11px;color:var(--t2);}
 .col-divider{height:1px;background:var(--border);margin-bottom:14px;}
-.col-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.col-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
 .cs-item{display:flex;flex-direction:column;gap:2px;}
 .cs-label{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;}
 .cs-val{font-size:14px;font-weight:700;color:var(--t1);}
@@ -86,22 +47,65 @@ const S = `
 .col-joined{font-size:12px;color:var(--t3);}
 .view-link{font-size:13px;font-weight:700;color:var(--gold);text-decoration:none;}
 .view-link:hover{text-decoration:underline;}
+.skeleton{background:linear-gradient(90deg,var(--card2) 25%,#202d42 50%,var(--card2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 `;
 
-export default function AllCollegesPage() {
-  const [search, setSearch] = useState('');
-  const [city, setCity]     = useState('');
+interface College {
+  id: string;
+  name: string;
+  city: string;
+  type: string;
+  code: string;
+  domain: string;
+  students: number;
+  products: number;
+  revenue: string;
+  revenueRaw: number;
+  revPct: number;
+  joined: string;
+}
 
-  const cities = Array.from(new Set(COLLEGES.map(c => c.city)));
-  const filtered = COLLEGES.filter(c => {
+export default function AllCollegesPage() {
+  const { accessToken } = useAuthStore();
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+
+  useEffect(() => {
+    if (!accessToken) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API}/colleges`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) throw new Error('Failed to load colleges');
+        const data = await res.json();
+        setColleges(data.active || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [accessToken]);
+
+  const cities = Array.from(new Set(colleges.map(c => c.city).filter(Boolean)));
+  const types  = Array.from(new Set(colleges.map(c => c.type).filter(Boolean)));
+
+  const filtered = colleges.filter(c => {
     const q = search.toLowerCase();
-    const matchSearch = c.name.toLowerCase().includes(q) || c.city.toLowerCase().includes(q);
-    const matchCity   = !city || c.city === city;
-    return matchSearch && matchCity;
+    const matchSearch = !search || c.name.toLowerCase().includes(q) || c.city?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q);
+    const matchCity = !cityFilter || c.city === cityFilter;
+    const matchType = !typeFilter || c.type === typeFilter;
+    return matchSearch && matchCity && matchType;
   });
 
-  const totalStudents = COLLEGES.reduce((s,c) => s + c.students, 0);
-  const totalRevenue  = COLLEGES.reduce((s,c) => s + c.revenue, 0);
+  const totalStudents = colleges.reduce((s, c) => s + (c.students || 0), 0);
+  const totalRevenue  = colleges.reduce((s, c) => s + (c.revenueRaw || 0), 0);
 
   return (
     <>
@@ -110,9 +114,9 @@ export default function AllCollegesPage() {
         <div className="m4-hdr">
           <div>
             <h1>All Colleges</h1>
-            <p className="m4-sub">Manage and monitor all college marketplaces</p>
+            <p className="m4-sub">Manage and monitor all active college marketplaces</p>
           </div>
-          <span className="m4-count">{COLLEGES.length} Colleges</span>
+          <span className="m4-count">{colleges.length} Active College{colleges.length !== 1 ? 's' : ''}</span>
         </div>
 
         {/* Filters */}
@@ -121,28 +125,27 @@ export default function AllCollegesPage() {
             <span className="search-icon">🔍</span>
             <input
               className="m4-input"
-              placeholder="Search colleges..."
+              placeholder="Search colleges…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <select className="m4-select" value={city} onChange={e => setCity(e.target.value)}>
+          <select className="m4-select" value={cityFilter} onChange={e => setCityFilter(e.target.value)}>
             <option value="">All Cities</option>
             {cities.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select className="m4-select">
-            <option>All Status</option>
-            <option>Active</option>
-            <option>Pending</option>
+          <select className="m4-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <option value="">All Types</option>
+            {types.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
 
         {/* Summary */}
         <div className="summary-row">
           {[
-            { icon: '🏫', val: COLLEGES.length, lbl: 'Total Colleges' },
-            { icon: '🎓', val: totalStudents.toLocaleString(), lbl: 'Total Students' },
-            { icon: '💰', val: `₹${totalRevenue.toLocaleString()}`, lbl: 'Total Revenue' },
+            { icon: '🏫', val: colleges.length, lbl: 'Active Colleges' },
+            { icon: '🎓', val: totalStudents.toLocaleString('en-IN'), lbl: 'Total Students' },
+            { icon: '💰', val: `₹${totalRevenue.toLocaleString('en-IN')}`, lbl: 'Total Revenue' },
           ].map(s => (
             <div className="sum-card" key={s.lbl}>
               <span className="sum-icon">{s.icon}</span>
@@ -155,55 +158,67 @@ export default function AllCollegesPage() {
         </div>
 
         {/* Cards */}
-        <div className="colleges-grid">
-          {filtered.map(c => (
-            <div className="col-card" key={c.id}>
-              <div className="col-top">
-                <span className="col-name">{c.name}</span>
-                {c.status === 'active'
-                  ? <span className="badge-active">✅ Active</span>
-                  : <span className="badge-pending">⏳ Pending</span>}
+        {loading ? (
+          <div className="colleges-grid">
+            {Array(4).fill(0).map((_, i) => (
+              <div className="col-card" key={i}>
+                <div className="skeleton" style={{ height: 24, width: '60%', marginBottom: 12 }} />
+                <div className="skeleton" style={{ height: 12, width: '40%', marginBottom: 16 }} />
+                <div className="skeleton" style={{ height: 1, marginBottom: 14 }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
+                  {Array(3).fill(0).map((_, j) => <div key={j} className="skeleton" style={{ height: 40 }} />)}
+                </div>
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="colleges-grid">
+            {filtered.map(c => (
+              <div className="col-card" key={c.id}>
+                <div className="col-top">
+                  <span className="col-name">{c.name}</span>
+                  <span className="badge-active">✅ Active</span>
+                </div>
 
-              <div className="col-meta">
-                <span className="meta-pill">📍 {c.city}</span>
-                <span className="meta-pill">{c.type}</span>
+                <div className="col-meta">
+                  {c.city && <span className="meta-pill">📍 {c.city}</span>}
+                  {c.type && <span className="meta-pill">{c.type}</span>}
+                  {c.code && <span className="meta-pill">#{c.code}</span>}
+                  {c.domain && <span className="meta-pill">@{c.domain}</span>}
+                </div>
+
+                <div className="col-divider" />
+
+                <div className="col-stats">
+                  {[
+                    { lbl: '🎓 Students', val: c.students.toLocaleString('en-IN') },
+                    { lbl: '📦 Products', val: c.products.toLocaleString('en-IN') },
+                    { lbl: '💰 Revenue',  val: c.revenue },
+                  ].map(s => (
+                    <div className="cs-item" key={s.lbl}>
+                      <span className="cs-label">{s.lbl}</span>
+                      <span className="cs-val">{s.val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rev-track">
+                  <div className="rev-fill" style={{ width: `${c.revPct || 0}%` }} />
+                </div>
+                <div className="rev-caption">
+                  {c.revPct > 0 ? `${c.revPct}% of platform revenue` : 'No revenue yet'}
+                </div>
+
+                <div className="col-footer">
+                  <span className="col-joined">Joined {new Date(c.joined).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>
+                  <Link href={`/master/colleges/${c.id}`} className="view-link">View Details →</Link>
+                </div>
               </div>
+            ))}
+          </div>
+        )}
 
-              <div className="col-divider" />
-
-              <div className="col-stats">
-                {[
-                  { lbl: '🎓 Students', val: c.students.toLocaleString() },
-                  { lbl: '📦 Products', val: c.products.toLocaleString() },
-                  { lbl: '💰 Revenue',  val: c.revenue ? `₹${c.revenue.toLocaleString()}` : '₹0' },
-                  { lbl: '📢 Ads',      val: c.ads },
-                ].map(s => (
-                  <div className="cs-item" key={s.lbl}>
-                    <span className="cs-label">{s.lbl}</span>
-                    <span className="cs-val">{s.val}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rev-track">
-                <div className="rev-fill" style={{ width: `${c.revPct}%` }} />
-              </div>
-              <div className="rev-caption">
-                {c.revPct > 0 ? `${c.revPct}% of platform revenue` : 'No revenue yet'}
-              </div>
-
-              <div className="col-footer">
-                <span className="col-joined">{c.joined}</span>
-                {c.status === 'active'
-                  ? <Link href={`/master/colleges/${c.id}`} className="view-link">View Details →</Link>
-                  : <Link href="/master/requests" className="view-link" style={{ color: '#F59E0B' }}>Review Request →</Link>}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#6B7280' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🏫</div>
             <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, color: '#F0F4FF', marginBottom: 6 }}>No colleges found</div>

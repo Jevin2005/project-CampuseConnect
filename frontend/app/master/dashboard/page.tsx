@@ -1,32 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useAuthStore } from '../../../store/authStore';
 
-/* ─── Mock data ─────────────────────────────────────────────── */
-const HERO_STATS = [
-  { icon: '🏫', label: 'Active Colleges', value: '2',       color: '#F7C948' },
-  { icon: '🎓', label: 'Total Students',  value: '1,470',   color: '#4F8EF7' },
-  { icon: '📦', label: 'Total Products',  value: '2,840',   color: '#10B981' },
-  { icon: '💰', label: 'Total Revenue',   value: '₹15,680', color: '#F7C948' },
-];
-
-const REVENUE_BARS = [
-  { name: 'MIT Campus',      amount: 9670, pct: 61 },
-  { name: 'ABC Engineering', amount: 6010, pct: 39 },
-];
-
-const FEE_ROWS = [
-  { icon: '📋', label: 'Listing Fees',     amount: '₹2,130',  color: '#4F8EF7' },
-  { icon: '💸', label: 'Transaction Fees', amount: '₹13,550', color: '#10B981' },
-  { icon: '📢', label: 'Ad Revenue',       amount: '₹1,500',  color: '#F7C948' },
-];
-
-const ACTIVITY = [
-  { icon: '🆕', msg: 'New college request: XYZ Institute', badge: 'PENDING', bc: '#F59E0B', time: '2h ago' },
-  { icon: '👤', msg: 'MIT College: 1 new student request', badge: 'NEW',     bc: '#4F8EF7', time: '5h ago' },
-  { icon: '📦', msg: 'ABC College listed 3 new products',  badge: 'LISTED',  bc: '#10B981', time: '1d ago' },
-];
+const API = 'http://localhost:5000/api/master';
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
@@ -47,19 +24,6 @@ const S = `
 .bar-lr{display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:6px;}
 .bar-track{background:var(--card2);border-radius:9999px;height:12px;overflow:hidden;}
 .bar-fill{height:100%;border-radius:9999px;background:linear-gradient(90deg,#F7C948,#F59E0B);}
-.donut-wrap{display:flex;align-items:center;gap:20px;}
-.legend{display:flex;flex-direction:column;gap:10px;}
-.leg-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t2);}
-.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-.fee-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:24px;}
-.fee-ttl{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--t1);margin-bottom:16px;}
-.fee-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
-.fee-row:last-of-type{border-bottom:none;}
-.fee-left{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--t2);}
-.fee-amt{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;}
-.fee-total{display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1.5px solid rgba(247,201,72,.25);}
-.fee-total-l{font-size:14px;font-weight:700;color:var(--t1);}
-.fee-total-r{font-family:'Sora',sans-serif;font-size:17px;font-weight:800;color:var(--gold);}
 .act-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;}
 .act-ttl{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--t1);margin-bottom:16px;}
 .act-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
@@ -68,95 +32,189 @@ const S = `
 .act-msg{font-size:13px;color:var(--t2);flex:1;}
 .act-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:9999px;letter-spacing:.5px;flex-shrink:0;}
 .act-time{font-size:11px;color:var(--t3);flex-shrink:0;}
+.skeleton{background:linear-gradient(90deg,var(--card2) 25%,#202d42 50%,var(--card2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pending-pill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#F59E0B;font-size:10px;font-weight:700;padding:2px 8px;border-radius:9999px;}
+.active-pill{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#10B981;font-size:10px;font-weight:700;padding:2px 8px;border-radius:9999px;}
 `;
 
+interface DashStats {
+  activeColleges: number;
+  totalStudents: number;
+  totalProducts: number;
+  totalRevenue: string;
+  pendingRequests: number;
+}
+
+interface RevenueBar { name: string; amount: number; pct: number; }
+interface RecentItem { id: string; name: string; isApproved: boolean; createdAt: string; }
+
 export default function MasterDashboardPage() {
-  const r=52,cx=60,cy=60,circ=2*Math.PI*r;
-  const bd=circ*0.62, pd=circ*0.38, po=-(circ*0.62);
+  const { accessToken } = useAuthStore();
+  const [stats, setStats] = useState<DashStats | null>(null);
+  const [revenueBars, setRevenueBars] = useState<RevenueBar[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!accessToken) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API}/stats`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) throw new Error('Failed to load stats');
+        const data = await res.json();
+        setStats(data.stats);
+        setRevenueBars(data.revenueBars);
+        setRecentActivity(data.recentActivity);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [accessToken]);
+
+  const HERO = stats
+    ? [
+        { icon: '🏫', label: 'Active Colleges', value: String(stats.activeColleges), color: '#F7C948' },
+        { icon: '🎓', label: 'Total Students', value: stats.totalStudents.toLocaleString('en-IN'), color: '#4F8EF7' },
+        { icon: '📦', label: 'Total Products', value: stats.totalProducts.toLocaleString('en-IN'), color: '#10B981' },
+        { icon: '💰', label: 'Total Revenue', value: stats.totalRevenue, color: '#F7C948' },
+      ]
+    : [];
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+    if (d > 0) return `${d}d ago`;
+    if (h > 0) return `${h}h ago`;
+    return 'just now';
+  };
 
   return (
     <>
       <style>{S}</style>
       <div className="m2">
         <h1>Master Dashboard</h1>
-        <p className="m2-sub">Platform-wide overview — all colleges</p>
+        <p className="m2-sub">Platform-wide overview — all colleges{stats?.pendingRequests ? ` · ⚠️ ${stats.pendingRequests} pending request${stats.pendingRequests > 1 ? 's' : ''}` : ''}</p>
 
+        {error && (
+          <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#EF4444', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13 }}>
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* Stats */}
         <div className="stats-grid">
-          {HERO_STATS.map(s=>(
-            <div className="stat-card" key={s.label}>
-              <span className="stat-icon">{s.icon}</span>
-              <span className="stat-val" style={{color:s.color}}>{s.value}</span>
-              <span className="stat-lbl">{s.label}</span>
-            </div>
-          ))}
+          {loading
+            ? Array(4).fill(0).map((_, i) => (
+                <div className="stat-card" key={i}>
+                  <div className="skeleton" style={{ height: 20, width: 30, marginBottom: 12 }} />
+                  <div className="skeleton" style={{ height: 32, width: 90, marginBottom: 8 }} />
+                  <div className="skeleton" style={{ height: 12, width: 110 }} />
+                </div>
+              ))
+            : HERO.map(s => (
+                <div className="stat-card" key={s.label}>
+                  <span className="stat-icon">{s.icon}</span>
+                  <span className="stat-val" style={{ color: s.color }}>{s.value}</span>
+                  <span className="stat-lbl">{s.label}</span>
+                </div>
+              ))}
         </div>
 
+        {/* Revenue Bars + Pending Summary */}
         <div className="charts-row">
           <div className="chart-card">
             <div className="chart-ttl">Revenue by College</div>
-            {REVENUE_BARS.map(b=>(
-              <div className="bar-row" key={b.name}>
-                <div className="bar-lr">
-                  <span>{b.name}</span>
-                  <span style={{color:'#F7C948',fontWeight:700}}>₹{b.amount.toLocaleString()}</span>
+            {loading ? (
+              Array(2).fill(0).map((_, i) => (
+                <div className="bar-row" key={i}>
+                  <div className="skeleton" style={{ height: 12, marginBottom: 8 }} />
+                  <div className="bar-track"><div className="bar-fill" style={{ width: '0%' }} /></div>
                 </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{width:`${b.pct}%`}}/>
+              ))
+            ) : revenueBars.length === 0 ? (
+              <div style={{ color: 'var(--t3)', fontSize: 13, padding: '20px 0' }}>No completed orders yet.</div>
+            ) : (
+              revenueBars.map(b => (
+                <div className="bar-row" key={b.name}>
+                  <div className="bar-lr">
+                    <span>{b.name}</span>
+                    <span style={{ color: '#F7C948', fontWeight: 700 }}>₹{b.amount.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill" style={{ width: `${b.pct}%` }} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <div className="chart-card">
-            <div className="chart-ttl">Product Type Distribution</div>
-            <div className="donut-wrap">
-              <svg width="120" height="120" viewBox="0 0 120 120">
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1a2235" strokeWidth="16"/>
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#4F8EF7" strokeWidth="16"
-                  strokeDasharray={`${bd} ${circ}`} strokeLinecap="round"
-                  transform={`rotate(-90 ${cx} ${cy})`}/>
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#7C3AED" strokeWidth="16"
-                  strokeDasharray={`${pd} ${circ}`} strokeDashoffset={po} strokeLinecap="round"
-                  transform={`rotate(-90 ${cx} ${cy})`}/>
-                <text x={cx} y={cy-4} textAnchor="middle" fill="#F0F4FF" fontFamily="Sora" fontSize="13" fontWeight="700">2,840</text>
-                <text x={cx} y={cy+10} textAnchor="middle" fill="#6B7280" fontFamily="DM Sans" fontSize="9">total</text>
-              </svg>
-              <div className="legend">
-                {[{color:'#4F8EF7',label:'Physical — 62%'},{color:'#7C3AED',label:'Digital — 38%'}].map(l=>(
-                  <div className="leg-item" key={l.label}>
-                    <span className="leg-dot" style={{background:l.color}}/>
-                    <span>{l.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <div className="chart-ttl">Platform Summary</div>
+            {loading ? (
+              Array(3).fill(0).map((_, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div className="skeleton" style={{ height: 14, width: 120 }} />
+                  <div className="skeleton" style={{ height: 14, width: 50 }} />
+                </div>
+              ))
+            ) : stats ? (
+              [
+                { label: '🏫 Active Colleges', value: stats.activeColleges, color: '#F7C948' },
+                { label: '⏳ Pending Requests', value: stats.pendingRequests, color: '#F59E0B' },
+                { label: '🎓 Total Students', value: stats.totalStudents.toLocaleString('en-IN'), color: '#4F8EF7' },
+                { label: '📦 Approved Products', value: stats.totalProducts.toLocaleString('en-IN'), color: '#10B981' },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 13, color: 'var(--t2)' }}>{row.label}</span>
+                  <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, color: row.color }}>{row.value}</span>
+                </div>
+              ))
+            ) : null}
           </div>
         </div>
 
-        <div className="fee-card">
-          <div className="fee-ttl">Platform Fee Breakdown</div>
-          {FEE_ROWS.map(f=>(
-            <div className="fee-row" key={f.label}>
-              <div className="fee-left"><span>{f.icon}</span><span>{f.label}</span></div>
-              <span className="fee-amt" style={{color:f.color}}>{f.amount}</span>
-            </div>
-          ))}
-          <div className="fee-total">
-            <span className="fee-total-l">Total Collected</span>
-            <span className="fee-total-r">₹17,180</span>
-          </div>
-        </div>
-
+        {/* Recent Activity */}
         <div className="act-card">
-          <div className="act-ttl">Recent Activity</div>
-          {ACTIVITY.map((a,i)=>(
-            <div className="act-item" key={i}>
-              <span className="act-icon">{a.icon}</span>
-              <span className="act-msg">{a.msg}</span>
-              <span className="act-badge" style={{background:`${a.bc}18`,color:a.bc,border:`1px solid ${a.bc}40`}}>{a.badge}</span>
-              <span className="act-time">{a.time}</span>
-            </div>
-          ))}
+          <div className="act-ttl">Recent College Activity</div>
+          {loading ? (
+            Array(3).fill(0).map((_, i) => (
+              <div className="act-item" key={i}>
+                <div className="skeleton" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} />
+                <div className="skeleton" style={{ flex: 1, height: 14 }} />
+                <div className="skeleton" style={{ width: 60, height: 20, borderRadius: 9999 }} />
+              </div>
+            ))
+          ) : recentActivity.length === 0 ? (
+            <div style={{ color: 'var(--t3)', fontSize: 13, padding: '16px 0' }}>No recent activity.</div>
+          ) : (
+            recentActivity.map(a => (
+              <div className="act-item" key={a.id}>
+                <span className="act-icon">{a.isApproved ? '✅' : '🆕'}</span>
+                <span className="act-msg">
+                  {a.isApproved ? `${a.name} is an active college` : `New college request: ${a.name}`}
+                </span>
+                <span
+                  className="act-badge"
+                  style={
+                    a.isApproved
+                      ? { background: 'rgba(16,185,129,.15)', color: '#10B981', border: '1px solid rgba(16,185,129,.3)' }
+                      : { background: 'rgba(245,158,11,.15)', color: '#F59E0B', border: '1px solid rgba(245,158,11,.3)' }
+                  }
+                >
+                  {a.isApproved ? 'ACTIVE' : 'PENDING'}
+                </span>
+                <span className="act-time">{timeAgo(a.createdAt)}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </>
