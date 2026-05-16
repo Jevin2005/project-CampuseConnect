@@ -30,6 +30,7 @@ export default function StudentRequestsPage() {
   const [showRejectModal, setShowRejectModal] = useState<Student | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [suspendModal, setSuspendModal] = useState<Student | null>(null);
+  const [viewModal, setViewModal] = useState<(Student & { status: 'pending' | 'approved' }) | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const { accessToken } = useAuthStore();
 
@@ -241,6 +242,31 @@ export default function StudentRequestsPage() {
         .btn-cancel { background: none; border: 1px solid var(--border); color: var(--t2); padding: 10px 20px; border-radius: 9999px; cursor: pointer; font-size: 13px; font-family: 'DM Sans',sans-serif; }
         .btn-danger { background: var(--red); color: #fff; border: none; padding: 10px 20px; border-radius: 9999px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: 'DM Sans',sans-serif; }
         .btn-orange { background: var(--orange); color: #1a0a00; border: none; padding: 10px 20px; border-radius: 9999px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: 'DM Sans',sans-serif; }
+        .btn-sm-view { background: none; border: 1px solid rgba(79,142,247,.35); color: var(--blue); }
+        .btn-sm-view:hover { background: rgba(79,142,247,.08); }
+
+        /* View Modal */
+        .view-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.8); backdrop-filter: blur(6px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .view-modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; max-width: 540px; width: 100%; }
+        .vm-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .vm-av { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Sora',sans-serif; font-size: 22px; font-weight: 700; color: #0A0E1A; flex-shrink: 0; }
+        .vm-name { font-family: 'Sora',sans-serif; font-size: 20px; font-weight: 700; color: var(--t1); margin-bottom: 4px; }
+        .vm-email { font-family: 'JetBrains Mono',monospace; font-size: 12px; color: var(--t3); }
+        .vm-divider { height: 1px; background: var(--border); margin: 0 0 20px; }
+        .vm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+        .vm-field { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+        .vm-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--t3); margin-bottom: 5px; }
+        .vm-val { font-size: 13px; font-weight: 600; color: var(--t1); font-family: 'JetBrains Mono',monospace; }
+        .vm-val.normal { font-family: 'DM Sans',sans-serif; }
+        .vm-status-row { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+        .vm-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 9999px; }
+        .vm-badge-pending { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); color: var(--orange); }
+        .vm-badge-approved { background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
+        .vm-badge-domain-ok { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.2); color: var(--green); }
+        .vm-badge-domain-warn { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2); color: var(--orange); }
+        .vm-footer { display: flex; justify-content: flex-end; }
+        .btn-close-modal { background: none; border: 1px solid var(--border); color: var(--t2); padding: 10px 24px; border-radius: 9999px; cursor: pointer; font-size: 13px; font-family: 'DM Sans',sans-serif; transition: border-color .2s; }
+        .btn-close-modal:hover { border-color: var(--t2); color: var(--t1); }
 
         /* Toast */
         .toast { position: fixed; top: 24px; right: 28px; padding: 14px 22px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 2000; animation: slideIn .3s ease; max-width: 360px; }
@@ -344,6 +370,13 @@ export default function StudentRequestsPage() {
                   <div className="req-actions">
                     <button
                       className="btn-reject"
+                      style={{ marginRight: 'auto' }}
+                      onClick={() => setViewModal({ ...req, status: 'pending' })}
+                    >
+                      👁 View
+                    </button>
+                    <button
+                      className="btn-reject"
                       disabled={actionLoading === req.id}
                       onClick={() => setShowRejectModal(req)}
                     >
@@ -430,13 +463,21 @@ export default function StudentRequestsPage() {
                           </span>
                         </td>
                         <td>
-                          <button
-                            className="btn-sm btn-sm-suspend"
-                            disabled={actionLoading === st.id}
-                            onClick={() => setSuspendModal(st)}
-                          >
-                            Suspend
-                          </button>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              className="btn-sm btn-sm-view"
+                              onClick={() => setViewModal({ ...st, status: 'approved' })}
+                            >
+                              👁 View
+                            </button>
+                            <button
+                              className="btn-sm btn-sm-suspend"
+                              disabled={actionLoading === st.id}
+                              onClick={() => setSuspendModal(st)}
+                            >
+                              Suspend
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -485,6 +526,66 @@ export default function StudentRequestsPage() {
               <button className="btn-orange" onClick={handleSuspend} disabled={actionLoading === suspendModal?.id}>
                 {actionLoading === suspendModal?.id ? 'Suspending…' : 'Confirm Suspend'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── VIEW MODAL ── */}
+      {viewModal && (
+        <div className="view-modal-bg" onClick={() => setViewModal(null)}>
+          <div className="view-modal-box" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="vm-header">
+              <div className="vm-av" style={{ background: viewModal.color }}>{viewModal.initials}</div>
+              <div>
+                <div className="vm-name">{viewModal.name}</div>
+                <div className="vm-email">{viewModal.email}</div>
+              </div>
+            </div>
+
+            {/* Status badges */}
+            <div className="vm-status-row">
+              <span className={`vm-badge ${viewModal.status === 'pending' ? 'vm-badge-pending' : 'vm-badge-approved'}`}>
+                {viewModal.status === 'pending' ? '⏳ Pending Approval' : '✅ Approved'}
+              </span>
+              <span className={`vm-badge ${viewModal.match ? 'vm-badge-domain-ok' : 'vm-badge-domain-warn'}`}>
+                {viewModal.match ? '✓ Domain Verified' : '⚠️ Domain Mismatch'}
+              </span>
+            </div>
+
+            <div className="vm-divider" />
+
+            {/* Detail grid */}
+            <div className="vm-grid">
+              <div className="vm-field">
+                <div className="vm-lbl">📅 Join Date</div>
+                <div className="vm-val normal">{fmtDate(viewModal.date)}</div>
+              </div>
+              <div className="vm-field">
+                <div className="vm-lbl">🎫 Enrollment ID</div>
+                <div className="vm-val">{viewModal.enrollmentId}</div>
+              </div>
+              <div className="vm-field">
+                <div className="vm-lbl">📞 Phone</div>
+                <div className="vm-val normal">{viewModal.phone}</div>
+              </div>
+              <div className="vm-field">
+                <div className="vm-lbl">📦 Products Listed</div>
+                <div className="vm-val" style={{ color: 'var(--blue)' }}>{viewModal.products}</div>
+              </div>
+              <div className="vm-field">
+                <div className="vm-lbl">🛒 Purchases Made</div>
+                <div className="vm-val" style={{ color: 'var(--green)' }}>{viewModal.purchases}</div>
+              </div>
+              <div className="vm-field">
+                <div className="vm-lbl">✉️ Email Domain</div>
+                <div className="vm-val">{viewModal.email.split('@')[1] || '—'}</div>
+              </div>
+            </div>
+
+            <div className="vm-footer">
+              <button className="btn-close-modal" onClick={() => setViewModal(null)}>Close</button>
             </div>
           </div>
         </div>

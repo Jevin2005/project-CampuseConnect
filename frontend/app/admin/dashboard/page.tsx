@@ -1,302 +1,149 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '../../../store/authStore';
 
-const STAT_CARDS = [
-  { icon: '👥', label: 'TOTAL STUDENTS', value: '247', sub: '+12 this month', color: '#10B981', href: '/admin/requests' },
-  { icon: '📦', label: 'ACTIVE PRODUCTS', value: '89', sub: '18 pending review', color: '#4F8EF7', href: '/admin/products' },
-  { icon: '💰', label: 'REVENUE THIS MONTH', value: '₹9,670', sub: '+₹1,240 from fees', color: '#F7C948', href: '/admin/revenue' },
-  { icon: '⏳', label: 'PENDING REQUESTS', value: '3', sub: 'Needs attention', color: '#F59E0B', pulse: true, href: '/admin/requests' },
-];
+const API = 'http://localhost:5000/api/admin';
 
-const PENDING_REQUESTS = [
-  { initials: 'AM', name: 'Arjun Mehta', email: 'arjun@mit.edu', date: 'Dec 24' },
-  { initials: 'PS', name: 'Priya Sharma', email: 'priya.s@mit.edu', date: 'Dec 23' },
-];
+interface DashData {
+  stats: { totalStudents: number; pendingStudents: number; totalProducts: number; pendingProducts: number; revenue: number };
+  pendingRequests: { id: string; name: string; email: string; initials: string; color: string; date: string }[];
+  pendingProducts: { id: string; title: string; seller: string; price: string; category: string }[];
+  activity: { icon: string; text: string; time: string }[];
+  college: { name: string };
+  adminName: string;
+}
 
-const PENDING_PRODUCTS = [
-  { icon: '📦', name: 'Calculus Textbook', seller: 'Rahul Kumar', price: '₹350', type: 'PHYSICAL' },
-  { icon: '📄', name: 'DS Notes PDF', seller: 'Sneha Patel', price: '₹49', type: 'DIGITAL' },
-];
+const COLORS = { green: '#10B981', blue: '#4F8EF7', gold: '#F7C948', orange: '#F59E0B' };
 
-const ACTIVITY = [
-  { dot: '#10B981', icon: '📦', text: 'Priya Patel listed HP Laptop', time: '2 hours ago' },
-  { dot: '#4F8EF7', icon: '🛒', text: 'Rahul Sharma bought DS Notes', time: '4 hours ago' },
-  { dot: '#F59E0B', icon: '👥', text: 'New student request from Arjun Mehta', time: '1 day ago' },
-  { dot: '#EF4444', icon: '🚩', text: "Product 'iPhone 13' flagged by student", time: '2 days ago' },
-];
+function relTime(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hour${h > 1 ? 's' : ''} ago`;
+  return `${Math.floor(h / 24)} day${Math.floor(h / 24) > 1 ? 's' : ''} ago`;
+}
 
 export default function AdminDashboardPage() {
-  const router = useRouter();
+  const { accessToken } = useAuthStore();
+  const [data, setData] = useState<DashData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reqActs, setReqActs] = useState<Record<string, 'approved' | 'rejected'>>({});
+  const [prodActs, setProdActs] = useState<Record<string, 'approved' | 'removed'>>({});
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  // Quick-action state for dashboard cards
-  const [reqStatuses, setReqStatuses] = useState<Record<string, 'approved' | 'rejected'>>({});
-  const [prodStatuses, setProdStatuses] = useState<Record<string, 'approved' | 'removed'>>({});
+  useEffect(() => {
+    if (!accessToken) return;
+    fetch(`${API}/dashboard`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then(r => r.json()).then(setData).catch(console.error).finally(() => setLoading(false));
+  }, [accessToken]);
 
-  const handleLogout = () => router.push('/admin/login');
-  const pendingCount = PENDING_REQUESTS.filter(r => !reqStatuses[r.email]).length;
+  const handleReqAction = async (id: string, action: 'approve' | 'reject') => {
+    const endpoint = action === 'approve' ? 'approve' : 'reject';
+    await fetch(`${API}/students/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ studentId: id }),
+    });
+    setReqActs(s => ({ ...s, [id]: action === 'approve' ? 'approved' : 'rejected' }));
+  };
+
+  const handleProdAction = async (id: string, action: 'approve' | 'remove') => {
+    await fetch(`${API}/products/${id}/${action}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    setProdActs(s => ({ ...s, [id]: action === 'approve' ? 'approved' : 'removed' }));
+  };
+
+  const s = data?.stats;
 
   return (
     <>
       <style>{`
         :root {
-          --bg-primary: #0A0E1A;
-          --bg-card: #111827;
-          --bg-card2: #1a2235;
-          --border: #1e2d45;
-          --accent-green: #10B981;
-          --accent-blue: #4F8EF7;
-          --accent-gold: #F7C948;
-          --accent-orange: #F59E0B;
-          --accent-red: #EF4444;
-          --accent-purple: #7C3AED;
-          --text-primary: #F0F4FF;
-          --text-muted: #6B7280;
-          --text-soft: #9CA3AF;
+          --bg: #0A0E1A; --card: #111827; --card2: #1a2235; --border: #1e2d45;
+          --green: #10B981; --blue: #4F8EF7; --gold: #F7C948; --orange: #F59E0B; --red: #EF4444;
+          --t1: #F0F4FF; --t2: #9CA3AF; --t3: #6B7280;
         }
-
-        .dashboard-page {
-          background: var(--bg-primary);
-          min-height: 100vh;
-          padding: 40px;
-          position: relative;
-          animation: fadeIn 0.4s ease;
-        }
-        .dashboard-page::before {
-          content: '';
-          position: fixed;
-          top: -100px; right: -100px;
-          width: 450px; height: 450px;
-          background: radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 70%);
-          pointer-events: none;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .page-greeting { margin-bottom: 32px; }
-        .greeting-title {
-          font-family: 'Sora', sans-serif;
-          font-size: 24px; font-weight: 700;
-          color: var(--text-primary);
-          margin-bottom: 4px;
-        }
-        .greeting-sub { font-size: 14px; color: var(--text-muted); }
-
-        /* STAT CARDS */
-        .stat-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-          margin-bottom: 28px;
-        }
-
-        .stat-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: 14px;
-          padding: 22px;
-          transition: border-color 0.2s, transform 0.2s;
-          text-decoration: none;
-          display: block;
-          cursor: pointer;
-        }
-        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-
-        .stat-card-icon { font-size: 28px; margin-bottom: 12px; display: block; }
-        .stat-label {
-          font-size: 11px; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 1.2px; color: var(--text-muted);
-          margin-bottom: 8px;
-        }
-        .stat-value {
-          font-family: 'Sora', sans-serif;
-          font-size: 28px; font-weight: 700;
-          margin-bottom: 4px;
-        }
-        .stat-sub { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        .pulse-dot {
-          width: 8px; height: 8px; border-radius: 50%;
-          background: var(--accent-orange);
-          animation: pulse 1.5s ease-in-out infinite;
-          display: inline-block;
-        }
-
-        /* MID SECTION */
-        .mid-section {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 20px;
-        }
-
-        .section-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: 14px;
-          padding: 20px;
-        }
-
-        .section-card-title {
-          font-family: 'Sora', sans-serif;
-          font-size: 16px; font-weight: 700;
-          margin-bottom: 16px;
-          display: flex; align-items: center; justify-content: space-between;
-        }
-
-        .view-all {
-          font-size: 12px; font-weight: 500;
-          text-decoration: none;
-          transition: opacity 0.2s;
-        }
-        .view-all:hover { opacity: 0.8; }
-
-        /* Request row */
-        .request-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 0;
-          border-bottom: 1px solid var(--border);
-        }
-        .request-item:last-child { border-bottom: none; padding-bottom: 0; }
-
-        .avatar {
-          width: 40px; height: 40px; border-radius: 50%;
-          background: rgba(16,185,129,0.15);
-          border: 1px solid rgba(16,185,129,0.3);
-          color: var(--accent-green);
-          font-family: 'Sora', sans-serif;
-          font-size: 13px; font-weight: 700;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .request-info { flex: 1; }
-        .request-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .request-email { font-size: 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
-        .request-date { font-size: 11px; color: var(--text-muted); }
-
-        .request-actions { display: flex; gap: 8px; flex-shrink: 0; }
-
-        .btn-approve {
-          background: rgba(16,185,129,0.15);
-          border: 1px solid rgba(16,185,129,0.4);
-          color: var(--accent-green);
-          padding: 6px 12px; border-radius: 9999px;
-          font-size: 12px; font-weight: 700;
-          cursor: pointer; transition: all 0.2s;
-          font-family: 'DM Sans', sans-serif;
-        }
-        .btn-approve:hover { background: rgba(16,185,129,0.25); }
-
-        .btn-reject {
-          background: transparent;
-          border: 1px solid rgba(239,68,68,0.4);
-          color: #EF4444;
-          padding: 6px 12px; border-radius: 9999px;
-          font-size: 12px; font-weight: 700;
-          cursor: pointer; transition: all 0.2s;
-          font-family: 'DM Sans', sans-serif;
-        }
-        .btn-reject:hover { background: rgba(239,68,68,0.08); }
-
-        /* Product rows */
-        .product-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 0;
-          border-bottom: 1px solid var(--border);
-        }
-        .product-item:last-child { border-bottom: none; padding-bottom: 0; }
-
-        .product-icon-box {
-          width: 40px; height: 40px; border-radius: 8px;
-          background: var(--bg-card2);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 20px; flex-shrink: 0;
-        }
-        .product-info { flex: 1; }
-        .product-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .product-seller { font-size: 12px; color: var(--text-muted); }
-        .product-price { font-size: 13px; font-weight: 700; color: var(--accent-green); margin-right: 8px; }
-
-        .type-badge {
-          font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-          padding: 2px 8px; border-radius: 9999px;
-        }
-        .type-badge.physical { background: rgba(79,142,247,0.1); color: #4F8EF7; border: 1px solid rgba(79,142,247,0.2); }
-        .type-badge.digital { background: rgba(124,58,237,0.1); color: #A78BFA; border: 1px solid rgba(124,58,237,0.2); }
-
-        /* Activity feed */
-        .activity-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: 14px;
-          padding: 20px;
-        }
-        .activity-title {
-          font-family: 'Sora', sans-serif;
-          font-size: 18px; font-weight: 700;
-          margin-bottom: 20px;
-          color: var(--text-primary);
-        }
-        .activity-list { display: flex; flex-direction: column; gap: 0; }
-        .activity-item {
-          display: flex; align-items: flex-start; gap: 16px;
-          padding: 14px 0;
-          border-bottom: 1px solid var(--border);
-        }
-        .activity-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .activity-dot-wrap {
-          display: flex; flex-direction: column; align-items: center;
-          padding-top: 2px;
-        }
-        .activity-dot {
-          width: 10px; height: 10px; border-radius: 50%;
-          flex-shrink: 0;
-        }
-        .activity-body { flex: 1; }
-        .activity-icon-text { display: flex; align-items: center; gap: 8px; }
-        .activity-text { font-size: 14px; color: var(--text-primary); }
-        .activity-time { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-
-        @media (max-width: 1100px) {
-          .stat-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 800px) {
-          .dashboard-page { padding: 24px 16px; }
-          .stat-grid { grid-template-columns: 1fr; }
-          .mid-section { grid-template-columns: 1fr; }
-        }
+        .dp { background: var(--bg); min-height: 100vh; padding: 40px; animation: fi .4s ease; }
+        @keyframes fi { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .greeting { margin-bottom: 32px; }
+        .greeting-title { font-family: 'Sora',sans-serif; font-size: 24px; font-weight: 700; color: var(--t1); margin-bottom: 4px; }
+        .greeting-sub { font-size: 14px; color: var(--t3); }
+        .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 28px; }
+        .sc { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px; text-decoration: none; display: block; transition: transform .2s, box-shadow .2s; }
+        .sc:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+        .sc-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+        .sc-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--t3); margin-bottom: 8px; }
+        .sc-val { font-family: 'Sora',sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+        .sc-sub { font-size: 12px; color: var(--t3); display: flex; align-items: center; gap: 6px; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+        .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: pulse 1.5s ease-in-out infinite; }
+        .mid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .section-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+        .section-title { font-family: 'Sora',sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+        .view-all { font-size: 12px; text-decoration: none; opacity: .8; }
+        .view-all:hover { opacity: 1; }
+        .req-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .req-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .av { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Sora',sans-serif; font-size: 13px; font-weight: 700; color: #0A0E1A; flex-shrink: 0; }
+        .req-info { flex: 1; min-width: 0; }
+        .req-name { font-size: 14px; font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .req-email { font-size: 12px; color: var(--t3); font-family: 'JetBrains Mono',monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .req-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-ap { background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.4); color: var(--green); padding: 6px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .btn-ap:hover { background: rgba(16,185,129,.25); }
+        .btn-rj { background: transparent; border: 1px solid rgba(239,68,68,.4); color: var(--red); padding: 6px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .btn-rj:hover { background: rgba(239,68,68,.08); }
+        .prod-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .prod-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .prod-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--card2); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+        .prod-info { flex: 1; min-width: 0; }
+        .prod-title { font-size: 13px; font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .prod-seller { font-size: 12px; color: var(--t3); }
+        .prod-price { font-size: 13px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+        .activity-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+        .activity-title { font-family: 'Sora',sans-serif; font-size: 18px; font-weight: 700; color: var(--t1); margin-bottom: 20px; }
+        .act-item { display: flex; align-items: flex-start; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+        .act-item:last-child { border-bottom: none; }
+        .act-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); margin-top: 4px; flex-shrink: 0; }
+        .act-text { font-size: 14px; color: var(--t1); }
+        .act-time { font-size: 12px; color: var(--t3); margin-top: 2px; }
+        .skeleton { background: linear-gradient(90deg,var(--card2) 25%,#202d42 50%,var(--card2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 8px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .empty { color: var(--t3); font-size: 13px; padding: 16px 0; text-align: center; }
+        @media (max-width:1100px) { .stat-grid { grid-template-columns: repeat(2,1fr); } }
+        @media (max-width:800px) { .dp { padding: 24px 16px; } .stat-grid { grid-template-columns: 1fr; } .mid { grid-template-columns: 1fr; } }
       `}</style>
 
-      <div className="dashboard-page">
-        {/* Greeting */}
-        <div className="page-greeting">
-          <h1 className="greeting-title">Good morning, MIT Admin 👋</h1>
-          <p className="greeting-sub">MIT College of Engineering · {today}</p>
+      <div className="dp">
+        <div className="greeting">
+          <h1 className="greeting-title">
+            {loading ? 'Welcome back 👋' : `Good day, ${data?.adminName || 'Admin'} 👋`}
+          </h1>
+          <p className="greeting-sub">
+            {loading ? 'Loading…' : `${data?.college?.name} · ${today}`}
+          </p>
         </div>
 
         {/* Stat Cards */}
         <div className="stat-grid">
-          {STAT_CARDS.map((card) => (
-            <Link key={card.label} href={card.href} className="stat-card" style={{ borderColor: `${card.color}22` }}>
-              <span className="stat-card-icon">{card.icon}</span>
-              <div className="stat-label">{card.label}</div>
-              <div className="stat-value" style={{ color: card.color }}>{card.value}</div>
-              <div className="stat-sub">
+          {loading ? Array(4).fill(0).map((_,i) => (
+            <div key={i} className="sc"><div className="skeleton" style={{height:100}} /></div>
+          )) : [
+            { icon:'👥', label:'TOTAL STUDENTS', value: s?.totalStudents ?? 0, sub: `${s?.pendingStudents ?? 0} pending`, color: COLORS.green, href:'/admin/requests' },
+            { icon:'📦', label:'ACTIVE PRODUCTS', value: s?.totalProducts ?? 0, sub: `${s?.pendingProducts ?? 0} pending review`, color: COLORS.blue, href:'/admin/products', pulse: (s?.pendingProducts ?? 0) > 0 },
+            { icon:'💰', label:'REVENUE (5% CUT)', value: `₹${(s?.revenue ?? 0).toLocaleString('en-IN')}`, sub: 'Platform earnings', color: COLORS.gold, href:'/admin/revenue' },
+            { icon:'⏳', label:'PENDING REQUESTS', value: s?.pendingStudents ?? 0, sub: 'Needs attention', color: COLORS.orange, href:'/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
+          ].map(card => (
+            <Link key={card.label} href={card.href} className="sc" style={{ borderColor: `${card.color}22` }}>
+              <span className="sc-icon">{card.icon}</span>
+              <div className="sc-lbl">{card.label}</div>
+              <div className="sc-val" style={{ color: card.color }}>{card.value}</div>
+              <div className="sc-sub">
                 {card.pulse && <span className="pulse-dot" />}
                 {card.sub}
               </div>
@@ -304,33 +151,32 @@ export default function AdminDashboardPage() {
           ))}
         </div>
 
-        {/* Mid: Requests + Products */}
-        <div className="mid-section">
-          {/* Student Requests */}
+        {/* Mid section */}
+        <div className="mid">
+          {/* Pending Student Requests */}
           <div className="section-card">
-            <div className="section-card-title">
-              <span style={{ color: 'var(--accent-green)' }}>Student Requests</span>
-              <Link href="/admin/requests" className="view-all" style={{ color: 'var(--accent-green)' }}>
-                View All →
-              </Link>
+            <div className="section-title">
+              <span style={{ color: COLORS.green }}>Student Requests</span>
+              <Link href="/admin/requests" className="view-all" style={{ color: COLORS.green }}>View All →</Link>
             </div>
-            {PENDING_REQUESTS.map((req) => (
-              <div key={req.email} className="request-item">
-                <div className="avatar">{req.initials}</div>
-                <div className="request-info">
-                  <div className="request-name">{req.name}</div>
-                  <div className="request-email">{req.email}</div>
-                  <div className="request-date">Requested: {req.date}</div>
+            {loading ? <div className="skeleton" style={{height:120}} /> :
+             (data?.pendingRequests?.length ?? 0) === 0 ? <div className="empty">✅ No pending requests</div> :
+             data!.pendingRequests.map(req => (
+              <div key={req.id} className="req-item">
+                <div className="av" style={{ background: req.color }}>{req.initials}</div>
+                <div className="req-info">
+                  <div className="req-name">{req.name}</div>
+                  <div className="req-email">{req.email}</div>
                 </div>
-                <div className="request-actions">
-                  {!reqStatuses[req.email] ? (
+                <div className="req-actions">
+                  {!reqActs[req.id] ? (
                     <>
-                      <button className="btn-approve" onClick={() => setReqStatuses(s => ({...s, [req.email]: 'approved'}))}>✅</button>
-                      <button className="btn-reject" onClick={() => setReqStatuses(s => ({...s, [req.email]: 'rejected'}))}>❌</button>
+                      <button className="btn-ap" onClick={() => handleReqAction(req.id, 'approve')}>✅</button>
+                      <button className="btn-rj" onClick={() => handleReqAction(req.id, 'reject')}>❌</button>
                     </>
                   ) : (
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: reqStatuses[req.email] === 'approved' ? '#10B981' : '#EF4444' }}>
-                      {reqStatuses[req.email] === 'approved' ? '✅ Approved' : '❌ Rejected'}
+                    <span style={{ fontSize: 11, fontWeight: 700, color: reqActs[req.id] === 'approved' ? COLORS.green : '#EF4444' }}>
+                      {reqActs[req.id] === 'approved' ? '✅ Approved' : '❌ Rejected'}
                     </span>
                   )}
                 </div>
@@ -338,32 +184,31 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          {/* Products Needing Review */}
+          {/* Products Awaiting Review */}
           <div className="section-card">
-            <div className="section-card-title">
-              <span style={{ color: 'var(--accent-blue)' }}>Products Awaiting Review</span>
-              <Link href="/admin/products" className="view-all" style={{ color: 'var(--accent-blue)' }}>
-                View All →
-              </Link>
+            <div className="section-title">
+              <span style={{ color: COLORS.blue }}>Products Awaiting Review</span>
+              <Link href="/admin/products" className="view-all" style={{ color: COLORS.blue }}>View All →</Link>
             </div>
-            {PENDING_PRODUCTS.map((prod) => (
-              <div key={prod.name} className="product-item">
-                <div className="product-icon-box">{prod.icon}</div>
-                <div className="product-info">
-                  <div className="product-name">{prod.name}</div>
-                  <div className="product-seller">by {prod.seller}</div>
+            {loading ? <div className="skeleton" style={{height:120}} /> :
+             (data?.pendingProducts?.length ?? 0) === 0 ? <div className="empty">📦 No pending products</div> :
+             data!.pendingProducts.map(prod => (
+              <div key={prod.id} className="prod-item">
+                <div className="prod-icon">📦</div>
+                <div className="prod-info">
+                  <div className="prod-title">{prod.title}</div>
+                  <div className="prod-seller">by {prod.seller}</div>
                 </div>
-                <span className="product-price">{prod.price}</span>
-                <span className={`type-badge ${prod.type.toLowerCase()}`}>{prod.type}</span>
-                <div style={{ display: 'flex', gap: '6px', marginLeft: '8px' }}>
-                  {!prodStatuses[prod.name] ? (
+                <span className="prod-price">{prod.price}</span>
+                <div style={{ display:'flex', gap:6, marginLeft:8 }}>
+                  {!prodActs[prod.id] ? (
                     <>
-                      <button className="btn-approve" style={{ fontSize: '11px' }} onClick={() => setProdStatuses(s => ({...s, [prod.name]: 'approved'}))}>Approve ✓</button>
-                      <button className="btn-reject" style={{ fontSize: '11px' }} onClick={() => setProdStatuses(s => ({...s, [prod.name]: 'removed'}))}>Remove ✗</button>
+                      <button className="btn-ap" style={{fontSize:11}} onClick={() => handleProdAction(prod.id, 'approve')}>Approve ✓</button>
+                      <button className="btn-rj" style={{fontSize:11}} onClick={() => handleProdAction(prod.id, 'remove')}>Remove ✗</button>
                     </>
                   ) : (
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: prodStatuses[prod.name] === 'approved' ? '#10B981' : '#EF4444' }}>
-                      {prodStatuses[prod.name] === 'approved' ? '✅ Approved' : '🗑 Removed'}
+                    <span style={{ fontSize: 11, fontWeight: 700, color: prodActs[prod.id] === 'approved' ? COLORS.green : '#EF4444' }}>
+                      {prodActs[prod.id] === 'approved' ? '✅ Approved' : '🗑 Removed'}
                     </span>
                   )}
                 </div>
@@ -374,23 +219,18 @@ export default function AdminDashboardPage() {
 
         {/* Recent Activity */}
         <div className="activity-card">
-          <h2 className="activity-title">Recent Activity</h2>
-          <div className="activity-list">
-            {ACTIVITY.map((item, i) => (
-              <div key={i} className="activity-item">
-                <div className="activity-dot-wrap">
-                  <div className="activity-dot" style={{ background: item.dot }} />
-                </div>
-                <div className="activity-body">
-                  <div className="activity-icon-text">
-                    <span>{item.icon}</span>
-                    <span className="activity-text">{item.text}</span>
-                  </div>
-                  <div className="activity-time">{item.time}</div>
-                </div>
+          <div className="activity-title">Recent Activity</div>
+          {loading ? <div className="skeleton" style={{height:160}} /> :
+           (data?.activity?.length ?? 0) === 0 ? <div className="empty">No recent activity yet.</div> :
+           data!.activity.map((item, i) => (
+            <div key={i} className="act-item">
+              <div className="act-dot" />
+              <div>
+                <div className="act-text">{item.icon} {item.text}</div>
+                <div className="act-time">{relTime(item.time)}</div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </>
