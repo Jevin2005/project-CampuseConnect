@@ -17,5 +17,6 @@ router.get('/students', adminController.getStudents);
 router.post('/students/approve', adminController.approveStudent);
 router.post('/students/reject', adminController.rejectStudent);
 router.post('/students/suspend', adminController.suspendStudent);
+router.post('/students/unsuspend', adminController.unsuspendStudent);
 
 module.exports = router;

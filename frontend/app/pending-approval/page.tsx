@@ -47,13 +47,24 @@ export default function PendingApprovalPage() {
   const router = useRouter();
   const { pendingEmail, setAuth } = useAuthStore();
   const [approvedToast, setApprovedToast] = useState(false);
+  const [emailToCheck, setEmailToCheck] = useState<string | null>(null);
+
+  // Determine which email to poll — store OR URL query param
+  useEffect(() => {
+    if (pendingEmail) {
+      setEmailToCheck(pendingEmail);
+    } else if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('email');
+      if (q) setEmailToCheck(q);
+    }
+  }, [pendingEmail]);
 
   /**
    * Poll GET /api/auth/student/approval-status every 30 seconds.
-   * Spec: authentication.md § S3 — "Poll GET … every 30 seconds"
    */
   useEffect(() => {
-    if (!pendingEmail) return;
+    if (!emailToCheck) return;
 
     const checkApproval = async () => {
       try {
@@ -62,7 +73,7 @@ export default function PendingApprovalPage() {
           accessToken?: string;
           user?: import("@/store/authStore").AuthUser;
         }>("/api/auth/student/approval-status", {
-          params: { email: pendingEmail },
+          params: { email: emailToCheck },
         });
 
         if (data.status === "APPROVED" && data.accessToken && data.user) {
@@ -80,7 +91,7 @@ export default function PendingApprovalPage() {
     const interval = setInterval(checkApproval, 30_000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingEmail]);
+  }, [emailToCheck]);
 
   return (
     <div style={{

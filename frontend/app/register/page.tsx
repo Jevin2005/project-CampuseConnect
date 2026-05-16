@@ -56,7 +56,7 @@ export default function StudentRegisterPage() {
         enrollmentId: form.enrollmentId.trim() || undefined,
       });
       setSubmitted(true);
-      setTimeout(() => router.push('/pending-approval'), 3500);
+      setTimeout(() => router.push(`/pending-approval?email=${encodeURIComponent(form.email.trim())}`), 3500);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??

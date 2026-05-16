@@ -175,5 +175,91 @@ async function notifyCollegeAdminOfStudentRequest(adminEmail, adminName, student
   }
 }
 
-module.exports = { sendOtpEmail, sendApprovalEmail, notifyMasterAdminRegistration, notifyCollegeAdminOfStudentRequest };
+/**
+ * Notify student when their account is approved by the college admin
+ */
+async function notifyStudentApproved(studentEmail, studentName, collegeName) {
+  const html = `
+    <div style="font-family:'Segoe UI',sans-serif;max-width:480px;margin:0 auto;background:#111827;border-radius:16px;border:1px solid #1e2d45;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0d1830,#1a2235);padding:32px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:#F0F4FF;">Campus<span style="color:#10B981;">Connect</span></div>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#10B981;margin-bottom:12px;">🎉 You're Approved!</h2>
+        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">Hi ${studentName},</p>
+        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">
+          Great news! Your account for <strong style="color:#10B981;">${collegeName}</strong> has been approved.
+          You can now log in and access your college's exclusive marketplace.
+        </p>
+        <a href="${process.env.FRONTEND_URL}/login"
+           style="display:inline-block;margin-top:24px;background:#10B981;color:#003824;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:700;font-size:14px;">
+          Go to Marketplace →
+        </a>
+        <p style="color:#6B7280;font-size:12px;margin-top:20px;">
+          Use your registered email and password to sign in.
+        </p>
+      </div>
+      <div style="background:#0d1217;padding:20px 32px;text-align:center;color:#374151;font-size:12px;">
+        CampusConnect · Secure College Marketplace
+      </div>
+    </div>
+  `;
+  try {
+    await transporter.sendMail({
+      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: studentEmail,
+      subject: `✅ Your CampusConnect account is approved — Welcome to ${collegeName}!`,
+      html,
+    });
+  } catch (err) {
+    console.error('[Email] Failed to notify student of approval:', err.message);
+  }
+}
+
+/**
+ * Notify student when their account is rejected
+ */
+async function notifyStudentRejected(studentEmail, studentName, collegeName, reason) {
+  const html = `
+    <div style="font-family:'Segoe UI',sans-serif;max-width:480px;margin:0 auto;background:#111827;border-radius:16px;border:1px solid #1e2d45;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0d1830,#1a2235);padding:32px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:#F0F4FF;">Campus<span style="color:#EF4444;">Connect</span></div>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#EF4444;margin-bottom:12px;">Account Request Rejected</h2>
+        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">Hi ${studentName},</p>
+        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">
+          Unfortunately, your registration request for <strong style="color:#F0F4FF;">${collegeName}</strong> has been rejected by the college admin.
+        </p>
+        ${reason ? `<div style="background:#1a2235;border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px;margin:16px 0;"><p style="color:#EF4444;font-size:13px;margin:0;"><strong>Reason:</strong> ${reason}</p></div>` : ''}
+        <p style="color:#6B7280;font-size:13px;margin-top:16px;">
+          If you believe this is a mistake, please contact your college admin directly.
+        </p>
+      </div>
+      <div style="background:#0d1217;padding:20px 32px;text-align:center;color:#374151;font-size:12px;">
+        CampusConnect · Secure College Marketplace
+      </div>
+    </div>
+  `;
+  try {
+    await transporter.sendMail({
+      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: studentEmail,
+      subject: `Your CampusConnect account request for ${collegeName} was not approved`,
+      html,
+    });
+  } catch (err) {
+    console.error('[Email] Failed to notify student of rejection:', err.message);
+  }
+}
+
+module.exports = {
+  sendOtpEmail,
+  sendApprovalEmail,
+  notifyMasterAdminRegistration,
+  notifyCollegeAdminOfStudentRequest,
+  notifyStudentApproved,
+  notifyStudentRejected,
+};
+
 
