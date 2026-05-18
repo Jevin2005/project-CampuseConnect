@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChevronRight, Star, ShieldCheck, Eye, ShoppingCart, FileText, Video } from "lucide-react";
+import { ChevronRight, Star, ShieldCheck, Eye, FileText, Video } from "lucide-react";
+import { StudentLayout } from "@/components/StudentLayout";
 
 const SUBJECTS = ["Electronics", "GATE", "Notes", "Signals & Systems", "Digital Circuits"];
 const INCLUDED = [
@@ -36,96 +37,8 @@ export default function DigitalProductPage({ params }: { params: { id: string } 
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0A0E1A" }}>
-
-      {/* ── LEFT SIDEBAR ── */}
-      <aside style={{
-        width: 200, flexShrink: 0,
-        background: "#0d1120", borderRight: "1px solid #1e2d45",
-        display: "flex", flexDirection: "column",
-        position: "sticky", top: 0, height: "100vh",
-      }}>
-        {/* logo */}
-        <div style={{ padding: "20px 18px", borderBottom: "1px solid #1e2d45" }}>
-          <Link href="/" style={{ textDecoration: "none", display: "flex" }}>
-            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 800, color: "#F0F4FF" }}>Scholar</span>
-            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 800, color: "#A78BFA" }}>Market</span>
-          </Link>
-        </div>
-
-        {/* nav */}
-        <nav style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 2 }}>
-          {[
-            { label: "Marketplace", active: true,  icon: "🛒" },
-            { label: "Library",     active: false, icon: "📚" },
-            { label: "Research",    active: false, icon: "🔬" },
-            { label: "Network",     active: false, icon: "👥" },
-            { label: "Settings",    active: false, icon: "⚙️" },
-          ].map(n => (
-            <Link key={n.label} href="#" style={{ textDecoration: "none" }}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 12px", borderRadius: 8,
-                background: n.active ? "rgba(167,139,250,0.12)" : "transparent",
-                color: n.active ? "#A78BFA" : "#6B7280",
-              }}>
-                <span style={{ fontSize: 14 }}>{n.icon}</span>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: n.active ? 700 : 500 }}>
-                  {n.label}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </nav>
-
-        {/* user */}
-        <div style={{ marginTop: "auto", padding: "16px", borderTop: "1px solid #1e2d45" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: "#A78BFA",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 800, color: "#fff",
-            }}>IVY</div>
-            <div>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700, color: "#F0F4FF" }}>Ivy Scholar</p>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#6B7280" }}>Graduate Level</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* ── MAIN ── */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-
-        {/* top nav */}
-        <header style={{
-          height: 56, background: "#0d1120",
-          borderBottom: "1px solid #1e2d45",
-          display: "flex", alignItems: "center",
-          padding: "0 28px", gap: 24,
-          position: "sticky", top: 0, zIndex: 10,
-        }}>
-          {["Marketplace", "Library", "Research"].map((t, i) => (
-            <Link key={t} href="#" style={{
-              fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: i === 0 ? 700 : 500,
-              color: i === 0 ? "#A78BFA" : "#6B7280", textDecoration: "none",
-              padding: "0 4px", height: 56, display: "flex", alignItems: "center",
-              borderBottom: i === 0 ? "2px solid #A78BFA" : "2px solid transparent",
-            }}>{t}</Link>
-          ))}
-          <div style={{ flex: 1 }} />
-          <ShoppingCart size={18} style={{ color: "#6B7280", cursor: "pointer" }} />
-          <div style={{ position: "relative", cursor: "pointer" }}>
-            <span style={{ fontSize: 18 }}>🔔</span>
-          </div>
-          <div style={{
-            width: 32, height: 32, borderRadius: "50%", background: "#A78BFA",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 800, color: "#fff",
-            cursor: "pointer",
-          }}>RS</div>
-        </header>
+    <StudentLayout>
+      <div style={{ minWidth: 0 }}>
 
         {/* breadcrumb */}
         <div style={{ padding: "16px 28px", display: "flex", alignItems: "center", gap: 8 }}>
@@ -357,6 +270,6 @@ export default function DigitalProductPage({ params }: { params: { id: string } 
           </div>
         </div>
       </div>
-    </div>
+    </StudentLayout>
   );
 }

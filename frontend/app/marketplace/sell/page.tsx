@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Home, Package, MessageSquare, Settings, CheckCircle, Upload } from "lucide-react";
+import { CheckCircle, Upload } from "lucide-react";
+import { StudentLayout } from "@/components/StudentLayout";
 
 /* ─── Live Fee Calculator ─────────────────────────────────────── */
 function FeeCalculator({ price, isDigital }: { price: string; isDigital: boolean }) {
@@ -52,64 +53,19 @@ function FeeCalculator({ price, isDigital }: { price: string; isDigital: boolean
 export default function SellProductPage() {
   const [step,      setStep]      = useState(1);
   const [prodType,  setProdType]  = useState<"physical" | "digital" | null>(null);
+  const [digSub,    setDigSub]    = useState<"pdf" | "video" | null>(null);
   const [title,     setTitle]     = useState("");
   const [desc,      setDesc]      = useState("");
   const [category,  setCategory]  = useState("Electronics");
   const [condition, setCondition] = useState("Brand New");
   const [origPrice, setOrigPrice] = useState("");
   const [sellPrice, setSellPrice] = useState("");
-  const [photos,    setPhotos]    = useState<string[]>([]);
 
   const STEPS = ["Product Type", "Details", "Review & Pay"];
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0A0E1A" }}>
-
-      {/* ── SIDEBAR ── */}
-      <aside style={{
-        width: 200, flexShrink: 0,
-        background: "#0d1120", borderRight: "1px solid #1e2d45",
-        display: "flex", flexDirection: "column",
-        position: "sticky", top: 0, height: "100vh",
-      }}>
-        <div style={{ padding: "20px 18px 16px", borderBottom: "1px solid #1e2d45" }}>
-          <Link href="/" style={{ textDecoration: "none", display: "flex" }}>
-            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 800, color: "#F0F4FF" }}>Lumina </span>
-            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 800, color: "#4F8EF7" }}>Market</span>
-          </Link>
-        </div>
-        <nav style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 2 }}>
-          {[
-            { icon: <Home size={15}/>,         label: "Marketplace", active: false },
-            { icon: <Package size={15}/>,      label: "Sell Product", active: true  },
-            { icon: <span>🏪</span>,           label: "My Shop",     active: false },
-            { icon: <MessageSquare size={15}/>, label: "Messages",    active: false },
-            { icon: <Settings size={15}/>,     label: "Services",    active: false },
-          ].map(n => (
-            <div key={n.label} style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "9px 12px", borderRadius: 8,
-              background: n.active ? "rgba(79,142,247,0.12)" : "transparent",
-              color: n.active ? "#4F8EF7" : "#6B7280", cursor: "pointer",
-            }}>
-              {n.icon}
-              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: n.active ? 700 : 500 }}>{n.label}</span>
-            </div>
-          ))}
-        </nav>
-
-        {/* Price preview */}
-        {sellPrice && (
-          <div style={{ margin: "auto 16px 20px", background: "rgba(79,142,247,0.08)", border: "1px solid rgba(79,142,247,0.2)", borderRadius: 10, padding: "10px 14px" }}>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#6B7280", marginBottom: 4 }}>LISTING PRICE</p>
-            <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#4F8EF7" }}>₹{sellPrice}</p>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#10B981", marginTop: 2 }}>+{origPrice ? `₹${origPrice} orig.` : "Set orig. price"}</p>
-          </div>
-        )}
-      </aside>
-
-      {/* ── MAIN ── */}
-      <div style={{ flex: 1, padding: "32px 36px", minWidth: 0 }}>
+    <StudentLayout>
+      <div style={{ padding: "32px 36px", maxWidth: 900 }}>
 
         {/* Step indicator */}
         <div style={{ display: "flex", alignItems: "center", marginBottom: 32 }}>
@@ -158,39 +114,32 @@ export default function SellProductPage() {
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", marginBottom: 32 }}>
               Reach thousands of students in the Digital Ivy League ecosystem.
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18 }}>
               {[
-                { key: "physical" as const, icon: "🔧", label: "Physical / Refurbished Item", sub: "Sell your pre-loved gadgets, textbooks, or even essentials to other students on campus.", fee: 50,  tags: ["Laptop", "Books", "Electronics"], color: "#4F8EF7" },
-                { key: "digital"  as const, icon: "📄", label: "Digital Product",              sub: "Share your knowledge, full course notes, study guides, or specialized digital assets.",    fee: 20,  tags: ["Note PDF", "Video+Notes", "Markup(digital)"], color: "#10B981" },
-              ].map(t => (
+                { key: "physical" as const, sub: null,    icon: "🔧", label: "Physical Item",     desc: "Sell gadgets, textbooks, lab equipment to fellow students.",    fee: 50,  tags: ["Laptop","Books","Electronics"], color: "#4F8EF7", glow:"rgba(79,142,247,0.2)"  },
+                { key: "digital"  as const, sub: "pdf",   icon: "📄", label: "Notes PDF",          desc: "Share handwritten or typed study notes, guides, question banks.",  fee: 20,  tags: ["GATE Notes","Handwritten","Solutions"], color: "#A78BFA", glow:"rgba(167,139,250,0.2)" },
+                { key: "digital"  as const, sub: "video", icon: "🎥", label: "Video Course",        desc: "Upload recorded lectures, tutorials, or concept explainers.",      fee: 20,  tags: ["Full Course","Lectures","Tutorials"], color: "#10B981", glow:"rgba(16,185,129,0.2)"  },
+              ].map((t, i) => (
                 <div
-                  key={t.key}
-                  onClick={() => { setProdType(t.key); setStep(2); }}
+                  key={i}
+                  onClick={() => { setProdType(t.key); setDigSub(t.sub as any); setStep(2); }}
                   style={{
                     background: "#111827",
-                    border: `1.5px solid ${prodType === t.key ? t.color : "#1e2d45"}`,
-                    borderRadius: 14, padding: "24px 22px",
-                    cursor: "pointer", transition: "all 0.2s",
-                    boxShadow: prodType === t.key ? `0 0 0 3px ${t.color}22` : "none",
+                    border: `1.5px solid ${prodType === t.key && (t.sub === null || digSub === t.sub) ? t.color : "#1e2d45"}`,
+                    borderRadius: 16, padding: "22px 20px",
+                    cursor: "pointer", transition: "all 0.22s",
+                    boxShadow: prodType === t.key && (t.sub === null || digSub === t.sub) ? `0 4px 24px ${t.glow}` : "none",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-                    <span style={{
-                      background: `rgba(${t.key === "physical" ? "79,142,247" : "16,185,129"},0.1)`,
-                      color: t.color, borderRadius: 6, padding: "2px 10px",
-                      fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700,
-                    }}>Listing Fee ₹{t.fee}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <span style={{ fontSize: 32 }}>{t.icon}</span>
+                    <span style={{ background: `${t.color}15`, color: t.color, borderRadius: 6, padding: "3px 10px", fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700 }}>₹{t.fee} listing</span>
                   </div>
-                  <span style={{ fontSize: 32, display: "block", marginBottom: 12 }}>{t.icon}</span>
                   <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 700, color: "#F0F4FF", marginBottom: 8 }}>{t.label}</h3>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", lineHeight: 1.6, marginBottom: 14 }}>{t.sub}</p>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#374151", marginBottom: 8 }}>EXAMPLES:</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", lineHeight: 1.6, marginBottom: 14 }}>{t.desc}</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                     {t.tags.map(g => (
-                      <span key={g} style={{
-                        background: "#1a2235", borderRadius: 6, padding: "3px 10px",
-                        fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#9CA3AF",
-                      }}>{g}</span>
+                      <span key={g} style={{ background: "#1a2235", borderRadius: 6, padding: "3px 9px", fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#9CA3AF" }}>{g}</span>
                     ))}
                   </div>
                 </div>
@@ -376,7 +325,7 @@ export default function SellProductPage() {
           </div>
         )}
       </div>
-    </div>
+    </StudentLayout>
   );
 }
 

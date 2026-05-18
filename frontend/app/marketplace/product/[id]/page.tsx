@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ChevronRight, Star, ShieldCheck, MessageCircle, ShoppingCart } from "lucide-react";
+import { StudentLayout } from "@/components/StudentLayout";
 
 const THUMBNAILS = ["💻", "🔌", "⌨️", "🖥️"];
 
@@ -12,59 +13,8 @@ export default function PhysicalProductPage() {
   const [hoverChat, setHoverChat] = useState(false);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0A0E1A" }}>
-
-      {/* ── NAVBAR ── */}
-      <header style={{
-        height: 60, background: "#0d1120",
-        borderBottom: "1px solid #1e2d45",
-        display: "flex", alignItems: "center",
-        padding: "0 40px", gap: 24,
-        position: "sticky", top: 0, zIndex: 10,
-      }}>
-        <Link href="/" style={{ textDecoration: "none", display: "flex" }}>
-          <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#F0F4FF" }}>Campus</span>
-          <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#4F8EF7" }}>Connect</span>
-        </Link>
-
-        <nav style={{ display: "flex", gap: 0, marginLeft: 24 }}>
-          {["Marketplace", "Textbooks", "Housing", "Services"].map((t, i) => (
-            <Link key={t} href="#" style={{
-              fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: i === 0 ? 700 : 500,
-              color: i === 0 ? "#4F8EF7" : "#6B7280", textDecoration: "none",
-              padding: "0 16px", height: 60, display: "flex", alignItems: "center",
-              borderBottom: i === 0 ? "2px solid #4F8EF7" : "2px solid transparent",
-            }}>{t}</Link>
-          ))}
-        </nav>
-
-        <div style={{ flex: 1 }} />
-
-        {/* right actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ position: "relative", cursor: "pointer" }}>
-            <input placeholder="Search campus..." style={{
-              height: 36, padding: "0 16px",
-              background: "#111827", border: "1.5px solid #1e2d45",
-              borderRadius: 9999, outline: "none",
-              fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F0F4FF", width: 180,
-            }} />
-          </div>
-          <div style={{
-            width: 32, height: 32, borderRadius: "50%", background: "#4F8EF7",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 800, color: "#fff",
-          }}>RS</div>
-          <button style={{
-            height: 34, padding: "0 16px", borderRadius: 9999,
-            background: "#10B981", border: "none", cursor: "pointer",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, color: "#fff",
-          }}>+ Sell</button>
-        </div>
-      </header>
-
-      {/* ── MAIN CONTENT ── */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 40px" }}>
+    <StudentLayout>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 32px" }}>
 
         {/* breadcrumb */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
@@ -307,6 +257,6 @@ export default function PhysicalProductPage() {
           </div>
         </div>
       </div>
-    </div>
+    </StudentLayout>
   );
 }
