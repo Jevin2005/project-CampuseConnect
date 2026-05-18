@@ -7,8 +7,8 @@ import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import {
   LayoutDashboard, Package, ShoppingBag, User,
-  Plus, LogOut, Bell, Search, BookOpen, Video,
-  ChevronRight, Megaphone, HelpCircle,
+  Plus, LogOut, Bell, Search,
+  ChevronRight, Megaphone, HelpCircle, Heart,
 } from "lucide-react";
 
 /* ─── Nav groups ──────────────────────────────────────────── */
@@ -16,18 +16,12 @@ const NAV = [
   {
     group: "Marketplace",
     items: [
-      { href: "/marketplace",           icon: <LayoutDashboard size={16} />, label: "Browse",       badge: null },
-      { href: "/marketplace/listings",  icon: <Package size={16} />,          label: "My Listings",  badge: null },
-      { href: "/marketplace/purchases", icon: <ShoppingBag size={16} />,      label: "My Purchases", badge: null },
-      { href: "/marketplace/profile",   icon: <User size={16} />,             label: "My Profile",   badge: null },
-    ],
-  },
-  {
-    group: "Study Hub",
-    items: [
-      { href: "/marketplace?cat=Notes+PDF",   icon: <BookOpen size={16} />, label: "Notes & PDFs",   badge: "📄" },
-      { href: "/marketplace?cat=Video+Course",icon: <Video size={16} />,    label: "Video Courses",   badge: "🎥" },
-      { href: "/marketplace/ads",              icon: <Megaphone size={16} />,label: "Advertisements",  badge: "📢" },
+      { href: "/marketplace",           icon: <LayoutDashboard size={16} />, label: "Browse",         badge: null },
+      { href: "/marketplace/listings",  icon: <Package size={16} />,         label: "My Listings",    badge: null },
+      { href: "/marketplace/purchases", icon: <ShoppingBag size={16} />,     label: "My Purchases",   badge: null },
+      { href: "/marketplace/wishlist",  icon: <Heart size={16} />,           label: "Wishlist",       badge: null },
+      { href: "/marketplace/profile",   icon: <User size={16} />,            label: "My Profile",     badge: null },
+      { href: "/marketplace/ads",       icon: <Megaphone size={16} />,       label: "Advertisements", badge: "📢" },
     ],
   },
 ];

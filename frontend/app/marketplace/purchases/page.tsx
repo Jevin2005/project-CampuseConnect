@@ -13,12 +13,12 @@ const PHYSICAL = [
 ];
 
 const DIGITAL = [
-  { id:"D001", icon:"📄", type:"pdf",   title:"Quantum Mechanics Notes",       seller:"Dr. Smith",         date:"Dec 15, 2024", pages:48,  size:"4.2 MB" },
-  { id:"D002", icon:"🎥", type:"video", title:"Advanced Algorithm Visualizer", seller:"Prof. G. Miller",   date:"Dec 12, 2024", duration:"6h 20m" },
-  { id:"D003", icon:"📄", type:"pdf",   title:"C++ Design Patterns Guide",     seller:"Rahul Sharma",      date:"Dec 08, 2024", pages:92,  size:"8.1 MB" },
-  { id:"D004", icon:"📄", type:"pdf",   title:"GATE ECE Notes 2024",           seller:"Priya Nair",        date:"Nov 20, 2024", pages:210, size:"18.4 MB" },
-  { id:"D005", icon:"🎥", type:"video", title:"DSP Video Full Course",         seller:"Dr. Kumar",         date:"Nov 15, 2024", duration:"12h 45m" },
-  { id:"D006", icon:"📄", type:"pdf",   title:"Engineering Maths Vol 2",       seller:"Prof. Sharma",      date:"Oct 30, 2024", pages:156, size:"11.2 MB" },
+  { id:"D001", icon:"📄", type:"pdf",   title:"Quantum Mechanics Notes",       seller:"Dr. Smith",        date:"Dec 15, 2024", pages:48,  size:"4.2 MB" },
+  { id:"D002", icon:"🎥", type:"video", title:"Advanced Algorithm Visualizer", seller:"Prof. G. Miller",  date:"Dec 12, 2024", duration:"6h 20m" },
+  { id:"D003", icon:"📄", type:"pdf",   title:"C++ Design Patterns Guide",     seller:"Rahul Sharma",     date:"Dec 08, 2024", pages:92,  size:"8.1 MB" },
+  { id:"D004", icon:"📄", type:"pdf",   title:"GATE ECE Notes 2024",           seller:"Priya Nair",       date:"Nov 20, 2024", pages:210, size:"18.4 MB" },
+  { id:"D005", icon:"🎥", type:"video", title:"DSP Video Full Course",         seller:"Dr. Kumar",        date:"Nov 15, 2024", duration:"12h 45m" },
+  { id:"D006", icon:"📄", type:"pdf",   title:"Engineering Maths Vol 2",       seller:"Prof. Sharma",     date:"Oct 30, 2024", pages:156, size:"11.2 MB" },
 ];
 
 const ST: Record<string,{ bg:string; color:string; label:string }> = {
@@ -27,20 +27,57 @@ const ST: Record<string,{ bg:string; color:string; label:string }> = {
   Delivered: { bg:"rgba(79,142,247,0.1)",  color:"#4F8EF7", label:"📦 Delivered" },
 };
 
+type PhysicalOrder = typeof PHYSICAL[0];
+
 export default function MyPurchasesPage() {
-  const [tab, setTab] = useState<"physical"|"digital">("physical");
-  const totalSpent = PHYSICAL.reduce((s,o) => s + o.price, 0);
+  const [tab, setTab]     = useState<"physical"|"digital">("physical");
+  const [toast, setToast] = useState("");
+  const totalSpent        = PHYSICAL.reduce((s,o) => s + o.price, 0);
+
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
+
+  function downloadReceipt(o: PhysicalOrder) {
+    const lines = [
+      "==============================",
+      "    CAMPUSCONNECT RECEIPT",
+      "==============================",
+      `Order ID:  ${o.id}`,
+      `Date:      ${o.date}`,
+      `Item:      ${o.title}`,
+      `Seller:    ${o.seller} (${o.college})`,
+      `Status:    ${o.status}`,
+      `Amount:    \u20b9${o.price.toLocaleString("en-IN")}`,
+      "------------------------------",
+      "Thank you for using CampusConnect!",
+    ];
+    const blob = new Blob([lines.join("\n")], { type:"text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `receipt-${o.id}.txt`; a.click();
+    URL.revokeObjectURL(url);
+    showToast("Receipt downloaded!");
+  }
 
   return (
     <StudentLayout>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
         .pp-page{animation:fadeUp .4s ease}
-        .order-card:hover{border-color:rgba(79,142,247,0.4)!important;transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3)}
-        .dig-card:hover{border-color:rgba(167,139,250,0.4)!important;transform:translateY(-3px);box-shadow:0 10px 32px rgba(0,0,0,0.35)}
+        .order-card{transition:all 0.22s}
+        .order-card:hover{border-color:rgba(79,142,247,0.4)!important;transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3)!important}
+        .dig-card{transition:all 0.25s}
+        .dig-card:hover{border-color:rgba(167,139,250,0.4)!important;transform:translateY(-3px);box-shadow:0 10px 32px rgba(0,0,0,0.35)!important}
       `}</style>
 
       <div className="pp-page" style={{ padding:"28px 32px", maxWidth:1200 }}>
+
+        {/* Toast */}
+        {toast && (
+          <div style={{ position:"fixed", top:20, right:24, zIndex:999, background:"#10B981", color:"#fff", borderRadius:12, padding:"12px 20px", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
+            ✅ {toast}
+          </div>
+        )}
 
         {/* Header */}
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:28, flexWrap:"wrap", gap:16 }}>
@@ -72,7 +109,7 @@ export default function MyPurchasesPage() {
         {/* Summary Stats */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:28 }}>
           {[
-            { icon:"💰", label:"Total Spent",    value:`₹${totalSpent.toLocaleString("en-IN")}`, color:"#10B981" },
+            { icon:"💰", label:"Total Spent",   value:`\u20b9${totalSpent.toLocaleString("en-IN")}`, color:"#10B981" },
             { icon:"📦", label:"Active Orders",  value:"2",  color:"#4F8EF7" },
             { icon:"📚", label:"Digital Items",  value:`${DIGITAL.length}`, color:"#A78BFA" },
           ].map(s => (
@@ -92,21 +129,24 @@ export default function MyPurchasesPage() {
             {PHYSICAL.map(o => {
               const st = ST[o.status];
               return (
-                <div key={o.id} className="order-card" style={{ background:"#111827", border:"1px solid #1e2d45", borderRadius:16, padding:"20px 24px", display:"flex", alignItems:"center", gap:18, transition:"all 0.22s" }}>
+                <div key={o.id} className="order-card" style={{ background:"#111827", border:"1px solid #1e2d45", borderRadius:16, padding:"20px 24px", display:"flex", alignItems:"center", gap:18 }}>
                   <div style={{ width:52, height:52, borderRadius:12, background:"#1a2235", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{o.icon}</div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <p style={{ fontFamily:"'Sora',sans-serif", fontSize:16, fontWeight:700, color:"#F0F4FF", marginBottom:3 }}>{o.title}</p>
                     <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"#6B7280", marginBottom:10 }}>Seller: {o.seller} · {o.college}</p>
                     <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                       <span style={{ background:st.bg, color:st.color, borderRadius:9999, padding:"4px 12px", fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:700 }}>{st.label}</span>
-                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:"#374151" }}>Order #{o.id}</span>
+                      <span style={{ fontFamily:"monospace", fontSize:11, color:"#374151" }}>Order #{o.id}</span>
                       <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#374151" }}>📅 {o.date}</span>
                     </div>
                   </div>
-                  <div style={{ textAlign:"right", flexShrink:0 }}>
-                    <p style={{ fontFamily:"'Sora',sans-serif", fontSize:18, fontWeight:800, color:"#F0F4FF", marginBottom:4 }}>₹{o.price.toLocaleString("en-IN")}</p>
-                    <button style={{ height:30, padding:"0 14px", borderRadius:9999, background:"transparent", border:"1px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#4F8EF7", cursor:"pointer" }}>
-                      <Download size={11} style={{ display:"inline", marginRight:4 }} />Receipt
+                  <div style={{ textAlign:"right", flexShrink:0, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8 }}>
+                    <p style={{ fontFamily:"'Sora',sans-serif", fontSize:18, fontWeight:800, color:"#F0F4FF" }}>\u20b9{o.price.toLocaleString("en-IN")}</p>
+                    <button onClick={() => downloadReceipt(o)} style={{ height:30, padding:"0 14px", borderRadius:9999, background:"transparent", border:"1px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#4F8EF7", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                      <Download size={11} /> Receipt
+                    </button>
+                    <button onClick={() => showToast("Message sent to seller!")} style={{ height:30, padding:"0 14px", borderRadius:9999, background:"transparent", border:"1px solid rgba(16,185,129,0.3)", fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#10B981", cursor:"pointer" }}>
+                      💬 Contact Seller
                     </button>
                   </div>
                 </div>
@@ -124,7 +164,7 @@ export default function MyPurchasesPage() {
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:18 }}>
               {DIGITAL.map(d => (
-                <div key={d.id} className="dig-card" style={{ background:"#111827", border:"1px solid #1e2d45", borderRadius:16, overflow:"hidden", transition:"all 0.25s" }}>
+                <div key={d.id} className="dig-card" style={{ background:"#111827", border:"1px solid #1e2d45", borderRadius:16, overflow:"hidden" }}>
                   <div style={{ height:120, background: d.type==="pdf" ? "linear-gradient(135deg,#1a0d30,#2d1b4e)" : "linear-gradient(135deg,#0a1f15,#1b3040)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6 }}>
                     <span style={{ fontSize:36 }}>{d.icon}</span>
                     <span style={{ fontSize:10, fontWeight:700, color: d.type==="pdf" ? "#A78BFA" : "#10B981", background: d.type==="pdf" ? "rgba(167,139,250,0.15)" : "rgba(16,185,129,0.15)", padding:"2px 10px", borderRadius:9999 }}>
@@ -175,19 +215,15 @@ export default function MyPurchasesPage() {
           </Link>
         </div>
 
-        {/* ── Advertisements Section ── */}
+        {/* Advertisements Section */}
         <div style={{ marginTop:32 }}>
           <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:9, fontWeight:700, letterSpacing:"1.4px", color:"#374151", textTransform:"uppercase", marginBottom:14 }}>📢 ADVERTISEMENTS FOR YOU</p>
-
-          {/* Hostel Banner */}
           <div style={{ marginBottom:12 }}>
             <AdBannerHorizontal ad={HOSTEL_ADS[1]} />
           </div>
-
-          {/* Cross College Strip */}
           <AdStrip ad={{
             ...CROSS_COLLEGE_ADS[1],
-            subtitle: "COEP Techniche 2024 — India’s oldest tech festival. Jan 15–18. All colleges welcome!",
+            subtitle: "COEP Techniche 2024 — India's oldest tech festival. Jan 15–18. All colleges welcome!",
             dismissible: true,
           }} />
         </div>

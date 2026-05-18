@@ -4,7 +4,7 @@ import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import { AdStrip } from "@/components/AdBanner";
 import { OWN_COLLEGE_ADS, CROSS_COLLEGE_ADS } from "@/lib/adsData";
-import { Pencil, Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag } from "lucide-react";
+import { Pencil, Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check, X } from "lucide-react";
 
 const LISTINGS = [
   { id:"L001", icon:"💻", title:"MacBook Pro M2 2023",        type:"Physical", cat:"Electronics", price:35000, status:"Active",         views:450, sales:0, earnings:0    },
@@ -30,15 +30,47 @@ const TYPE_STYLE: Record<string,{ bg:string; color:string }> = {
 };
 
 export default function MyListingsPage() {
-  const [tab, setTab] = useState<Tab>("All");
-  const [hov, setHov] = useState<string|null>(null);
-  const filtered = LISTINGS.filter(l => tab === "All" || l.status === tab);
+  const [tab, setTab]             = useState<Tab>("All");
+  const [hov, setHov]             = useState<string|null>(null);
+  const [listings, setListings]   = useState(LISTINGS);
+  const [deleteId, setDeleteId]   = useState<string|null>(null);
+  const [editId, setEditId]       = useState<string|null>(null);
+  const [editPrice, setEditPrice] = useState("");
+  const [toast, setToast]         = useState("");
+
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
+
+  function confirmDelete(id: string) { setDeleteId(id); }
+  function doDelete() {
+    setListings(ls => ls.filter(l => l.id !== deleteId));
+    setDeleteId(null);
+    showToast("Listing removed successfully.");
+  }
+
+  function startEdit(l: typeof LISTINGS[0]) { setEditId(l.id); setEditPrice(String(l.price)); }
+  function saveEdit() {
+    setListings(ls => ls.map(l => l.id === editId ? { ...l, price: parseFloat(editPrice) || l.price } : l));
+    setEditId(null);
+    showToast("Listing price updated.");
+  }
+
+  function exportCSV() {
+    const rows = ["ID,Title,Type,Price,Status,Views,Sales",
+      ...listings.map(l => `${l.id},"${l.title}",${l.type},${l.price},${l.status},${l.views},${l.sales}`)];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "my-listings.csv"; a.click();
+    URL.revokeObjectURL(url);
+    showToast("CSV exported!");
+  }
+
+  const filtered = listings.filter(l => tab === "All" || l.status === tab);
 
   const totals = {
-    active:   LISTINGS.filter(l => l.status === "Active").length,
-    views:    LISTINGS.reduce((s,l) => s+l.views, 0),
-    sales:    LISTINGS.reduce((s,l) => s+l.sales, 0),
-    earnings: LISTINGS.reduce((s,l) => s+(l.earnings||0), 0),
+    active:   listings.filter(l => l.status === "Active").length,
+    views:    listings.reduce((s,l) => s+l.views, 0),
+    sales:    listings.reduce((s,l) => s+l.sales, 0),
+    earnings: listings.reduce((s,l) => s+(l.earnings||0), 0),
   };
 
   return (
@@ -51,6 +83,28 @@ export default function MyListingsPage() {
 
       <div className="lp" style={{ padding:"28px 32px", maxWidth:1200 }}>
 
+        {/* Toast */}
+        {toast && (
+          <div style={{ position:"fixed", top:20, right:24, zIndex:999, background:"#10B981", color:"#fff", borderRadius:12, padding:"12px 20px", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:8 }}>
+            <Check size={14}/> {toast}
+          </div>
+        )}
+
+        {/* Delete Confirm Modal */}
+        {deleteId && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:998 }}>
+            <div style={{ background:"#111827", border:"1.5px solid #EF444460", borderRadius:16, padding:"28px 32px", maxWidth:380, textAlign:"center" }}>
+              <span style={{ fontSize:40 }}>🗑️</span>
+              <p style={{ fontFamily:"'Sora',sans-serif", fontSize:17, fontWeight:700, color:"#F0F4FF", margin:"12px 0 6px" }}>Remove this listing?</p>
+              <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280", marginBottom:20 }}>This action cannot be undone. The listing will be permanently removed.</p>
+              <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
+                <button onClick={() => setDeleteId(null)} style={{ height:38, padding:"0 20px", borderRadius:9999, background:"transparent", border:"1.5px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#9CA3AF", cursor:"pointer" }}>Cancel</button>
+                <button onClick={doDelete} style={{ height:38, padding:"0 20px", borderRadius:9999, background:"#EF4444", border:"none", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:700, color:"#fff", cursor:"pointer" }}>Yes, Remove</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:28, flexWrap:"wrap", gap:16 }}>
           <div>
@@ -58,7 +112,7 @@ export default function MyListingsPage() {
             <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280" }}>Track and manage your marketplace products</p>
           </div>
           <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-            <button style={{ height:38, padding:"0 16px", borderRadius:9999, background:"transparent", border:"1.5px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"#9CA3AF", cursor:"pointer", display:"flex", alignItems:"center", gap:7 }}>
+            <button onClick={exportCSV} style={{ height:38, padding:"0 16px", borderRadius:9999, background:"transparent", border:"1.5px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"#9CA3AF", cursor:"pointer", display:"flex", alignItems:"center", gap:7 }}>
               <Download size={13} />Export CSV
             </button>
             <Link href="/marketplace/sell" style={{ textDecoration:"none" }}>
@@ -146,8 +200,18 @@ export default function MyListingsPage() {
                 <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#9CA3AF" }}>{l.views.toLocaleString()}</span>
                 <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#9CA3AF" }}>{l.sales}</span>
                 <div style={{ display:"flex", gap:6 }}>
-                  <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid rgba(79,142,247,0.3)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#4F8EF7" }}><Pencil size={13}/></button>
-                  <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid rgba(239,68,68,0.3)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#EF4444" }}><Trash2 size={13}/></button>
+                  {editId === l.id ? (
+                    <>
+                      <input value={editPrice} onChange={e => setEditPrice(e.target.value)} style={{ width:90, height:32, padding:"0 8px", background:"#1a2235", border:"1.5px solid #4F8EF7", borderRadius:8, color:"#F0F4FF", fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none" }} />
+                      <button onClick={saveEdit} style={{ width:32, height:32, borderRadius:8, background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.4)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#10B981" }}><Check size={13}/></button>
+                      <button onClick={() => setEditId(null)} style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid #1e2d45", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#6B7280" }}><X size={13}/></button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEdit(l)} style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid rgba(79,142,247,0.3)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#4F8EF7" }}><Pencil size={13}/></button>
+                      <button onClick={() => confirmDelete(l.id)} style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid rgba(239,68,68,0.3)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#EF4444" }}><Trash2 size={13}/></button>
+                    </>
+                  )}
                 </div>
               </div>
             );

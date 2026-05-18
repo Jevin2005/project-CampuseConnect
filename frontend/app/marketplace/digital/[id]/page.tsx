@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChevronRight, Star, ShieldCheck, Eye, FileText, Video } from "lucide-react";
+import { ChevronRight, Star, ShieldCheck, Eye, FileText, Video, Heart, Check } from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
 
 const SUBJECTS = ["Electronics", "GATE", "Notes", "Signals & Systems", "Digital Circuits"];
@@ -25,21 +25,81 @@ export default function DigitalProductPage({ params }: { params: { id: string } 
   const router = useRouter();
   const [hoverBuy, setHoverBuy]         = useState(false);
   const [hoverPreview, setHoverPreview] = useState(false);
-  // Toggle between PDF and Video product to demo both preview flows
   const [productKind, setProductKind]   = useState<"pdf" | "video">("pdf");
+  const [wishlisted, setWishlisted]     = useState(false);
+  const [toast, setToast]               = useState("");
+  const [buyModal, setBuyModal]         = useState(false);
+  const [buyStep, setBuyStep]           = useState<"confirm"|"pay"|"done">("confirm");
 
-  const handlePreview = () => {
-    if (productKind === "pdf") {
-      router.push("/marketplace/viewer/pdf?preview=true");
-    } else {
-      router.push("/marketplace/viewer/video?preview=true");
-    }
-  };
+  function showToast(msg: string) { setToast(msg); setTimeout(()=>setToast(""),3000); }
+
+  function handleWishlist() { setWishlisted(w=>!w); showToast(wishlisted?"Removed from wishlist":"Added to wishlist ❤️"); }
+
+  function handlePreview() {
+    router.push(productKind==="pdf" ? "/marketplace/viewer/pdf?preview=true" : "/marketplace/viewer/video?preview=true");
+  }
+
+  function handleAccessNow() {
+    router.push(productKind==="pdf" ? "/marketplace/viewer/pdf" : "/marketplace/viewer/video");
+  }
 
   return (
     <StudentLayout>
-      <div style={{ minWidth: 0 }}>
+      <style>{`@keyframes modalIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}`}</style>
 
+      {/* Toast */}
+      {toast && (
+        <div style={{position:"fixed",top:20,right:24,zIndex:1000,background:"#111827",border:"1px solid #1e2d45",color:"#F0F4FF",borderRadius:12,padding:"12px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,boxShadow:"0 8px 32px rgba(0,0,0,0.5)",display:"flex",alignItems:"center",gap:8}}>
+          <Check size={14} style={{color:"#10B981"}}/> {toast}
+        </div>
+      )}
+
+      {/* Buy Modal */}
+      {buyModal && (
+        <div onClick={()=>{if(buyStep!=="done")setBuyModal(false);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:20,padding:"32px 36px",maxWidth:420,width:"90%",animation:"modalIn 0.25s ease"}}>
+            {buyStep==="confirm" && (<>
+              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#F0F4FF",marginBottom:6}}>Confirm Purchase</h2>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",marginBottom:20}}>You&apos;ll get instant access after payment.</p>
+              <div style={{background:"#0d1120",borderRadius:12,padding:"16px 18px",marginBottom:20}}>
+                {[["Product",productKind==="pdf"?"GATE ECE Notes 2024":"DSP Video Course"],["Type",productKind==="pdf"?"PDF Notes":"Video Course"],["Access","Lifetime"],["Price",productKind==="pdf"?"₹299":"₹499"]].map(([l,v])=>(
+                  <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#6B7280"}}>{l}</span>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#F0F4FF",fontWeight:600}}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>setBuyStep("pay")} style={{width:"100%",height:48,borderRadius:9999,background:"#8B5CF6",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",marginBottom:10,boxShadow:"0 4px 16px rgba(139,92,246,0.35)"}}>
+                💳 Proceed to Payment
+              </button>
+              <button onClick={()=>setBuyModal(false)} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Cancel</button>
+            </>)}
+            {buyStep==="pay" && (<>
+              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#F0F4FF",marginBottom:20}}>Choose Payment</h2>
+              {[{icon:"📱",label:"UPI / GPay / PhonePe"},{icon:"💳",label:"Debit / Credit Card"},{icon:"🏦",label:"Net Banking"}].map(m=>(
+                <div key={m.label} onClick={()=>setBuyStep("done")} style={{display:"flex",alignItems:"center",gap:12,background:"#0d1120",border:"1.5px solid #1e2d45",borderRadius:12,padding:"14px 16px",cursor:"pointer",marginBottom:10}}>
+                  <span style={{fontSize:22}}>{m.icon}</span>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#F0F4FF",fontWeight:600}}>{m.label}</span>
+                </div>
+              ))}
+              <button onClick={()=>setBuyStep("confirm")} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer",marginTop:4}}>← Back</button>
+            </>)}
+            {buyStep==="done" && (<>
+              <div style={{textAlign:"center",padding:"12px 0"}}>
+                <div style={{fontSize:60,marginBottom:12}}>🎉</div>
+                <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:22,fontWeight:800,color:"#F0F4FF",marginBottom:8}}>Access Granted!</h2>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF",marginBottom:20}}>Your purchase was successful. You now have lifetime access.</p>
+                <button onClick={handleAccessNow} style={{width:"100%",height:48,borderRadius:9999,background:"#8B5CF6",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",marginBottom:10,boxShadow:"0 4px 16px rgba(139,92,246,0.3)"}}>
+                  {productKind==="pdf"?"📄 Open PDF Viewer":"🎥 Watch Video Now"}
+                </button>
+                <button onClick={()=>{setBuyModal(false);setBuyStep("confirm");}} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Close</button>
+              </div>
+            </>)}
+          </div>
+        </div>
+      )}
+
+      <div style={{ minWidth: 0 }}>
         {/* breadcrumb */}
         <div style={{ padding: "16px 28px", display: "flex", alignItems: "center", gap: 8 }}>
           {["Marketplace", "Digital", "GATE ECE Notes"].map((b, i) => (
@@ -202,6 +262,7 @@ export default function DigitalProductPage({ params }: { params: { id: string } 
 
             {/* buy button */}
             <button
+              onClick={()=>{setBuyModal(true);setBuyStep("confirm");}}
               onMouseEnter={() => setHoverBuy(true)}
               onMouseLeave={() => setHoverBuy(false)}
               style={{
