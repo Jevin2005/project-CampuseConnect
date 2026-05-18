@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import {
   LayoutDashboard, Package, ShoppingBag, User,
   Plus, LogOut, Bell, Search,
-  ChevronRight, Megaphone, HelpCircle, Heart,
+  ChevronRight, Megaphone, HelpCircle, Heart, MessageCircle,
 } from "lucide-react";
 
 /* ─── Nav groups ──────────────────────────────────────────── */
@@ -18,6 +18,8 @@ const NAV = [
     items: [
       { href: "/marketplace",           icon: <LayoutDashboard size={16} />, label: "Browse",         badge: null },
       { href: "/marketplace/listings",  icon: <Package size={16} />,         label: "My Listings",    badge: null },
+      { href: "/marketplace/requests",  icon: <Bell size={16} />,            label: "Requests",       badge: "🔔" },
+      { href: "/marketplace/inbox",     icon: <MessageCircle size={16} />,   label: "Inbox",          badge: null },
       { href: "/marketplace/purchases", icon: <ShoppingBag size={16} />,     label: "My Purchases",   badge: null },
       { href: "/marketplace/wishlist",  icon: <Heart size={16} />,           label: "Wishlist",       badge: null },
       { href: "/marketplace/profile",   icon: <User size={16} />,            label: "My Profile",     badge: null },

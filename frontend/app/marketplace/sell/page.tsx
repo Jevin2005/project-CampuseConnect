@@ -70,13 +70,17 @@ export default function SellProductPage() {
     { key: "bundle" as DigSub, icon: <Package size={28} />,   label: "Bundle",         desc: "Multi-subject or multi-course bundle at one discounted price.", color: "#4F8EF7", glow: "rgba(79,142,247,0.18)", tags: ["Multi-subject","Combo","Semester Pack"] },
   ];
 
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
   const [draftToast, setDraftToast] = useState(false);
+  const [payModal, setPayModal]     = useState(false);
+  const [payStep, setPayStep]       = useState<"choose"|"done">("choose");
 
+  const listFee = prodType === "digital" ? 20 : 49;
   const digSubColor = DIG_SUBS.find(d => d.key === digSub)?.color ?? "#4F8EF7";
 
   function saveDraft() { setDraftToast(true); setTimeout(() => setDraftToast(false), 3000); }
-  function payAndList() { setSubmitted(true); }
+  function openPayModal() { setPayModal(true); setPayStep("choose"); }
+  function completePay() { setPayStep("done"); setTimeout(() => { setPayModal(false); setSubmitted(true); }, 1400); }
 
   return (
     <StudentLayout>
@@ -86,6 +90,49 @@ export default function SellProductPage() {
         {draftToast && (
           <div style={{ position:"fixed", top:20, right:24, zIndex:999, background:"#4F8EF7", color:"#fff", borderRadius:12, padding:"12px 20px", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
             💾 Draft saved! You can continue later.
+          </div>
+        )}
+
+        {/* Listing Fee Payment Modal */}
+        {payModal && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+            <div style={{ background:"#111827", border:"1.5px solid #1e2d45", borderRadius:20, padding:"32px 36px", maxWidth:420, width:"90%", animation:"fadeUp .25s ease" }}>
+              {payStep === "choose" ? (<>
+                <div style={{ textAlign:"center", marginBottom:20 }}>
+                  <div style={{ fontSize:42, marginBottom:8 }}>🏷️</div>
+                  <h2 style={{ fontFamily:"'Sora',sans-serif", fontSize:20, fontWeight:800, color:"#F0F4FF", marginBottom:4 }}>Pay Listing Fee</h2>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280" }}>One-time fee to publish your product on CampusConnect Marketplace</p>
+                </div>
+                <div style={{ background:"rgba(79,142,247,0.06)", border:"1px solid rgba(79,142,247,0.2)", borderRadius:12, padding:"16px 18px", marginBottom:20 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                    <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280" }}>Listing Fee ({prodType === "digital" ? "Digital" : "Physical"}):</span>
+                    <span style={{ fontFamily:"'Sora',sans-serif", fontSize:18, fontWeight:800, color:"#4F8EF7" }}>₹{listFee}</span>
+                  </div>
+                  <div style={{ display:"flex", justifyContent:"space-between" }}>
+                    <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#374151" }}>Product goes live after admin review</span>
+                    <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#10B981" }}>✓ One time only</span>
+                  </div>
+                </div>
+                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:700, letterSpacing:"1px", color:"#6B7280", textTransform:"uppercase", marginBottom:12 }}>Choose Payment Method</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+                  {[{icon:"📱", label:"UPI / GPay / PhonePe"}, {icon:"💳", label:"Debit / Credit Card"}, {icon:"🏦", label:"Net Banking"}].map(m => (
+                    <div key={m.label} onClick={completePay} style={{ display:"flex", alignItems:"center", gap:12, background:"#1a2235", border:"1.5px solid #1e2d45", borderRadius:12, padding:"14px 16px", cursor:"pointer", transition:"border-color 0.15s" }}
+                      onMouseEnter={e=>(e.currentTarget.style.borderColor="#4F8EF7")}
+                      onMouseLeave={e=>(e.currentTarget.style.borderColor="#1e2d45")}>
+                      <span style={{ fontSize:22 }}>{m.icon}</span>
+                      <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:600, color:"#F0F4FF" }}>{m.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>setPayModal(false)} style={{ width:"100%", height:38, borderRadius:9999, background:"transparent", border:"1.5px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+              </>) : (<>
+                <div style={{ textAlign:"center", padding:"20px 0" }}>
+                  <div style={{ fontSize:56, marginBottom:12 }}>✅</div>
+                  <h2 style={{ fontFamily:"'Sora',sans-serif", fontSize:20, fontWeight:800, color:"#10B981", marginBottom:6 }}>Payment Successful!</h2>
+                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#9CA3AF" }}>₹{listFee} paid. Submitting your listing…</p>
+                </div>
+              </>)}
+            </div>
           </div>
         )}
 
@@ -376,8 +423,8 @@ export default function SellProductPage() {
                 Listing Fee: <span style={{ color: "#F7C948" }}>₹{prodType === "digital" ? "20" : "50"}</span>
               </p>
               <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", marginBottom: 20 }}>This fee ensures only genuine sellers list products.</p>
-              <button onClick={payAndList} style={{ width: "100%", height: 50, borderRadius: 9999, background: "linear-gradient(90deg, #1a6fff, #4F8EF7)", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 20px rgba(79,142,247,0.35)" }}>
-                <span style={{ fontSize: 18 }}>💳</span> Pay ₹{prodType === "digital" ? "20" : "50"} &amp; List Product
+              <button onClick={openPayModal} style={{ width: "100%", height: 50, borderRadius: 9999, background: "linear-gradient(90deg, #1a6fff, #4F8EF7)", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 20px rgba(79,142,247,0.35)" }}>
+                <span style={{ fontSize: 18 }}>💳</span> Pay ₹{listFee} Listing Fee &amp; Publish
               </button>
             </div>
 

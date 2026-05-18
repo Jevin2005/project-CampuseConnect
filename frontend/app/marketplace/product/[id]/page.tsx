@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ChevronRight, Star, ShieldCheck, MessageCircle, ShoppingCart, Heart, Share2, Check, X } from "lucide-react";
+import { ChevronRight, Star, ShieldCheck, MessageCircle, ShoppingBag, Heart, Share2, Check, X, Send } from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
 
 const THUMBNAILS = ["💻", "🔌", "⌨️", "🖥️"];
@@ -11,11 +11,12 @@ export default function PhysicalProductPage() {
   const [mainThumb, setMainThumb]   = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
   const [toast, setToast]           = useState("");
-  const [showBuy, setShowBuy]       = useState(false);
-  const [showChat, setShowChat]     = useState(false);
-  const [chatMsg, setChatMsg]       = useState("");
-  const [chatSent, setChatSent]     = useState(false);
-  const [buyStep, setBuyStep]       = useState<"confirm"|"pay"|"done">("confirm");
+  const [showRequest, setShowRequest] = useState(false);
+  const [reqMsg, setReqMsg]           = useState("");
+  const [reqSent, setReqSent]         = useState(false);
+  const [showChat, setShowChat]       = useState(false);
+  const [chatMsg, setChatMsg]         = useState("");
+  const [chatSent, setChatSent]       = useState(false);
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
@@ -27,6 +28,12 @@ export default function PhysicalProductPage() {
   function handleShare() {
     navigator.clipboard?.writeText(window.location.href).catch(() => {});
     showToast("Link copied to clipboard! 🔗");
+  }
+
+  function sendRequest() {
+    if (!reqMsg.trim()) return;
+    setReqSent(true);
+    setTimeout(() => { setShowRequest(false); setReqSent(false); setReqMsg(""); showToast("Request sent! Seller will respond shortly. 📬"); }, 1400);
   }
 
   function sendChat() {
@@ -54,58 +61,48 @@ export default function PhysicalProductPage() {
         </div>
       )}
 
-      {/* Buy Modal */}
-      {showBuy && (
-        <div onClick={() => { if(buyStep!=="done") setShowBuy(false); }} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:20,padding:"32px 36px",maxWidth:420,width:"90%",animation:"modalIn 0.25s ease"}}>
-            {buyStep === "confirm" && (<>
-              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#F0F4FF",marginBottom:6}}>Confirm Purchase</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",marginBottom:20}}>Review your order before paying.</p>
-              <div style={{background:"#0d1120",borderRadius:12,padding:"16px 18px",marginBottom:20}}>
-                {[["Item","Apple MacBook Pro 14\""],["Seller","James Wilson"],["Condition","Like New"],["You Pay","₹18,000"],["Platform Fee","₹0 (buyer)"]].map(([l,v])=>(
-                  <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#6B7280"}}>{l}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#F0F4FF",fontWeight:600}}>{v}</span>
-                  </div>
+      {/* Send Request Modal */}
+      {showRequest && (
+        <div onClick={()=>setShowRequest(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:20,padding:"28px 32px",maxWidth:420,width:"90%",animation:"modalIn 0.25s ease"}}>
+            {!reqSent ? (<>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:18,fontWeight:800,color:"#F0F4FF"}}>Send Buy Request</h2>
+                <button onClick={()=>setShowRequest(false)} style={{background:"none",border:"none",cursor:"pointer",color:"#6B7280"}}><X size={18}/></button>
+              </div>
+              {/* Product summary */}
+              <div style={{display:"flex",alignItems:"center",gap:10,background:"#0d1120",borderRadius:10,padding:"12px 14px",marginBottom:16}}>
+                <span style={{fontSize:28}}>💻</span>
+                <div style={{flex:1}}>
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:"#F0F4FF"}}>Apple MacBook Pro 14&quot;</p>
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#6B7280"}}>Seller: James Wilson · ₹18,000</p>
+                </div>
+              </div>
+              {/* Info note */}
+              <div style={{background:"rgba(247,201,72,0.06)",border:"1px solid rgba(247,201,72,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",gap:8,alignItems:"flex-start"}}>
+                <span style={{fontSize:16,flexShrink:0}}>ℹ️</span>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#9CA3AF",lineHeight:1.5}}>
+                  <strong style={{color:"#F7C948"}}>No payment needed here.</strong> Payment happens in person on campus after the seller accepts your request.
+                </p>
+              </div>
+              {/* Quick prompts */}
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#6B7280",marginBottom:8}}>Quick messages:</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+                {["Is this still available?","Can we meet on campus?","Is the price negotiable?"].map(q=>(
+                  <button key={q} onClick={()=>setReqMsg(q)} style={{background:"#1a2235",border:"1.5px solid #1e2d45",borderRadius:8,padding:"6px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#9CA3AF",cursor:"pointer"}}>{q}</button>
                 ))}
               </div>
-              <button onClick={()=>setBuyStep("pay")} style={{width:"100%",height:48,borderRadius:9999,background:"#4F8EF7",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",marginBottom:10,boxShadow:"0 4px 16px rgba(79,142,247,0.35)"}}>
-                💳 Proceed to Payment
+              <textarea value={reqMsg} onChange={e=>setReqMsg(e.target.value)} placeholder="Write your message to the seller…" rows={3} style={{width:"100%",background:"#1a2235",border:"1.5px solid #1e2d45",borderRadius:10,padding:"10px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#F0F4FF",outline:"none",resize:"none",boxSizing:"border-box",marginBottom:12}}/>
+              <button onClick={sendRequest} disabled={!reqMsg.trim()} style={{width:"100%",height:46,borderRadius:9999,background:reqMsg.trim()?"#4F8EF7":"#1a2235",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:reqMsg.trim()?"#fff":"#374151",cursor:reqMsg.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:reqMsg.trim()?"0 4px 16px rgba(79,142,247,0.35)":"none",transition:"all 0.2s"}}>
+                <Send size={15}/> Send Request to Seller
               </button>
-              <button onClick={()=>setShowBuy(false)} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Cancel</button>
-            </>)}
-            {buyStep === "pay" && (<>
-              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#F0F4FF",marginBottom:6}}>Payment</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",marginBottom:20}}>Choose your payment method.</p>
-              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
-                {[{icon:"📱",label:"UPI / GPay / PhonePe"},{icon:"💳",label:"Debit / Credit Card"},{icon:"🏦",label:"Net Banking"}].map(m=>(
-                  <div key={m.label} style={{display:"flex",alignItems:"center",gap:12,background:"#0d1120",border:"1.5px solid #1e2d45",borderRadius:12,padding:"14px 16px",cursor:"pointer"}}
-                    onClick={()=>setBuyStep("done")}>
-                    <span style={{fontSize:22}}>{m.icon}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#F0F4FF",fontWeight:600}}>{m.label}</span>
-                  </div>
-                ))}
+            </>) : (
+              <div style={{textAlign:"center",padding:"20px 0"}}>
+                <div style={{fontSize:56,marginBottom:12}}>📬</div>
+                <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#10B981",marginBottom:6}}>Request Sent!</h2>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF"}}>Notifying the seller…</p>
               </div>
-              <button onClick={()=>setBuyStep("confirm")} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer"}}>← Back</button>
-            </>)}
-            {buyStep === "done" && (<>
-              <div style={{textAlign:"center",padding:"16px 0"}}>
-                <div style={{fontSize:64,marginBottom:14}}>🎉</div>
-                <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:22,fontWeight:800,color:"#F0F4FF",marginBottom:8}}>Order Placed!</h2>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF",marginBottom:20}}>Your payment is held securely. The seller will arrange handover within the campus.</p>
-                <div style={{background:"rgba(16,185,129,0.06)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:12,padding:"14px",marginBottom:20,textAlign:"left"}}>
-                  {["✅ Payment secured","📦 Seller notified","🤝 Meetup to be arranged on campus"].map(s=>(
-                    <div key={s} style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#9CA3AF",marginBottom:6}}>{s}</div>
-                  ))}
-                </div>
-                <div style={{display:"flex",gap:10}}>
-                  <Link href="/marketplace/purchases" style={{flex:1,textDecoration:"none"}}>
-                    <button style={{width:"100%",height:44,borderRadius:9999,background:"#10B981",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer"}}>View My Purchases</button>
-                  </Link>
-                  <button onClick={()=>{setShowBuy(false);setBuyStep("confirm");}} style={{flex:1,height:44,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF",cursor:"pointer"}}>Close</button>
-                </div>
-              </div>
-            </>)}
+            )}
           </div>
         </div>
       )}
@@ -236,9 +233,11 @@ export default function PhysicalProductPage() {
               </div>
             </div>
 
-            {/* Buy Now */}
-            <button className="buy-btn" onClick={()=>{setShowBuy(true);setBuyStep("confirm");}} style={{width:"100%",height:48,borderRadius:9999,background:"#4F8EF7",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 4px 16px rgba(79,142,247,0.35)",transition:"all 0.2s"}}>
-              <ShoppingCart size={16}/> Buy Now
+            {/* Send Request Button */}
+            <button onClick={()=>setShowRequest(true)} style={{width:"100%",height:48,borderRadius:9999,background:"#4F8EF7",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 4px 16px rgba(79,142,247,0.35)",transition:"all 0.2s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="#3b7de8"}
+              onMouseLeave={e=>e.currentTarget.style.background="#4F8EF7"}>
+              <ShoppingBag size={16}/> Send Buy Request
             </button>
 
             {/* Contact Seller */}
