@@ -304,7 +304,8 @@ async function getProducts(req, res) {
       priceRaw: p.price,
       category: p.category || 'OTHER',
       isApproved: p.isApproved,
-      status: p.isApproved ? 'active' : 'pending',
+      // Use DB status field directly; map pending_review -> pending for the frontend
+      status: p.status === 'active' ? 'active' : p.status === 'removed' ? 'removed' : 'pending',
       orders: p._count.orders,
       date: p.createdAt,
       imageUrl: p.imageUrl,
@@ -324,7 +325,7 @@ async function approveProduct(req, res) {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product || product.collegeId !== admin.collegeId)
       return res.status(403).json({ message: 'Unauthorized' });
-    await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: true } });
+    await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: true, status: 'active' } });
     return res.json({ message: 'Product approved' });
   } catch (err) {
     console.error('[approveProduct]', err);
@@ -340,7 +341,7 @@ async function removeProduct(req, res) {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product || product.collegeId !== admin.collegeId)
       return res.status(403).json({ message: 'Unauthorized' });
-    await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: false } });
+    await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: false, status: 'removed' } });
     return res.json({ message: 'Product removed' });
   } catch (err) {
     console.error('[removeProduct]', err);
@@ -356,7 +357,7 @@ async function restoreProduct(req, res) {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product || product.collegeId !== admin.collegeId)
       return res.status(403).json({ message: 'Unauthorized' });
-    await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: true } });
+    await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: true, status: 'active' } });
     return res.json({ message: 'Product restored' });
   } catch (err) {
     console.error('[restoreProduct]', err);

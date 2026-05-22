@@ -19,7 +19,11 @@
     "nodemon": "^3.1.14"
   },
   "dependencies": {
+    "@aws-crypto/crc32c": "^5.2.0",
+    "@aws-sdk/client-s3": "^3.1049.0",
+    "@aws-sdk/s3-request-presigner": "^3.1049.0",
     "@prisma/client": "^6.19.3",
+    "@smithy/node-http-handler": "^3.3.3",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -28,6 +32,11 @@
     "express-rate-limit": "^8.4.1",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^8.0.7"
+    "multer": "^2.1.1",
+    "multer-s3": "^3.0.1",
+    "nodemailer": "^8.0.7",
+    "sharp": "^0.34.5",
+    "tslib": "^2.6.0",
+    "uuid": "^14.0.0"
   }
 }

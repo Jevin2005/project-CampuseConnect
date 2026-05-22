@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import {
@@ -57,12 +57,27 @@ function NavItem({ href, icon, label, badge, active }: {
   );
 }
 
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+function gToken() { return typeof window !== "undefined" ? localStorage.getItem("token") || "" : ""; }
+function inits(n: string) { return (n||"?").split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
+
 export function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
   const clearAuth = useAuthStore((s) => s.clearAuth);
-  const [searchVal, setSearchVal] = useState("");
-  const [notifOpen, setNotifOpen] = useState(false);
+  const user      = useAuthStore((s) => s.user);
+  const [searchVal,   setSearchVal]   = useState("");
+  const [notifOpen,   setNotifOpen]   = useState(false);
+  const [stats, setStats] = useState<{ listed: number; sold: number; revenue: number } | null>(null);
+
+  useEffect(() => {
+    api.get("/api/marketplace/me")
+      .then(res => {
+        const d = res.data;
+        if (d?.stats) setStats({ listed: d.stats.listed, sold: d.stats.sold, revenue: d.stats.revenue });
+      })
+      .catch(() => {});
+  }, []);
 
   const NOTIFS = [
     { text: "Your GATE Notes listing got 12 new views", time: "2m ago",  dot: "#4F8EF7" },
@@ -125,7 +140,7 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
               display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0,
             }}>🏛</div>
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>MIT College of Engineering</p>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.collegeName || "Your College"}</p>
               <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 700, color: "#10B981", letterSpacing: "0.5px" }}>✓ VERIFIED STUDENT</p>
             </div>
           </div>
@@ -207,9 +222,9 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
           }}>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "1.2px", color: "#374151", textTransform: "uppercase", marginBottom: 10 }}>Your Activity</p>
             {[
-              { label: "Active Listings", value: "5",       color: "#4F8EF7"  },
-              { label: "Total Sales",      value: "3",       color: "#10B981"  },
-              { label: "Revenue Earned",   value: "₹1,422",  color: "#F7C948"  },
+              { label: "Active Listings", value: stats ? String(stats.listed)                          : "–", color: "#4F8EF7" },
+              { label: "Total Sales",      value: stats ? String(stats.sold)                            : "–", color: "#10B981" },
+              { label: "Revenue Earned",   value: stats ? `₹${stats.revenue.toLocaleString("en-IN")}` : "–", color: "#F7C948" },
             ].map(s => (
               <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280" }}>{s.label}</span>
@@ -234,10 +249,10 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
                 background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 800, color: "#fff", flexShrink: 0,
-              }}>RS</div>
+              }}>{inits(user?.name || "")}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Rahul Sharma</p>
-                <p style={{ fontSize: 10, color: "#6B7280" }}>CS · MIT '24</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name || "Student"}</p>
+                <p style={{ fontSize: 10, color: "#6B7280" }}>{user?.collegeName || "CampusConnect"}</p>
               </div>
               <ChevronRight size={13} style={{ color: "#374151", flexShrink: 0 }} />
             </div>

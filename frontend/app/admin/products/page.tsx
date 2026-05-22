@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
+import api from '@/lib/axios';
 
-const API = 'http://localhost:5000/api/admin';
 type PS = 'pending' | 'active' | 'removed';
 
 interface Product {
@@ -38,10 +38,9 @@ export default function ProductManagementPage() {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/products`, { headers: { Authorization: `Bearer ${accessToken}` } });
-      const data = await res.json();
+      const res = await api.get('/api/admin/products');
       // Map removed = not approved & has been seen (we track via status field)
-      setProducts(Array.isArray(data) ? data : []);
+      setProducts(Array.isArray(res.data) ? res.data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [accessToken]);
@@ -51,10 +50,7 @@ export default function ProductManagementPage() {
   const doAction = async (id: string, action: 'approve' | 'remove' | 'restore') => {
     setActionLoading(id);
     try {
-      await fetch(`${API}/products/${id}/${action}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      await api.post(`/api/admin/products/${id}/${action}`);
       showToast(action === 'approve' ? '✅ Product approved!' : action === 'remove' ? '🗑 Product removed.' : '↩ Product restored!');
       await fetchProducts();
     } catch { showToast('❌ Action failed'); }

@@ -1,335 +1,640 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ChevronRight, Star, ShieldCheck, Eye, FileText, Video, Heart, Check } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import {
+  ChevronRight, Star, ShieldCheck, Eye, FileText, Video,
+  Heart, Check, X, Loader2, PlayCircle, Download, BookOpen,
+  Layers, Package, Calendar, Award, User, Clock, AlertTriangle, Info, Share2
+} from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
+import api from "@/lib/axios";
+import { useAuthStore } from "@/store/authStore";
 
-const SUBJECTS = ["Electronics", "GATE", "Notes", "Signals & Systems", "Digital Circuits"];
-const INCLUDED = [
-  "Hand-written comprehensive notes with architectural diagrams",
-  "Consolidated Formula sheet for last-minute revision",
-  "Solved PIQs (2018–2023) with step-by-step methodology",
-  "High-priority topic weightage analysis",
-];
+interface Product {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  images: string[];
+  category: string;
+  digitalSubType?: string;
+  isApproved: boolean;
+  views: number;
+  createdAt?: string;
+  seller: { id: string; name: string; email: string };
+  college: { name: string };
+  _count: { buyRequests: number };
+}
+
 const DRM_POINTS = [
-  "Watermarked with YOUR username on every page",
-  "No download button available",
-  "Right-click is disabled",
-  "Screenshot protection active",
-  "Shared copies are digitally traceable",
+  "Watermarked with YOUR academic email address",
+  "Secured against screenshots and recordings",
+  "Right-click and clipboard copy actions disabled",
+  "Instantly traceable custom download watermark",
+  "Shared copies are digitally flagged automatically"
 ];
 
-export default function DigitalProductPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const [hoverBuy, setHoverBuy]         = useState(false);
-  const [hoverPreview, setHoverPreview] = useState(false);
-  const [productKind, setProductKind]   = useState<"pdf" | "video">("pdf");
-  const [wishlisted, setWishlisted]     = useState(false);
-  const [toast, setToast]               = useState("");
-  const [buyModal, setBuyModal]         = useState(false);
-  const [buyStep, setBuyStep]           = useState<"confirm"|"pay"|"done">("confirm");
+function initials(name: string) {
+  return (name || "?")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0])
+    .join("")
+    .toUpperCase();
+}
 
-  function showToast(msg: string) { setToast(msg); setTimeout(()=>setToast(""),3000); }
+const isImageUrl = (url: string) => {
+  const cleanUrl = url.split("?")[0].toLowerCase();
+  const ext = cleanUrl.substring(cleanUrl.lastIndexOf(".") + 1);
+  return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext);
+};
 
-  function handleWishlist() { setWishlisted(w=>!w); showToast(wishlisted?"Removed from wishlist":"Added to wishlist ❤️"); }
+const isDocumentUrl = (url: string) => {
+  const cleanUrl = url.split("?")[0].toLowerCase();
+  const ext = cleanUrl.substring(cleanUrl.lastIndexOf(".") + 1);
+  return ["pdf", "doc", "docx", "ppt", "pptx", "txt"].includes(ext);
+};
 
-  function handlePreview() {
-    router.push(productKind==="pdf" ? "/marketplace/viewer/pdf?preview=true" : "/marketplace/viewer/video?preview=true");
+const isVideoUrl = (url: string) => {
+  const cleanUrl = url.split("?")[0].toLowerCase();
+  const ext = cleanUrl.substring(cleanUrl.lastIndexOf(".") + 1);
+  return ["mp4", "webm", "mkv", "mov"].includes(ext);
+};
+
+export default function DigitalProductPage() {
+  const { id } = useParams<{ id: string }>();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [wishlisted, setWishlisted] = useState(false);
+  const [toast, setToast] = useState("");
+  const [buyModal, setBuyModal] = useState(false);
+  const [buyStep, setBuyStep] = useState<"confirm" | "pay" | "done">("confirm");
+  const [buyLoading, setBuyLoading] = useState(false);
+  const [selectedUpi, setSelectedUpi] = useState("");
+  const [isPurchased, setIsPurchased] = useState(false);
+  const user = useAuthStore(s => s.user);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
   }
 
-  function handleAccessNow() {
-    router.push(productKind==="pdf" ? "/marketplace/viewer/pdf" : "/marketplace/viewer/video");
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+
+    const loadData = async () => {
+      try {
+        // Fetch product details
+        const res = await api.get(`/api/marketplace/products/${id}`);
+        setProduct(res.data);
+        if (res.data?.title) {
+          document.title = `${res.data.title} | CampusConnect`;
+        }
+
+        // Query orders to verify if student has purchased it
+        const ordersRes = await api.get("/api/marketplace/orders");
+        const orders = ordersRes.data || [];
+        const bought = orders.some((o: any) => o.productId === id && o.status === "COMPLETED");
+        const seller = res.data.sellerId === user?.id;
+
+        if (bought || seller) {
+          setIsPurchased(true);
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.message || "Product not found");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id, user]);
+
+  function handleWishlist() {
+    setWishlisted(w => !w);
+    showToast(wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️");
   }
+
+  function handleShare() {
+    navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    showToast("Link copied to clipboard! 🔗");
+  }
+
+  async function confirmPurchase(method: string) {
+    if (!product) return;
+    setBuyLoading(true);
+    try {
+      const res = await api.post("/api/marketplace/orders", {
+        productId: product.id,
+        amount: product.price,
+        method,
+      });
+      if (res.status === 200 || res.status === 201 || res.data.orderId) {
+        setBuyStep("done");
+      } else {
+        showToast(res.data.message || "Purchase failed");
+        setBuyModal(false);
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Failed to process transaction. Try again.";
+      showToast(msg);
+      setBuyModal(false);
+    }
+    setBuyLoading(false);
+  }
+
+  // ── Loading state
+  if (loading) {
+    return (
+      <StudentLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 16 }}>
+          <div style={{ width: 44, height: 44, border: "3px solid var(--border)", borderTopColor: "var(--accent-purple)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-muted)" }}>Preparing secure resource...</p>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      </StudentLayout>
+    );
+  }
+
+  // ── Error / not found
+  if (error || !product) {
+    return (
+      <StudentLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 16 }}>
+          <span style={{ fontSize: 56 }}>📁</span>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>Resource Not Found</p>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginTop: -8 }}>This digital product might have been unlisted or removed.</p>
+          <Link href="/marketplace" style={{ textDecoration: "none" }}>
+            <button className="btn btn-primary btn-sm" style={{ background: "var(--accent-purple)", color: "white" }}>
+              Back to Marketplace
+            </button>
+          </Link>
+        </div>
+      </StudentLayout>
+    );
+  }
+
+  // Split description & Specifications list
+  const descParts = (product.description || "").split("📝 STRUCTURED SPECIFICATIONS:");
+  const userDesc = descParts[0]?.trim();
+  const specsText = descParts[1]?.trim();
+  const specsArray = specsText
+    ? specsText.split("\n").map(l => l.trim()).filter(Boolean)
+    : [];
+
+  const specsList: { key: string; value: string }[] = [];
+  const bundleItems: { index: number; title: string; type: string; desc: string }[] = [];
+
+  specsArray.forEach(line => {
+    const trimLine = line.trim();
+    if (trimLine.startsWith("[Item") || trimLine.includes("[Item")) {
+      // Parse bundle items
+      // Format: "[Item 1] Title (NOTES) - Description"
+      const match = trimLine.match(/\[Item\s+(\d+)\]\s+([^\(]+)(?:\(([^)]+)\))?(?:\s*-\s*(.*))?/i);
+      if (match) {
+        bundleItems.push({
+          index: parseInt(match[1]),
+          title: match[2]?.trim() || "",
+          type: match[3]?.trim()?.toLowerCase() || "notes",
+          desc: match[4]?.trim() || "No description provided."
+        });
+      }
+    } else {
+      const colonIdx = trimLine.indexOf(":");
+      if (colonIdx !== -1) {
+        const key = trimLine.substring(0, colonIdx).trim();
+        const value = trimLine.substring(colonIdx + 1).trim();
+        if (key && value && key !== "Bundle Pack Items") {
+          specsList.push({ key, value });
+        }
+      }
+    }
+  });
+
+  // Partition files from backend
+  const allFiles = product.images || [];
+  const imagePreviews = allFiles.filter(isImageUrl);
+  const documentFiles = allFiles.filter(isDocumentUrl);
+  const videoFiles = allFiles.filter(isVideoUrl);
+
+  const sub = product.digitalSubType || "notes";
+
+  // Dynamic visual parameters based on digitalSubType
+  let themeColor = "var(--accent-purple)";
+  let themeBg = "rgba(124, 58, 237, 0.08)";
+  let themeBorder = "rgba(124, 58, 237, 0.25)";
+  let themeGlow = "rgba(124, 58, 237, 0.15)";
+  let themeBadge = "badge-purple";
+  let subtypeIcon = "📄";
+  let subtypeLabel = "Study Notes / PDF";
+  let subtypePreviewLabel = "Includes high-quality PDF slides with watermark protections.";
+
+  if (sub === "video") {
+    themeColor = "var(--accent-green)";
+    themeBg = "rgba(16, 185, 129, 0.06)";
+    themeBorder = "rgba(16, 185, 129, 0.25)";
+    themeGlow = "rgba(16, 185, 129, 0.15)";
+    themeBadge = "badge-green";
+    subtypeIcon = "🎥";
+    subtypeLabel = "Video Course Explainer";
+    subtypePreviewLabel = "Includes video lectures accessible securely within our web viewer.";
+  } else if (sub === "both") {
+    themeColor = "var(--accent-orange)";
+    themeBg = "rgba(245, 158, 11, 0.06)";
+    themeBorder = "rgba(245, 158, 11, 0.25)";
+    themeGlow = "rgba(245, 158, 11, 0.15)";
+    themeBadge = "badge-orange";
+    subtypeIcon = "📚";
+    subtypeLabel = "Notes + Video Pack";
+    subtypePreviewLabel = "Dual package featuring reference lectures and text study materials.";
+  } else if (sub === "bundle") {
+    themeColor = "var(--accent-blue)";
+    themeBg = "rgba(59, 130, 246, 0.06)";
+    themeBorder = "rgba(59, 130, 246, 0.25)";
+    themeGlow = "rgba(59, 130, 246, 0.15)";
+    themeBadge = "badge-blue";
+    subtypeIcon = "📦";
+    subtypeLabel = "Semester Resource Kit";
+    subtypePreviewLabel = "Multi-item study pack consisting of various bundled learning files.";
+  }
+
+  const hasPurchased = buyStep === "done";
 
   return (
     <StudentLayout>
-      <style>{`@keyframes modalIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}`}</style>
+      <style>{`
+        @keyframes modalIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .digital-page { animation: fadeInUp 0.4s ease-out forwards; }
+        .glass-panel {
+          background: rgba(17, 24, 39, 0.45);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+        }
+        .active-glow {
+          box-shadow: 0 0 20px ${themeGlow};
+          border-color: ${themeBorder} !important;
+        }
+        .bundle-row:hover {
+          background: rgba(255, 255, 255, 0.02);
+        }
+        .pay-option:hover {
+          border-color: ${themeColor} !important;
+          background: rgba(255, 255, 255, 0.02);
+        }
+      `}</style>
 
-      {/* Toast */}
+      {/* Toast popup */}
       {toast && (
-        <div style={{position:"fixed",top:20,right:24,zIndex:1000,background:"#111827",border:"1px solid #1e2d45",color:"#F0F4FF",borderRadius:12,padding:"12px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,boxShadow:"0 8px 32px rgba(0,0,0,0.5)",display:"flex",alignItems:"center",gap:8}}>
-          <Check size={14} style={{color:"#10B981"}}/> {toast}
+        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 1000, background: "#111827", border: "1.5px solid var(--border)", color: "var(--text-primary)", borderRadius: 12, padding: "12px 20px", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, boxShadow: "var(--shadow-lifted)", display: "flex", alignItems: "center", gap: 10, animation: "modalIn 0.2s ease" }}>
+          <Check size={15} style={{ color: "var(--accent-green)" }} /> {toast}
         </div>
       )}
 
-      {/* Buy Modal */}
+      {/* Payment / Secure Checkout Modal */}
       {buyModal && (
-        <div onClick={()=>{if(buyStep!=="done")setBuyModal(false);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:20,padding:"32px 36px",maxWidth:420,width:"90%",animation:"modalIn 0.25s ease"}}>
-            {buyStep==="confirm" && (<>
-              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#F0F4FF",marginBottom:6}}>Confirm Purchase</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",marginBottom:20}}>You&apos;ll get instant access after payment.</p>
-              <div style={{background:"#0d1120",borderRadius:12,padding:"16px 18px",marginBottom:20}}>
-                {[["Product",productKind==="pdf"?"GATE ECE Notes 2024":"DSP Video Course"],["Type",productKind==="pdf"?"PDF Notes":"Video Course"],["Access","Lifetime"],["Price",productKind==="pdf"?"₹299":"₹499"]].map(([l,v])=>(
-                  <div key={l} style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#6B7280"}}>{l}</span>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#F0F4FF",fontWeight:600}}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <button onClick={()=>setBuyStep("pay")} style={{width:"100%",height:48,borderRadius:9999,background:"#8B5CF6",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",marginBottom:10,boxShadow:"0 4px 16px rgba(139,92,246,0.35)"}}>
-                💳 Proceed to Payment
-              </button>
-              <button onClick={()=>setBuyModal(false)} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Cancel</button>
-            </>)}
-            {buyStep==="pay" && (<>
-              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#F0F4FF",marginBottom:20}}>Choose Payment</h2>
-              {[{icon:"📱",label:"UPI / GPay / PhonePe"},{icon:"💳",label:"Debit / Credit Card"},{icon:"🏦",label:"Net Banking"}].map(m=>(
-                <div key={m.label} onClick={()=>setBuyStep("done")} style={{display:"flex",alignItems:"center",gap:12,background:"#0d1120",border:"1.5px solid #1e2d45",borderRadius:12,padding:"14px 16px",cursor:"pointer",marginBottom:10}}>
-                  <span style={{fontSize:22}}>{m.icon}</span>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#F0F4FF",fontWeight:600}}>{m.label}</span>
+        <div onClick={() => { if (buyStep !== "done" && !buyLoading) setBuyModal(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+          <div onClick={e => e.stopPropagation()} className="glass-panel" style={{ padding: "32px", maxWidth: 430, width: "90%", animation: "modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)", border: `1.5px solid ${themeBorder}`, boxShadow: `0 0 24px ${themeGlow}` }}>
+            
+            {buyStep === "confirm" && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>Secure Purchase</h2>
+                  <button onClick={() => setBuyModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><X size={18} /></button>
                 </div>
-              ))}
-              <button onClick={()=>setBuyStep("confirm")} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer",marginTop:4}}>← Back</button>
-            </>)}
-            {buyStep==="done" && (<>
-              <div style={{textAlign:"center",padding:"12px 0"}}>
-                <div style={{fontSize:60,marginBottom:12}}>🎉</div>
-                <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:22,fontWeight:800,color:"#F0F4FF",marginBottom:8}}>Access Granted!</h2>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF",marginBottom:20}}>Your purchase was successful. You now have lifetime access.</p>
-                <button onClick={handleAccessNow} style={{width:"100%",height:48,borderRadius:9999,background:"#8B5CF6",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",marginBottom:10,boxShadow:"0 4px 16px rgba(139,92,246,0.3)"}}>
-                  {productKind==="pdf"?"📄 Open PDF Viewer":"🎥 Watch Video Now"}
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>Instant lifetime access is granted to your profile immediately after payment.</p>
+                
+                <div style={{ background: "rgba(0,0,0,0.25)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px", marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[
+                    ["Resource", product.title],
+                    ["Category", subtypeLabel],
+                    ["Access Mode", "Permanent / Unlimited"],
+                    ["Secure Price", `₹${product.price.toLocaleString("en-IN")}`]
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>{label}</span>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: label.includes("Price") ? "var(--accent-green)" : "var(--text-primary)", fontWeight: 600 }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setBuyStep("pay")}
+                  style={{ width: "100%", height: 48, borderRadius: 9999, background: themeColor, border: "none", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 16px ${themeGlow}` }}
+                >
+                  💳 Proceed to Payment Methods
                 </button>
-                <button onClick={()=>{setBuyModal(false);setBuyStep("confirm");}} style={{width:"100%",height:38,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Close</button>
+                <button onClick={() => setBuyModal(false)} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid var(--border)", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "var(--text-soft)"} onMouseOut={e => e.currentTarget.style.borderColor = "var(--border)"}>Cancel</button>
+              </>
+            )}
+
+            {buyStep === "pay" && (
+              <>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text-primary)", marginBottom: 16 }}>Choose Secured Method</h2>
+                {buyLoading ? (
+                  <div style={{ textAlign: "center", padding: "28px 0" }}>
+                    <Loader2 size={36} style={{ color: themeColor, animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
+                    <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginTop: 12 }}>Securing transaction channel...</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {[
+                      { icon: "📱", label: "Google Pay / PhonePe / UPI", method: "upi" },
+                      { icon: "💳", label: "Debit or Credit Cards", method: "card" },
+                      { icon: "🏦", label: "Instant Netbanking", method: "netbanking" }
+                    ].map(m => (
+                      <div
+                        key={m.label}
+                        onClick={() => confirmPurchase(m.method)}
+                        className="pay-option"
+                        style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(0,0,0,0.25)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all 0.2s" }}
+                      >
+                        <span style={{ fontSize: 22 }}>{m.icon}</span>
+                        <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)", fontWeight: 600 }}>{m.label}</span>
+                      </div>
+                    ))}
+                    <button onClick={() => setBuyStep("confirm")} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid var(--border)", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", cursor: "pointer", marginTop: 6 }}>← Back to Review</button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {buyStep === "done" && (
+              <div style={{ textAlign: "center", padding: "12px 0" }}>
+                <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>Access Granted!</h2>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginBottom: 22 }}>Your purchase was successful. Lifetime DRM secured access is added to your account library.</p>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+                  {sub === "notes" || sub === "both" ? (
+                    <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <button className="btn btn-primary" style={{ background: "var(--accent-purple)", width: "100%", gap: 8, height: 46, cursor: "pointer" }}>
+                        <FileText size={15} /> Launch Secure PDF Reader
+                      </button>
+                    </Link>
+                  ) : null}
+                  {sub === "video" || sub === "both" ? (
+                    <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <button className="btn btn-primary" style={{ background: "var(--accent-green)", width: "100%", gap: 8, height: 46, cursor: "pointer" }}>
+                        <PlayCircle size={15} /> Launch Secure Video Player
+                      </button>
+                    </Link>
+                  ) : null}
+                  {sub === "bundle" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                        <button className="btn btn-primary" style={{ background: "var(--accent-purple)", width: "100%", gap: 8, height: 44, cursor: "pointer" }}>
+                          📖 Read Bundled Notes (PDF)
+                        </button>
+                      </Link>
+                      <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                        <button className="btn btn-primary" style={{ background: "var(--accent-green)", width: "100%", gap: 8, height: 44, cursor: "pointer" }}>
+                          🎥 Watch Bundled Lectures
+                        </button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={() => { setBuyModal(false); setBuyStep("confirm"); }} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid var(--border)", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", cursor: "pointer", marginTop: 8 }}>Close Dashboard</button>
               </div>
-            </>)}
+            )}
           </div>
         </div>
       )}
 
-      <div style={{ minWidth: 0 }}>
-        {/* breadcrumb */}
-        <div style={{ padding: "16px 28px", display: "flex", alignItems: "center", gap: 8 }}>
-          {["Marketplace", "Digital", "GATE ECE Notes"].map((b, i) => (
+      <div className="digital-page" style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 60px" }}>
+        
+        {/* Breadcrumb Trail */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+          {[
+            ["Marketplace", "/marketplace"],
+            ["Digital Resources", "/marketplace?type=digital"],
+            [product.title, "#"]
+          ].map(([b, href], i) => (
             <span key={b} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {i > 0 && <ChevronRight size={12} style={{ color: "#374151" }} />}
-              <span style={{
-                fontFamily: "'DM Sans', sans-serif", fontSize: 12,
-                color: i === 2 ? "#F0F4FF" : "#6B7280", fontWeight: i === 2 ? 600 : 400,
-              }}>{b}</span>
+              {i > 0 && <ChevronRight size={13} style={{ color: "var(--text-muted)" }} />}
+              {i === 2 ? (
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-primary)", fontWeight: 600 }}>{b}</span>
+              ) : (
+                <Link href={href} style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", fontWeight: 400, textDecoration: "none" }}>{b}</Link>
+              )}
             </span>
           ))}
         </div>
 
-        {/* two columns */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 28, padding: "0 28px 40px" }}>
+        {/* Dynamic Detail Sections Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="md:grid-cols-[1fr_380px] grid">
+          
+          {/* LEFT SIDEBAR: Resource Showcase card, description, bundle items, and specifications */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+            
+            {/* Top Showcase Frame */}
+            <div className="glass-panel active-glow" style={{ position: "relative", overflow: "hidden", padding: "40px 32px", display: "flex", flexDirection: "column", alignItems: "center", background: `linear-gradient(135deg, rgba(10,14,26,0.9), ${themeBg})` }}>
+              <div style={{ width: 84, height: 84, borderRadius: 20, background: themeBg, border: `1.5px solid ${themeBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, marginBottom: 18, boxShadow: `0 0 14px ${themeGlow}` }}>
+                {subtypeIcon}
+              </div>
 
-          {/* LEFT */}
-          <div>
-            {/* product type toggle (demo) */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {(["pdf", "video"] as const).map(k => (
-                <button key={k} onClick={() => setProductKind(k)} style={{
-                  flex: 1, height: 36, borderRadius: 8,
-                  background: productKind === k ? (k === "pdf" ? "rgba(167,139,250,0.15)" : "rgba(16,185,129,0.12)") : "#111827",
-                  border: `1.5px solid ${productKind === k ? (k === "pdf" ? "#A78BFA" : "#10B981") : "#1e2d45"}`,
-                  cursor: "pointer",
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700,
-                  color: productKind === k ? (k === "pdf" ? "#A78BFA" : "#10B981") : "#6B7280",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                  transition: "all 0.15s",
-                }}>
-                  {k === "pdf" ? <FileText size={13} /> : <Video size={13} />}
-                  {k === "pdf" ? "PDF Notes" : "Video Course"}
-                </button>
-              ))}
-            </div>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8, textAlign: "center", lineHeight: 1.3 }}>{product.title}</h2>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", marginBottom: 20, textAlign: "center" }}>{subtypePreviewLabel}</p>
 
-            {/* preview card */}
-            <div style={{
-              background: "#111827",
-              border: `1.5px solid ${productKind === "pdf" ? "rgba(167,139,250,0.3)" : "rgba(16,185,129,0.3)"}`,
-              borderRadius: 14, padding: "40px 24px",
-              display: "flex", flexDirection: "column", alignItems: "center",
-              marginBottom: 28, transition: "border-color 0.2s",
-            }}>
-              {/* icon */}
-              <div style={{
-                width: 80, height: 80, borderRadius: 18,
-                background: productKind === "pdf" ? "rgba(167,139,250,0.15)" : "rgba(16,185,129,0.12)",
-                border: `1.5px solid ${productKind === "pdf" ? "rgba(167,139,250,0.3)" : "rgba(16,185,129,0.3)"}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 36, marginBottom: 16, transition: "all 0.2s",
-              }}>{productKind === "pdf" ? "📄" : "🎥"}</div>
-              <h2 style={{
-                fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700,
-                color: "#F0F4FF", marginBottom: 8, textAlign: "center",
-              }}>{productKind === "pdf" ? "GATE 2024 ECE Notes" : "Advanced DSP Video Course"}</h2>
-              <p style={{
-                fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280",
-                marginBottom: 16,
-              }}>{productKind === "pdf" ? "Preview: 2 of 48 pages" : "Preview: First 5 minutes free"}</p>
-              <div style={{ display: "flex", gap: 10 }}>
-                {(productKind === "pdf"
-                  ? [{ icon: "📄", text: "48 pages" }, { icon: "📁", text: "PDF" }, { icon: "💾", text: "12.4 MB" }]
-                  : [{ icon: "🎥", text: "12 lessons" }, { icon: "⏱️", text: "6h 40m total" }, { icon: "💾", text: "HD Video" }]
-                ).map(i => (
-                  <span key={i.text} style={{
-                    background: "#1a2235", borderRadius: 9999, padding: "4px 12px",
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#9CA3AF",
-                  }}>{i.icon} {i.text}</span>
-                ))}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                <span className={`badge ${themeBadge}`} style={{ textTransform: "uppercase" }}>{subtypeLabel}</span>
+                <span className="badge" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-soft)" }}>♾️ Lifetime Access</span>
+                <span className="badge" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-soft)" }}>🔒 Secured DRM</span>
               </div>
             </div>
 
-            {/* subjects */}
-            <div style={{ marginBottom: 24 }}>
-              <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, color: "#F0F4FF", marginBottom: 12 }}>Subjects covered</h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {SUBJECTS.map(s => (
-                  <span key={s} style={{
-                    background: "#111827", border: "1px solid #1e2d45",
-                    borderRadius: 9999, padding: "5px 14px",
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#9CA3AF",
-                  }}>{s}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* what's included */}
-            <div>
-              <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, color: "#F0F4FF", marginBottom: 12 }}>What&apos;s included</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {INCLUDED.map(item => (
-                  <div key={item} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <div style={{
-                      width: 18, height: 18, borderRadius: "50%",
-                      background: "rgba(16,185,129,0.15)", flexShrink: 0, marginTop: 2,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10B981" }} />
+            {/* Structured Specifications Metadata */}
+            {specsList.length > 0 && (
+              <div className="glass-panel" style={{ padding: "28px" }}>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>Academic Specifications</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+                  {specsList.map((spec, i) => (
+                    <div key={i} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.8 }}>{spec.key}</span>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>{spec.value}</span>
                     </div>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", lineHeight: 1.6 }}>{item}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Semester Custom Bundle Item index list */}
+            {sub === "bundle" && bundleItems.length > 0 && (
+              <div className="glass-panel" style={{ padding: "28px" }}>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>Inside this Semester Pack ({bundleItems.length} resources)</h3>
+                
+                <div style={{ display: "flex", flexDirection: "column", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                  {bundleItems.map((item, idx) => {
+                    const isNotes = item.type.includes("note") || item.type.includes("pdf");
+                    const isVideo = item.type.includes("video") || item.type.includes("course");
+                    
+                    return (
+                      <div key={idx} className="bundle-row" style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 14, padding: "16px 20px", borderBottom: idx === bundleItems.length - 1 ? "none" : "1px solid var(--border)" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, background: isNotes ? "rgba(124, 58, 237, 0.08)" : isVideo ? "rgba(16, 185, 129, 0.08)" : "rgba(59, 130, 246, 0.08)", border: `1px solid ${isNotes ? "rgba(124,58,237,0.2)" : isVideo ? "rgba(16,185,129,0.2)" : "rgba(59,130,246,0.2)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                          {isNotes ? "📄" : isVideo ? "🎥" : "📂"}
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 3 }}>
+                            <h4 style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{item.title}</h4>
+                            <span className="badge" style={{ height: 18, fontSize: 9, padding: "0 8px", background: isNotes ? "rgba(124,58,237,0.12)" : isVideo ? "rgba(16,185,129,0.12)" : "rgba(59,130,246,0.12)", color: isNotes ? "#A78BFA" : isVideo ? "var(--accent-green)" : "var(--accent-blue)", border: "none" }}>{item.type.toUpperCase()}</span>
+                          </div>
+                          <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>{item.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Cleaned Description */}
+            <div className="glass-panel" style={{ padding: "28px" }}>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>Description & Objectives</h3>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-soft)", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
+                {userDesc || "No manual description provided by the instructor."}
+              </p>
+            </div>
+
+          </div>
+
+          {/* RIGHT SIDEBAR: Purchase CTAs, platform stats, DRM details, Seller profile card */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            
+            {/* Wishlist Header Tool */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={handleWishlist} style={{ width: 38, height: 38, borderRadius: "50%", background: wishlisted ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${wishlisted ? "rgba(239,68,68,0.3)" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
+                <Heart size={16} style={{ color: wishlisted ? "var(--accent-red)" : "var(--text-soft)", fill: wishlisted ? "var(--accent-red)" : "none" }} />
+              </button>
+              <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}>
+                <Share2 size={15} style={{ color: "var(--text-soft)" }} />
+              </button>
+            </div>
+
+            {/* Secure Purchase CTA widget */}
+            <div className="glass-panel" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", fontWeight: 500 }}>Lifetime Access Cost</span>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>₹{product.price.toLocaleString("en-IN")}</span>
+              </div>
+              
+              <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+              
+              {isPurchased ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {sub === "notes" || sub === "both" ? (
+                    <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-purple)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                        📖 Launch Secure PDF Reader
+                      </button>
+                    </Link>
+                  ) : null}
+                  {sub === "video" || sub === "both" ? (
+                    <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-green)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                        🎥 Launch Secure Video Player
+                      </button>
+                    </Link>
+                  ) : null}
+                  {sub === "bundle" && (
+                    <>
+                      <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                        <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-purple)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 }}>
+                          📖 Read Bundled Notes (PDF)
+                        </button>
+                      </Link>
+                      <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                        <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-green)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                          🎥 Watch Bundled Lectures
+                        </button>
+                      </Link>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button
+                    onClick={() => { setBuyModal(true); setBuyStep("confirm"); }}
+                    className="btn btn-primary btn-lg"
+                    style={{ width: "100%", background: themeColor, boxShadow: `0 4px 16px ${themeGlow}`, border: "none", cursor: "pointer" }}
+                  >
+                    Instant Buy & Unlock
+                  </button>
+                  
+                  {sub === "notes" || sub === "both" || sub === "bundle" ? (
+                    <Link href={`/marketplace/viewer/pdf?id=${product.id}&preview=true`} style={{ textDecoration: "none", width: "100%" }}>
+                      <button className="btn btn-outline-white" style={{ width: "100%", height: 42, borderColor: themeColor, color: themeColor, background: "transparent", border: "1.5px solid", borderRadius: 9999, fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        📖 Read Free Preview (2 Pages)
+                      </button>
+                    </Link>
+                  ) : null}
+                  {sub === "video" || sub === "both" ? (
+                    <Link href={`/marketplace/viewer/video?id=${product.id}&preview=true`} style={{ textDecoration: "none", width: "100%" }}>
+                      <button className="btn btn-outline-white" style={{ width: "100%", height: 42, borderColor: themeColor, color: themeColor, background: "transparent", border: "1.5px solid", borderRadius: 9999, fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        🎬 Watch Free Preview (5 Mins)
+                      </button>
+                    </Link>
+                  ) : null}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><Eye size={12} /> {product.views} Views</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Platform Secured</span>
+              </div>
+            </div>
+
+            {/* DRM security box */}
+            <div style={{ background: "rgba(124, 58, 237, 0.03)", border: `1px solid ${themeBorder}`, borderRadius: 16, padding: "20px 22px" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
+                <ShieldCheck size={16} style={{ color: themeColor }} />
+                <p style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: themeColor }}>Digital Content Protection</p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {DRM_POINTS.map(pt => (
+                  <div key={pt} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <Check size={13} style={{ color: "var(--accent-green)", flexShrink: 0, marginTop: 3 }} />
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-soft)", lineHeight: 1.4 }}>{pt}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
 
-          {/* RIGHT */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-            {/* DRM box */}
-            <div style={{
-              background: "rgba(139,92,246,0.06)",
-              border: "1.5px solid rgba(139,92,246,0.25)",
-              borderRadius: 12, padding: "16px 18px",
-            }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-                <ShieldCheck size={16} style={{ color: "#A78BFA" }} />
-                <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#A78BFA" }}>
-                  Digital Content Protection
-                </p>
-              </div>
-              {DRM_POINTS.map(pt => (
-                <div key={pt} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}>
-                  <span style={{ color: "#10B981", fontSize: 14, flexShrink: 0 }}>✓</span>
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#9CA3AF" }}>{pt}</span>
-                </div>
-              ))}
-              {/* warning */}
-              <div style={{
-                background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
-                borderRadius: 8, padding: "8px 12px", marginTop: 8,
-              }}>
-                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#EF4444" }}>
-                  ⚠️ Do not share this content. Your account may be suspended.
+              <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 10, padding: "10px 14px", marginTop: 16, display: "flex", gap: 8 }}>
+                <AlertTriangle size={14} style={{ color: "var(--accent-red)", flexShrink: 0, marginTop: 2 }} />
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--accent-red)", lineHeight: 1.4 }}>
+                  <strong>Policy Violation Notice:</strong> Sharing or distribution of secured assets results in immediate profile suspension and academic reporting.
                 </p>
               </div>
             </div>
 
-            {/* price card */}
-            <div style={{
-              background: "#111827", border: "1.5px solid #1e2d45",
-              borderRadius: 12, padding: "16px 18px",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280" }}>Price</span>
-                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#F0F4FF" }}>₹500</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280" }}>Platform fee</span>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#EF4444" }}>−₹25</span>
-              </div>
-              <div style={{ height: 1, background: "#1e2d45", margin: "10px 0" }} />
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280" }}>Seller gets</span>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, color: "#10B981" }}>₹475</span>
-              </div>
-            </div>
-
-            {/* buy button */}
-            <button
-              onClick={()=>{setBuyModal(true);setBuyStep("confirm");}}
-              onMouseEnter={() => setHoverBuy(true)}
-              onMouseLeave={() => setHoverBuy(false)}
-              style={{
-                width: "100%", height: 48, borderRadius: 9999,
-                background: hoverBuy ? "#7c4be8" : "#8B5CF6",
-                border: "none", cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff",
-                boxShadow: "0 4px 16px rgba(139,92,246,0.3)",
-                transition: "background 0.15s",
-              }}
-            >
-              Buy &amp; Access Now
-            </button>
-
-            {/* preview button — routes to viewer with ?preview=true */}
-            <button
-              onClick={handlePreview}
-              onMouseEnter={() => setHoverPreview(true)}
-              onMouseLeave={() => setHoverPreview(false)}
-              style={{
-                width: "100%", height: 44, borderRadius: 9999,
-                background: hoverPreview
-                  ? (productKind === "pdf" ? "rgba(167,139,250,0.08)" : "rgba(16,185,129,0.08)")
-                  : "transparent",
-                border: `1.5px solid ${hoverPreview
-                  ? (productKind === "pdf" ? "#A78BFA" : "#10B981")
-                  : (productKind === "pdf" ? "rgba(139,92,246,0.4)" : "rgba(16,185,129,0.4)")}`,
-                cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600,
-                color: productKind === "pdf" ? "#A78BFA" : "#10B981",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                transition: "all 0.15s",
-              }}
-            >
-              <Eye size={15} />
-              {productKind === "pdf" ? "Free Preview (2 pages)" : "Free Preview (5 min)"}
-            </button>
-
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151", textAlign: "center" }}>
-              Safe &amp; Encrypted Transactions
-            </p>
-
-            {/* seller card */}
-            <div style={{
-              background: "#111827", border: "1.5px solid #1e2d45",
-              borderRadius: 12, padding: "14px 16px",
-              display: "flex", alignItems: "center", gap: 12,
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: "50%",
-                background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 800, color: "#fff",
-              }}>RS</div>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, color: "#F0F4FF" }}>Rahul Sharma</p>
-                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280" }}>MIT '24 • Top Contributor</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
-                  <Star size={11} style={{ color: "#F7C948", fill: "#F7C948" }} />
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#F7C948" }}>4.9</span>
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280" }}>(50 Reviews)</span>
+            {/* Instructor / Seller profile card */}
+            <div className="glass-panel" style={{ padding: "20px" }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Resource Creator</p>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 42, height: 42, borderRadius: "50%", background: `linear-gradient(135deg, ${themeColor}, var(--accent-purple))`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "#fff", boxShadow: "var(--shadow-card)", flexShrink: 0 }}>
+                  {initials(product.seller.name)}
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.seller.name}</p>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.college.name}</p>
                 </div>
               </div>
-              <ChevronRight size={16} style={{ color: "#374151" }} />
             </div>
+
           </div>
+
         </div>
+
       </div>
     </StudentLayout>
   );

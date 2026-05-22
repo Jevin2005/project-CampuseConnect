@@ -14,12 +14,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { setAuth, clearAuth } = useAuthStore();
+  const { setAuth, clearAuth, setLoading } = useAuthStore();
 
   /**
    * Silent refresh on every page load / tab re-focus.
-   * Spec: authentication.md § ZUSTAND AUTH STORE → "On app boot (layout.tsx)"
-   * Uses the HTTP-only cookie automatically (withCredentials: true).
+   * IMPORTANT: Only call clearAuth() on definitive 401 (invalid/expired token).
+   * For network errors or 500s, just stop the loading spinner — the refreshToken
+   * cookie is still valid and middleware will keep the user on their page.
    */
   useEffect(() => {
     const tryRefresh = async () => {
@@ -36,9 +37,15 @@ export default function RootLayout({
           collegeId?: string;
         };
         setAuth(accessToken, user, r, collegeId);
-      } catch {
-        // Not logged in — that's fine, clearAuth resets loading flag
-        clearAuth();
+      } catch (err: any) {
+        // Only destroy the session if the server explicitly says the token is invalid (401)
+        // For 500s, network errors, or CORS issues — just stop loading, keep the cookie
+        if (err?.response?.status === 401) {
+          clearAuth();
+        } else {
+          // Transient error — session may still be valid, just unlock the UI
+          setLoading(false);
+        }
       }
     };
 

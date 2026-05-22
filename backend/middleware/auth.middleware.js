@@ -18,6 +18,10 @@ function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
+    // Normalize: JWT payload uses `userId`, marketplace controllers use `req.user.id`
+    if (!req.user.id && req.user.userId) {
+      req.user.id = req.user.userId;
+    }
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

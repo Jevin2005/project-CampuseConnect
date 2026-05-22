@@ -1,24 +1,84 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ChevronRight, Star, ShieldCheck, MessageCircle, ShoppingBag, Heart, Share2, Check, X, Send } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import {
+  ChevronRight, Star, ShieldCheck, MessageCircle, ShoppingBag,
+  Heart, Share2, Check, X, Send, Loader2, Eye, Calendar, Tag, Info
+} from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
+import api from "@/lib/axios";
 
-const THUMBNAILS = ["💻", "🔌", "⌨️", "🖥️"];
+interface Product {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  images: string[];
+  category: string;
+  condition: string;
+  productType: string;
+  status: string;
+  isApproved: boolean;
+  views: number;
+  createdAt?: string;
+  seller: { id: string; name: string; email: string; phone?: string };
+  college: { name: string };
+  _count: { buyRequests: number };
+}
+
+function initials(name: string) {
+  return (name || "?")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0])
+    .join("")
+    .toUpperCase();
+}
+
+const isImageUrl = (url: string) => {
+  const cleanUrl = url.split("?")[0].toLowerCase();
+  const ext = cleanUrl.substring(cleanUrl.lastIndexOf(".") + 1);
+  return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext);
+};
 
 export default function PhysicalProductPage() {
-  const [mainThumb, setMainThumb]   = useState(0);
+  const { id } = useParams<{ id: string }>();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [mainThumb, setMainThumb] = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
-  const [toast, setToast]           = useState("");
+  const [toast, setToast] = useState("");
   const [showRequest, setShowRequest] = useState(false);
-  const [reqMsg, setReqMsg]           = useState("");
-  const [reqSent, setReqSent]         = useState(false);
-  const [showChat, setShowChat]       = useState(false);
-  const [chatMsg, setChatMsg]         = useState("");
-  const [chatSent, setChatSent]       = useState(false);
+  const [reqMsg, setReqMsg] = useState("");
+  const [reqSent, setReqSent] = useState(false);
+  const [reqLoading, setReqLoading] = useState(false);
 
-  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  }
+
+  // Fetch product & Set Page Title
+  useEffect(() => {
+    if (!id) return;
+    api.get(`/api/marketplace/products/${id}`)
+      .then(res => {
+        setProduct(res.data);
+        if (res.data?.title) {
+          document.title = `${res.data.title} | CampusConnect`;
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.response?.data?.message || "Product not found");
+        setLoading(false);
+      });
+  }, [id]);
 
   function handleWishlist() {
     setWishlisted(w => !w);
@@ -30,230 +90,385 @@ export default function PhysicalProductPage() {
     showToast("Link copied to clipboard! 🔗");
   }
 
-  function sendRequest() {
-    if (!reqMsg.trim()) return;
-    setReqSent(true);
-    setTimeout(() => { setShowRequest(false); setReqSent(false); setReqMsg(""); showToast("Request sent! Seller will respond shortly. 📬"); }, 1400);
+  async function sendRequest() {
+    if (!reqMsg.trim() || reqLoading || !product) return;
+    setReqLoading(true);
+    try {
+      await api.post(`/api/marketplace/products/${product.id}/request`, { message: reqMsg });
+      setReqSent(true);
+      setTimeout(() => {
+        setShowRequest(false);
+        setReqSent(false);
+        setReqMsg("");
+        showToast("Request sent! Seller will respond shortly. 📬");
+      }, 1400);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Failed to send request";
+      showToast(msg);
+      setShowRequest(false);
+    }
+    setReqLoading(false);
   }
 
-  function sendChat() {
-    if (!chatMsg.trim()) return;
-    setChatSent(true);
-    setTimeout(() => { setShowChat(false); setChatSent(false); setChatMsg(""); showToast("Message sent to seller! 💬"); }, 1500);
+  // ── Loading state
+  if (loading) {
+    return (
+      <StudentLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 16 }}>
+          <div style={{ width: 44, height: 44, border: "3px solid var(--border)", borderTopColor: "var(--accent-blue)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-muted)" }}>Loading item details...</p>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      </StudentLayout>
+    );
   }
+
+  // ── Error / not found
+  if (error || !product) {
+    return (
+      <StudentLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 16 }}>
+          <span style={{ fontSize: 56 }}>📦</span>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>Product Not Found</p>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginTop: -8 }}>This item may have been sold or removed by the seller.</p>
+          <a href="/marketplace" style={{ textDecoration: "none" }}>
+            <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>
+              Back to Marketplace
+            </button>
+          </a>
+        </div>
+      </StudentLayout>
+    );
+  }
+
+  // Enriched Description & Specifications Splitting
+  const descParts = (product.description || "").split("📝 STRUCTURED SPECIFICATIONS:");
+  const userDesc = descParts[0]?.trim();
+  const specsText = descParts[1]?.trim();
+  const specsArray = specsText
+    ? specsText.split("\n").map(l => l.trim()).filter(Boolean)
+    : [];
+
+  const specsList: { key: string; value: string }[] = [];
+  specsArray.forEach(line => {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx !== -1) {
+      const key = line.substring(0, colonIdx).trim();
+      const value = line.substring(colonIdx + 1).trim();
+      if (key && value) {
+        specsList.push({ key, value });
+      }
+    }
+  });
+
+  // Filter actual image URLs
+  const allImages = product.images || [];
+  const onlyImages = allImages.filter(isImageUrl);
+  const displayedImages = onlyImages.length > 0 ? onlyImages : [];
+
+  const discount = product.originalPrice && product.originalPrice > product.price
+    ? Math.round((1 - product.price / product.originalPrice) * 100)
+    : 0;
+
+  // Format creation date
+  const dateFormatted = product.createdAt
+    ? new Date(product.createdAt).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      })
+    : "";
 
   return (
     <StudentLayout>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
         @keyframes modalIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
-        .pd-page{animation:fadeUp .35s ease}
-        .thumb:hover{border-color:#4F8EF7!important}
-        .buy-btn:hover{background:#3b7de8!important;transform:translateY(-1px);box-shadow:0 6px 24px rgba(79,142,247,0.45)!important}
-        .chat-btn:hover{border-color:#4F8EF7!important;color:#4F8EF7!important}
+        .pd-page { animation: fadeUp 0.4s ease-out forwards; }
+        .glass-panel {
+          background: rgba(17, 24, 39, 0.45);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+        }
+        .thumb-active {
+          border-color: var(--accent-blue) !important;
+          box-shadow: 0 0 10px rgba(79, 142, 247, 0.25);
+        }
+        .spec-row:nth-child(even) {
+          background: rgba(255, 255, 255, 0.02);
+        }
       `}</style>
 
-      {/* Toast */}
+      {/* Toast Notification */}
       {toast && (
-        <div style={{position:"fixed",top:20,right:24,zIndex:1000,background:"#111827",border:"1px solid #1e2d45",color:"#F0F4FF",borderRadius:12,padding:"12px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,boxShadow:"0 8px 32px rgba(0,0,0,0.5)",display:"flex",alignItems:"center",gap:8}}>
-          <Check size={14} style={{color:"#10B981"}}/> {toast}
+        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 1000, background: "#111827", border: "1.5px solid var(--border)", color: "var(--text-primary)", borderRadius: 12, padding: "12px 20px", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, boxShadow: "var(--shadow-lifted)", display: "flex", alignItems: "center", gap: 10, animation: "modalIn 0.2s ease" }}>
+          <Check size={15} style={{ color: "var(--accent-green)" }} /> {toast}
         </div>
       )}
 
       {/* Send Request Modal */}
       {showRequest && (
-        <div onClick={()=>setShowRequest(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:20,padding:"28px 32px",maxWidth:420,width:"90%",animation:"modalIn 0.25s ease"}}>
-            {!reqSent ? (<>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:18,fontWeight:800,color:"#F0F4FF"}}>Send Buy Request</h2>
-                <button onClick={()=>setShowRequest(false)} style={{background:"none",border:"none",cursor:"pointer",color:"#6B7280"}}><X size={18}/></button>
-              </div>
-              {/* Product summary */}
-              <div style={{display:"flex",alignItems:"center",gap:10,background:"#0d1120",borderRadius:10,padding:"12px 14px",marginBottom:16}}>
-                <span style={{fontSize:28}}>💻</span>
-                <div style={{flex:1}}>
-                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:"#F0F4FF"}}>Apple MacBook Pro 14&quot;</p>
-                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#6B7280"}}>Seller: James Wilson · ₹18,000</p>
+        <div onClick={() => { if (!reqLoading) setShowRequest(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+          <div onClick={e => e.stopPropagation()} className="glass-panel" style={{ padding: "28px 32px", maxWidth: 460, width: "90%", animation: "modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+            {!reqSent ? (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>Send Buy Request</h2>
+                  <button onClick={() => setShowRequest(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><X size={20} /></button>
                 </div>
-              </div>
-              {/* Info note */}
-              <div style={{background:"rgba(247,201,72,0.06)",border:"1px solid rgba(247,201,72,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",gap:8,alignItems:"flex-start"}}>
-                <span style={{fontSize:16,flexShrink:0}}>ℹ️</span>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#9CA3AF",lineHeight:1.5}}>
-                  <strong style={{color:"#F7C948"}}>No payment needed here.</strong> Payment happens in person on campus after the seller accepts your request.
-                </p>
-              </div>
-              {/* Quick prompts */}
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#6B7280",marginBottom:8}}>Quick messages:</p>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
-                {["Is this still available?","Can we meet on campus?","Is the price negotiable?"].map(q=>(
-                  <button key={q} onClick={()=>setReqMsg(q)} style={{background:"#1a2235",border:"1.5px solid #1e2d45",borderRadius:8,padding:"6px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#9CA3AF",cursor:"pointer"}}>{q}</button>
-                ))}
-              </div>
-              <textarea value={reqMsg} onChange={e=>setReqMsg(e.target.value)} placeholder="Write your message to the seller…" rows={3} style={{width:"100%",background:"#1a2235",border:"1.5px solid #1e2d45",borderRadius:10,padding:"10px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#F0F4FF",outline:"none",resize:"none",boxSizing:"border-box",marginBottom:12}}/>
-              <button onClick={sendRequest} disabled={!reqMsg.trim()} style={{width:"100%",height:46,borderRadius:9999,background:reqMsg.trim()?"#4F8EF7":"#1a2235",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:reqMsg.trim()?"#fff":"#374151",cursor:reqMsg.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:reqMsg.trim()?"0 4px 16px rgba(79,142,247,0.35)":"none",transition:"all 0.2s"}}>
-                <Send size={15}/> Send Request to Seller
-              </button>
-            </>) : (
-              <div style={{textAlign:"center",padding:"20px 0"}}>
-                <div style={{fontSize:56,marginBottom:12}}>📬</div>
-                <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:20,fontWeight:800,color:"#10B981",marginBottom:6}}>Request Sent!</h2>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF"}}>Notifying the seller…</p>
+
+                {/* Product summary card */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(0,0,0,0.3)", borderRadius: 12, padding: "12px 16px", border: "1px solid var(--border)", marginBottom: 18 }}>
+                  {displayedImages[0] ? (
+                    <img src={displayedImages[0]} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 44, height: 44, borderRadius: 8, background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📦</div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{product.title}</p>
+                    <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)" }}>Seller: {product.seller.name} · ₹{product.price.toLocaleString("en-IN")}</p>
+                  </div>
+                </div>
+
+                {/* Safe meetup guide */}
+                <div style={{ background: "rgba(247,201,72,0.06)", border: "1px solid rgba(247,201,72,0.2)", borderRadius: 12, padding: "12px 14px", marginBottom: 18, display: "flex", gap: 10 }}>
+                  <Info size={16} style={{ color: "var(--accent-gold)", flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-soft)", lineHeight: 1.5 }}>
+                    <strong style={{ color: "var(--accent-gold)" }}>In-Person Verification Required.</strong> Payments for physical items happen physically on campus. Exchange and pay only after inspection.
+                  </p>
+                </div>
+
+                {/* Instant Templates */}
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", marginBottom: 8, fontWeight: 600 }}>QUICK TEMPLATES:</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                  {[
+                    "Hi! Is this still available?",
+                    "Can we meet on campus tomorrow?",
+                    "Is the price negotiable?"
+                  ].map(q => (
+                    <button key={q} onClick={() => setReqMsg(q)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-soft)", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}>{q}</button>
+                  ))}
+                </div>
+
+                <textarea
+                  value={reqMsg}
+                  onChange={e => setReqMsg(e.target.value)}
+                  placeholder="Type a polite message to coordinate meetup details with the seller..."
+                  rows={4}
+                  style={{ width: "100%", background: "rgba(0,0,0,0.25)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)", outline: "none", resize: "none", boxSizing: "border-box", marginBottom: 18 }}
+                />
+
+                <button
+                  onClick={sendRequest}
+                  disabled={!reqMsg.trim() || reqLoading}
+                  style={{ width: "100%", height: 46, borderRadius: 9999, background: reqMsg.trim() && !reqLoading ? "var(--accent-blue)" : "rgba(255,255,255,0.05)", border: "none", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 700, color: reqMsg.trim() && !reqLoading ? "#fff" : "var(--text-muted)", cursor: reqMsg.trim() && !reqLoading ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, transition: "all 0.2s", boxShadow: reqMsg.trim() && !reqLoading ? "0 4px 16px rgba(79, 142, 247, 0.3)" : "none" }}
+                >
+                  {reqLoading ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> : <Send size={15} />}
+                  {reqLoading ? "Sending request..." : "Send Request to Seller"}
+                </button>
+              </>
+            ) : (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <div style={{ fontSize: 56, marginBottom: 16 }}>📬</div>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--accent-green)", marginBottom: 8 }}>Buy Request Sent!</h2>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)" }}>We have notified the seller. Keep an eye on your Inbox for responses!</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Contact Seller Modal */}
-      {showChat && (
-        <div onClick={()=>setShowChat(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:20,padding:"28px 32px",maxWidth:400,width:"90%",animation:"modalIn 0.25s ease"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:18,fontWeight:800,color:"#F0F4FF"}}>Message Seller</h2>
-              <button onClick={()=>setShowChat(false)} style={{background:"none",border:"none",cursor:"pointer",color:"#6B7280"}}><X size={18}/></button>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:10,background:"#0d1120",borderRadius:10,padding:"12px 14px",marginBottom:16}}>
-              <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#4F8EF7,#7C3AED)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:800,color:"#fff"}}>JW</div>
-              <div>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700,color:"#F0F4FF"}}>James Wilson</p>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#6B7280"}}>MIT College · Usually replies in 2h</p>
-              </div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
-              {["Is this still available?","Can we meet on campus?","Is the price negotiable?"].map(q=>(
-                <button key={q} onClick={()=>setChatMsg(q)} style={{textAlign:"left",background:"#1a2235",border:"1.5px solid #1e2d45",borderRadius:8,padding:"8px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#9CA3AF",cursor:"pointer"}}>
-                  {q}
-                </button>
-              ))}
-            </div>
-            <textarea value={chatMsg} onChange={e=>setChatMsg(e.target.value)} placeholder="Type your message..." rows={3} style={{width:"100%",background:"#1a2235",border:"1.5px solid #1e2d45",borderRadius:10,padding:"10px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#F0F4FF",outline:"none",resize:"none",boxSizing:"border-box",marginBottom:12}}/>
-            <button onClick={sendChat} disabled={chatSent} style={{width:"100%",height:44,borderRadius:9999,background:chatSent?"#10B981":"#4F8EF7",border:"none",fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"background 0.2s"}}>
-              {chatSent ? <><Check size={14}/>Sent!</> : "Send Message"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="pd-page" style={{maxWidth:1100,margin:"0 auto",padding:"24px 32px"}}>
-
-        {/* Breadcrumb */}
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:28}}>
-          {[["Marketplace","/marketplace"],["Electronics","#"],["MacBook Pro","#"]].map(([b,href],i)=>(
-            <span key={b} style={{display:"flex",alignItems:"center",gap:8}}>
-              {i>0 && <ChevronRight size={12} style={{color:"#374151"}}/>}
-              <Link href={href} style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:i===2?"#F0F4FF":"#6B7280",fontWeight:i===2?600:400,textDecoration:"none"}}>{b}</Link>
+      <div className="pd-page" style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 60px" }}>
+        
+        {/* Breadcrumb Trail */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+          {[
+            ["Marketplace", "/marketplace"],
+            [product.category || "Items", `/marketplace?category=${encodeURIComponent(product.category || "")}`],
+            [product.title, "#"]
+          ].map(([b, href], i) => (
+            <span key={b} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {i > 0 && <ChevronRight size={13} style={{ color: "var(--text-muted)" }} />}
+              {i === 2 ? (
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-primary)", fontWeight: 600 }}>{b}</span>
+              ) : (
+                <a href={href} style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", fontWeight: 400, textDecoration: "none" }}>{b}</a>
+              )}
             </span>
           ))}
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 380px",gap:40}}>
-
-          {/* LEFT */}
-          <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <span style={{background:"rgba(16,185,129,0.15)",color:"#10B981",borderRadius:6,padding:"4px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700}}>For Sale</span>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={handleWishlist} style={{width:36,height:36,borderRadius:9999,background:wishlisted?"rgba(239,68,68,0.12)":"#111827",border:`1.5px solid ${wishlisted?"rgba(239,68,68,0.4)":"#1e2d45"}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>
-                  <Heart size={15} style={{color:wishlisted?"#EF4444":"#6B7280",fill:wishlisted?"#EF4444":"none"}}/>
-                </button>
-                <button onClick={handleShare} style={{width:36,height:36,borderRadius:9999,background:"#111827",border:"1.5px solid #1e2d45",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <Share2 size={14} style={{color:"#6B7280"}}/>
-                </button>
+        {/* Core Layout Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="md:grid-cols-[1fr_380px] grid">
+          
+          {/* LEFT COLUMN: Media Showcase, Description, Technical Specifications */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+            
+            {/* Visual Header Panel */}
+            <div className="glass-panel" style={{ padding: "24px", position: "relative", overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <span className={`badge ${product.isApproved ? "badge-green" : "badge-orange"}`} style={{ display: "inline-flex", gap: 6 }}>
+                  {product.isApproved ? (
+                    <>
+                      <Check size={11} /> Verified For Sale
+                    </>
+                  ) : (
+                    "Awaiting Admin Review"
+                  )}
+                </span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={handleWishlist} style={{ width: 38, height: 38, borderRadius: "50%", background: wishlisted ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${wishlisted ? "rgba(239,68,68,0.3)" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
+                    <Heart size={16} style={{ color: wishlisted ? "var(--accent-red)" : "var(--text-soft)", fill: wishlisted ? "var(--accent-red)" : "none" }} />
+                  </button>
+                  <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"} onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}>
+                    <Share2 size={15} style={{ color: "var(--text-soft)" }} />
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div style={{borderRadius:14,overflow:"hidden",background:"#1e3a5f",height:340,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14,border:"1.5px solid #1e2d45"}}>
-              <span style={{fontSize:80}}>{THUMBNAILS[mainThumb]}</span>
-            </div>
-
-            <div style={{display:"flex",gap:10,marginBottom:32}}>
-              {THUMBNAILS.map((t,i)=>(
-                <div key={i} className="thumb" onClick={()=>setMainThumb(i)} style={{width:72,height:64,borderRadius:10,background:"#111827",border:`1.5px solid ${mainThumb===i?"#4F8EF7":"#1e2d45"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,cursor:"pointer",transition:"border-color 0.15s"}}>{t}</div>
-              ))}
-            </div>
-
-            <div style={{borderTop:"1px solid #1e2d45",paddingTop:28}}>
-              <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:18,fontWeight:700,color:"#F0F4FF",marginBottom:14}}>About this product</h2>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:"#9CA3AF",lineHeight:1.75,marginBottom:20}}>
-                Purchased just 4 months ago for my Computer Science finals. This MacBook Pro M2 is in pristine condition, with absolutely no scratches. Used primarily for coding and light browsing. Comes with original box and all accessories.
-              </p>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 24px",marginBottom:20}}>
-                {[{label:"MODEL",value:"MacBook Pro 14\" (M2 Pro)"},{label:"SPECS",value:"16GB RAM / 512GB SSD"},{label:"CYCLE COUNT",value:"42 Cycles (healthy)"},{label:"WARRANTY",value:"AppleCare+ until Sept 2025"}].map(s=>(
-                  <div key={s.label}>
-                    <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:700,letterSpacing:"1px",color:"#374151",marginBottom:4}}>{s.label}</p>
-                    <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF"}}>{s.value}</p>
+              {/* Core Hero Frame */}
+              <div style={{ borderRadius: 12, overflow: "hidden", background: "rgba(0,0,0,0.35)", height: 380, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", marginBottom: 16 }}>
+                {displayedImages.length > 0 ? (
+                  <img src={displayedImages[mainThumb]} alt={product.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 72 }}>📦</span>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)" }}>No item preview image available</span>
                   </div>
-                ))}
+                )}
               </div>
-              <span style={{background:"rgba(79,142,247,0.12)",color:"#4F8EF7",borderRadius:6,padding:"4px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600}}>Like New Condition</span>
-            </div>
-          </div>
 
-          {/* RIGHT */}
-          <div style={{display:"flex",flexDirection:"column",gap:16}}>
-            <div style={{display:"flex",gap:8}}>
-              <span style={{background:"rgba(79,142,247,0.12)",color:"#4F8EF7",borderRadius:6,padding:"4px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700}}>🔧 Physical</span>
-              <span style={{background:"rgba(16,185,129,0.12)",color:"#10B981",borderRadius:6,padding:"4px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:700}}>✅ Available</span>
-            </div>
-
-            <h1 style={{fontFamily:"'Sora',sans-serif",fontSize:22,fontWeight:800,color:"#F0F4FF",letterSpacing:"-0.5px",lineHeight:1.3}}>
-              Apple MacBook Pro 14&quot; (M2 Pro, 2023) — Space Gray
-            </h1>
-
-            {/* Seller card */}
-            <div style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:12,padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
-              <div style={{width:40,height:40,borderRadius:"50%",background:"linear-gradient(135deg,#4F8EF7,#7C3AED)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:800,color:"#fff"}}>JW</div>
-              <div style={{flex:1}}>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:"#F0F4FF"}}>James Wilson</p>
-                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#6B7280"}}>MIT College, 3rd Year</p>
-                <div style={{display:"flex",alignItems:"center",gap:4,marginTop:2}}>
-                  <Star size={12} style={{color:"#F7C948",fill:"#F7C948"}}/>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#F7C948"}}>4.8</span>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#6B7280"}}>• 12 sold</span>
+              {/* Image Carousel Previews */}
+              {displayedImages.length > 1 && (
+                <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
+                  {displayedImages.map((img, i) => (
+                    <div
+                      key={i}
+                      onClick={() => setMainThumb(i)}
+                      className={`glass-panel ${mainThumb === i ? "thumb-active" : ""}`}
+                      style={{ width: 72, height: 64, flexShrink: 0, overflow: "hidden", cursor: "pointer", transition: "all 0.2s", padding: 2, border: "1.5px solid var(--border)" }}
+                    >
+                      <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} />
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <Link href="#" style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:"#4F8EF7",textDecoration:"none"}}>Profile</Link>
+              )}
             </div>
 
-            {/* Price card */}
-            <div style={{background:"#111827",border:"1.5px solid #1e2d45",borderRadius:12,padding:"18px 20px"}}>
-              {[{label:"Price:",value:"₹18,000"},{label:"Platform fee:",value:"₹0 (buyer)"}].map(r=>(
-                <div key={r.label} style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6B7280"}}>{r.label}</span>
-                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#9CA3AF"}}>{r.value}</span>
-                </div>
-              ))}
-              <div style={{height:1,background:"#1e2d45",margin:"10px 0"}}/>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:"#9CA3AF"}}>You pay:</span>
-                <span style={{fontFamily:"'Sora',sans-serif",fontSize:24,fontWeight:800,color:"#10B981"}}>₹18,000</span>
-              </div>
-            </div>
-
-            {/* Send Request Button */}
-            <button onClick={()=>setShowRequest(true)} style={{width:"100%",height:48,borderRadius:9999,background:"#4F8EF7",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 4px 16px rgba(79,142,247,0.35)",transition:"all 0.2s"}}
-              onMouseEnter={e=>e.currentTarget.style.background="#3b7de8"}
-              onMouseLeave={e=>e.currentTarget.style.background="#4F8EF7"}>
-              <ShoppingBag size={16}/> Send Buy Request
-            </button>
-
-            {/* Contact Seller */}
-            <button className="chat-btn" onClick={()=>setShowChat(true)} style={{width:"100%",height:46,borderRadius:9999,background:"transparent",border:"1.5px solid #1e2d45",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,color:"#9CA3AF",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.15s"}}>
-              <MessageCircle size={16}/> Contact Seller
-            </button>
-
-            {/* Safety note */}
-            <div style={{background:"rgba(16,185,129,0.05)",border:"1px solid rgba(16,185,129,0.15)",borderRadius:10,padding:"12px 14px",display:"flex",gap:10,alignItems:"flex-start"}}>
-              <ShieldCheck size={16} style={{color:"#10B981",flexShrink:0,marginTop:2}}/>
-              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#6B7280",lineHeight:1.6}}>
-                <strong style={{color:"#10B981"}}>CampusConnect Safety Guarantee.</strong>{" "}
-                Payment held securely and released after you confirm receipt.
+            {/* Description & Technical specifications */}
+            <div className="glass-panel" style={{ padding: "28px" }}>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>About this product</h2>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-soft)", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
+                {userDesc || "No manual description provided by the seller."}
               </p>
+
+              {/* Categorization & stats */}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 24, borderTop: "1px solid var(--border)", paddingTop: 20 }}>
+                <span style={{ background: "rgba(79,142,247,0.1)", color: "var(--accent-blue)", borderRadius: 6, padding: "5px 12px", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600 }}>{product.condition} Condition</span>
+                <span style={{ background: "rgba(16,185,129,0.08)", color: "var(--accent-green)", borderRadius: 6, padding: "5px 12px", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600 }}>👁 {product.views} Views</span>
+                <span style={{ background: "rgba(247,201,72,0.08)", color: "var(--accent-gold)", borderRadius: 6, padding: "5px 12px", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600 }}>📬 {product._count.buyRequests} Interest Requests</span>
+              </div>
             </div>
+
+            {/* Structured Specifications Grid */}
+            {specsList.length > 0 && (
+              <div className="glass-panel" style={{ padding: "28px" }}>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>Structured Specifications</h3>
+                <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--border)" }}>
+                  {specsList.map((spec, i) => (
+                    <div key={i} className="spec-row" style={{ display: "grid", gridTemplateColumns: "180px 1fr", borderBottom: i === specsList.length - 1 ? "none" : "1px solid var(--border)", padding: "12px 20px" }}>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, color: "var(--text-soft)" }}>{spec.key}</span>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)" }}>{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* RIGHT COLUMN: Sidebar details, Pricing, CTA request, Seller details */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            
+            {/* Purchase CTA Card */}
+            <div className="glass-panel" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span className="badge badge-blue">📦 Physical Item</span>
+                {product.status === "active" ? (
+                  <span className="badge badge-green">Available</span>
+                ) : (
+                  <span className="badge badge-orange">{product.status}</span>
+                )}
+                {discount > 0 && <span className="badge" style={{ background: "rgba(239,68,68,0.15)", color: "var(--accent-red)", border: "1px solid rgba(239,68,68,0.25)" }}>-{discount}%</span>}
+              </div>
+
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.5px", lineHeight: 1.3 }}>
+                {product.title}
+              </h1>
+
+              {/* Price card details */}
+              <div style={{ background: "rgba(0,0,0,0.25)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px", marginTop: 8 }}>
+                {product.originalPrice && product.originalPrice > product.price && (
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Retail Price</span>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", textDecoration: "line-through" }}>₹{product.originalPrice.toLocaleString("en-IN")}</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Platform Fees</span>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--accent-green)", fontWeight: 600 }}>Free for Buyer</span>
+                </div>
+                <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", fontWeight: 500 }}>Selling Price</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: "var(--accent-green)" }}>₹{product.price.toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowRequest(true)}
+                className="btn btn-primary btn-lg"
+                style={{ width: "100%", marginTop: 8 }}
+              >
+                <ShoppingBag size={16} /> Send Buy Request
+              </button>
+
+              <div style={{ background: "rgba(16,185,129,0.03)", border: "1px solid rgba(16,185,129,0.12)", borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start", marginTop: 4 }}>
+                <ShieldCheck size={16} style={{ color: "var(--accent-green)", flexShrink: 0, marginTop: 2 }} />
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
+                  <strong style={{ color: "var(--accent-green)" }}>Campus Meetup:</strong> Physical marketplace items require face-to-face inspection and manual transaction on campus. Pay only when satisfied.
+                </p>
+              </div>
+            </div>
+
+            {/* Seller Contact Card */}
+            <div className="glass-panel" style={{ padding: "20px" }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Listed by Seller</p>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-blue), var(--accent-purple))", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "#fff", boxShadow: "var(--shadow-card)" }}>
+                  {initials(product.seller.name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.seller.name}</p>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.college.name}</p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "rgba(0,0,0,0.15)", borderRadius: 10, padding: "12px 14px", border: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Calendar size={13} style={{ color: "var(--text-muted)" }} />
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-soft)" }}>Listed on {dateFormatted || "Recently"}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Tag size={13} style={{ color: "var(--text-muted)" }} />
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-soft)" }}>Category: {product.category}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
         </div>
       </div>
     </StudentLayout>

@@ -1,443 +1,1538 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle, Upload, FileText, Video, Package, Layers } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { 
+  CheckCircle, Upload, FileText, Video, Package, Layers, X, 
+  Plus, Trash2, ShieldCheck, HelpCircle, ArrowLeft, ArrowRight, 
+  File, AlertCircle, ShoppingBag
+} from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
+import api from "@/lib/axios";
 
 type ProdType = "physical" | "digital" | null;
 type DigSub = "notes" | "video" | "both" | "bundle" | null;
 
-function FeeCalc({ price, isDigital }: { price: string; isDigital: boolean }) {
-  const p = parseFloat(price.replace(/,/g, "")) || 0;
-  const list = isDigital ? 20 : 50;
-  const plat = Math.round(p * 0.05);
-  const recv = Math.max(0, p - plat);
-  return (
-    <div style={{ background: "#0d1120", border: "1.5px solid #1e2d45", borderRadius: 12, padding: "18px 20px" }}>
-      <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F0F4FF", marginBottom: 14 }}>📊 Live Fee Calculator</p>
-      {[
-        { label: "Selling Price", value: p ? `₹${p.toLocaleString("en-IN")}` : "—", color: "#F0F4FF" },
-        { label: "Listing Fee (once)", value: `₹${list}`, color: "#EF4444" },
-        { label: "Platform (5%)", value: p ? `−₹${plat.toLocaleString("en-IN")}` : "—", color: "#EF4444" },
-      ].map(r => (
-        <div key={r.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280" }}>{r.label}</span>
-          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: r.color }}>{r.value}</span>
-        </div>
-      ))}
-      <div style={{ height: 1, background: "#1e2d45", margin: "10px 0" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF" }}>You&apos;ll receive</span>
-        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800, color: "#10B981" }}>
-          {p ? `₹${recv.toLocaleString("en-IN")}` : "₹—"}
-        </span>
-      </div>
-    </div>
-  );
+interface BundleItem {
+  id: string;
+  title: string;
+  type: "notes" | "video" | "other";
+  description: string;
+  file: File | null;
 }
 
-const label: React.CSSProperties = {
-  display: "block", marginBottom: 6,
-  fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700,
-  letterSpacing: "1px", textTransform: "uppercase", color: "#6B7280",
-};
-const input: React.CSSProperties = {
-  width: "100%", height: 44, padding: "0 16px",
-  background: "#1a2235", border: "1.5px solid #1e2d45",
-  borderRadius: 10, outline: "none",
-  fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#F0F4FF",
-  boxSizing: "border-box", transition: "border-color 0.2s",
-};
-
 export default function SellProductPage() {
-  const [step, setStep]         = useState(1);
+  const [step, setStep] = useState(1);
   const [prodType, setProdType] = useState<ProdType>(null);
-  const [digSub, setDigSub]     = useState<DigSub>(null);
-  const [title, setTitle]       = useState("");
-  const [desc, setDesc]         = useState("");
+  const [digSub, setDigSub] = useState<DigSub>(null);
+  
+  // General Fields
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
   const [category, setCategory] = useState("Electronics");
   const [condition, setCondition] = useState("Brand New");
   const [origPrice, setOrigPrice] = useState("");
   const [sellPrice, setSellPrice] = useState("");
 
-  const STEPS = ["Product Type", "Details", "Review & Pay"];
+  // Subtype-Specific Fields
+  // 1. Notes / PDF
+  const [notesSubject, setNotesSubject] = useState("");
+  const [notesCourseCode, setNotesCourseCode] = useState("");
+  const [notesUniv, setNotesUniv] = useState("");
+  const [notesPages, setNotesPages] = useState("");
+  
+  // 2. Video Course
+  const [vidInstructor, setVidInstructor] = useState("");
+  const [vidLecturesCount, setVidLecturesCount] = useState("");
+  const [vidDuration, setVidDuration] = useState("");
+  const [vidAudience, setVidAudience] = useState("");
+  const [vidPrereqs, setVidPrereqs] = useState("");
 
-  // Digital sub-type options
+  // 3. Dynamic Bundle State
+  const [bundleItems, setBundleItems] = useState<BundleItem[]>([
+    { id: "item-1", title: "", type: "notes", description: "", file: null }
+  ]);
+
+  // File lists based on context
+  const [physicalImages, setPhysicalImages] = useState<File[]>([]);
+  const [notesDocs, setNotesDocs] = useState<File[]>([]);
+  const [courseVideos, setCourseVideos] = useState<File[]>([]);
+  const [bothDocs, setBothDocs] = useState<File[]>([]);
+  const [bothVideos, setBothVideos] = useState<File[]>([]);
+
+  // Platform Fee Settings
+  const [feePhysical, setFeePhysical] = useState(49);
+  const [feeDigital, setFeeDigital] = useState(29);
+  const [platformFeePercent, setPlatformFeePercent] = useState(5);
+
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [payModal, setPayModal] = useState(false);
+  const [payStep, setPayStep] = useState<"choose" | "done">("choose");
+  const [errorToast, setErrorToast] = useState("");
+
+  const physicalImgRef = useRef<HTMLInputElement>(null);
+  const notesDocRef = useRef<HTMLInputElement>(null);
+  const courseVideoRef = useRef<HTMLInputElement>(null);
+  const bothDocRef = useRef<HTMLInputElement>(null);
+  const bothVideoRef = useRef<HTMLInputElement>(null);
+
+  // Fetch fees & settings
+  useEffect(() => {
+    api.get("/api/marketplace/settings")
+      .then(res => {
+        const d = res.data;
+        if (d) {
+          setFeePhysical(d.listingFeePhysical ?? 49);
+          setFeeDigital(d.listingFeeDigital ?? 29);
+          setPlatformFeePercent(d.platformFeePercent ?? 5);
+        }
+      })
+      .catch(() => { });
+  }, []);
+
+  const listFee = prodType === "digital" ? feeDigital : feePhysical;
+
+  const STEPS = ["Select Category", "Complete Form", "Verify & Publish"];
+
   const DIG_SUBS = [
-    { key: "notes"  as DigSub, icon: <FileText size={28} />,  label: "Notes / PDF",    desc: "Handwritten notes, typed guides, question banks, solutions.", color: "#A78BFA", glow: "rgba(167,139,250,0.18)", tags: ["GATE Notes","Study Guide","Solutions"] },
-    { key: "video"  as DigSub, icon: <Video size={28} />,     label: "Video Course",   desc: "Recorded lectures, tutorials, or concept explainer videos.",  color: "#10B981", glow: "rgba(16,185,129,0.18)",  tags: ["Full Course","Lectures","Tutorials"] },
-    { key: "both"   as DigSub, icon: <Layers size={28} />,    label: "Notes + Video",  desc: "Sell a combined package of PDFs alongside video content.",    color: "#F7C948", glow: "rgba(247,201,72,0.18)",  tags: ["Complete Pack","Notes + Videos"] },
-    { key: "bundle" as DigSub, icon: <Package size={28} />,   label: "Bundle",         desc: "Multi-subject or multi-course bundle at one discounted price.", color: "#4F8EF7", glow: "rgba(79,142,247,0.18)", tags: ["Multi-subject","Combo","Semester Pack"] },
+    { key: "notes" as DigSub, icon: <FileText size={26} />, label: "Notes / PDF", desc: "Lecture notes, study guides, exam solutions.", color: "#8B5CF6", glow: "rgba(139,92,246,0.15)", fileDesc: "PDF, Word, or text documents only." },
+    { key: "video" as DigSub, icon: <Video size={26} />, label: "Video Course", desc: "Concept explainer videos, tutorials, screen recordings.", color: "#10B981", glow: "rgba(16,185,129,0.15)", fileDesc: "MP4, WebM, or MKV videos only." },
+    { key: "both" as DigSub, icon: <Layers size={26} />, label: "Notes + Video Pack", desc: "Dual bundles of reference slides alongside explainer videos.", color: "#F59E0B", glow: "rgba(245,158,11,0.15)", fileDesc: "Structured PDF notes AND video course lectures." },
+    { key: "bundle" as DigSub, icon: <Package size={26} />, label: "Custom Semester Bundle", desc: "Multi-subject resource kit complete with customizable item list.", color: "#3B82F6", glow: "rgba(59,130,246,0.15)", fileDesc: "Upload structured assets dynamically per item." },
   ];
 
-  const [submitted, setSubmitted]   = useState(false);
-  const [draftToast, setDraftToast] = useState(false);
-  const [payModal, setPayModal]     = useState(false);
-  const [payStep, setPayStep]       = useState<"choose"|"done">("choose");
+  const activeColor = prodType === "physical" ? "#3B82F6" : (DIG_SUBS.find(d => d.key === digSub)?.color || "#8B5CF6");
+  const activeGlow = prodType === "physical" ? "rgba(59,130,246,0.15)" : (DIG_SUBS.find(d => d.key === digSub)?.glow || "rgba(139,92,246,0.15)");
 
-  const listFee = prodType === "digital" ? 20 : 49;
-  const digSubColor = DIG_SUBS.find(d => d.key === digSub)?.color ?? "#4F8EF7";
+  function showNotification(msg: string) {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(""), 4000);
+  }
 
-  function saveDraft() { setDraftToast(true); setTimeout(() => setDraftToast(false), 3000); }
-  function openPayModal() { setPayModal(true); setPayStep("choose"); }
-  function completePay() { setPayStep("done"); setTimeout(() => { setPayModal(false); setSubmitted(true); }, 1400); }
+  // File Handlers & Validations
+  function validateAndAddFiles(
+    uploadedFiles: FileList | null, 
+    allowedExtensions: string[], 
+    setList: React.Dispatch<React.SetStateAction<File[]>>,
+    typeDescription: string
+  ) {
+    if (!uploadedFiles) return;
+    const validated: File[] = [];
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      if (!allowedExtensions.includes(ext) && allowedExtensions.length > 0) {
+        showNotification(`Invalid format: ${file.name}. Only ${typeDescription} allowed here.`);
+        continue;
+      }
+      if (file.size > 200 * 1024 * 1024) { // 200MB limit
+        showNotification(`File too large: ${file.name}. Maximum file size is 200MB.`);
+        continue;
+      }
+      validated.push(file);
+    }
+    setList(prev => [...prev, ...validated]);
+  }
+
+  // Subtype dynamic file handlers
+  const handlePhysicalImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateAndAddFiles(e.target.files, [".jpg", ".jpeg", ".png", ".webp"], setPhysicalImages, "images (JPG, PNG, WEBP)");
+  };
+  const handleNotesDocs = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateAndAddFiles(e.target.files, [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt"], setNotesDocs, "documents (PDF, DOC, DOCX, PPT, PPTX)");
+  };
+  const handleCourseVideos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateAndAddFiles(e.target.files, [".mp4", ".webm", ".mkv", ".mov"], setCourseVideos, "videos (MP4, WEBM, MKV)");
+  };
+  const handleBothDocs = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateAndAddFiles(e.target.files, [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt"], setBothDocs, "documents");
+  };
+  const handleBothVideos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateAndAddFiles(e.target.files, [".mp4", ".webm", ".mkv", ".mov"], setBothVideos, "videos");
+  };
+
+  // Bundle dynamic builders
+  function addBundleItem() {
+    setBundleItems(prev => [
+      ...prev,
+      { id: `item-${Date.now()}`, title: "", type: "notes", description: "", file: null }
+    ]);
+  }
+  function removeBundleItem(id: string) {
+    if (bundleItems.length <= 1) {
+      showNotification("A bundle must contain at least 1 item.");
+      return;
+    }
+    setBundleItems(prev => prev.filter(item => item.id !== id));
+  }
+  function updateBundleItem(id: string, key: keyof BundleItem, val: any) {
+    setBundleItems(prev => prev.map(item => {
+      if (item.id === id) {
+        // If type changes, clear the attached file since validation changes
+        if (key === "type") {
+          return { ...item, type: val, file: null };
+        }
+        return { ...item, [key]: val };
+      }
+      return item;
+    }));
+  }
+  function handleBundleFileChange(id: string, fileList: FileList | null, type: "notes" | "video" | "other") {
+    if (!fileList || fileList.length === 0) return;
+    const file = fileList[0];
+    const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    
+    let allowed: string[] = [];
+    let label = "";
+    if (type === "notes") {
+      allowed = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt"];
+      label = "documents (PDF, DOCX, PPTX)";
+    } else if (type === "video") {
+      allowed = [".mp4", ".webm", ".mkv", ".mov"];
+      label = "videos (MP4, WEBM)";
+    }
+
+    if (allowed.length > 0 && !allowed.includes(ext)) {
+      showNotification(`Invalid format: ${file.name}. Only ${label} are allowed for ${type} items.`);
+      return;
+    }
+    if (file.size > 200 * 1024 * 1024) {
+      showNotification(`File too large. Maximum size is 200MB.`);
+      return;
+    }
+
+    updateBundleItem(id, "file", file);
+  }
+
+  // Live Calculations
+  const calculatedSellPrice = parseFloat(sellPrice.replace(/,/g, "")) || 0;
+  const calculatedOrigPrice = parseFloat(origPrice.replace(/,/g, "")) || 0;
+  const buyerFee = (calculatedSellPrice * platformFeePercent) / 100;
+  const buyerTotal = calculatedSellPrice + buyerFee;
+  const discountPercent = calculatedOrigPrice > calculatedSellPrice 
+    ? Math.round(((calculatedOrigPrice - calculatedSellPrice) / calculatedOrigPrice) * 100) 
+    : 0;
+
+  // Validation before step transition
+  function validateStep2() {
+    if (!title.trim()) { showNotification("Product title is required."); return false; }
+    if (title.length < 5) { showNotification("Product title should be at least 5 characters."); return false; }
+    if (!desc.trim()) { showNotification("Product description is required."); return false; }
+    if (desc.length < 15) { showNotification("Description must be at least 15 characters to explain details properly."); return false; }
+    if (!sellPrice || calculatedSellPrice <= 0) { showNotification("A valid selling price is required."); return false; }
+    
+    if (prodType === "physical") {
+      if (calculatedOrigPrice > 0 && calculatedSellPrice > calculatedOrigPrice) {
+        showNotification("Selling price cannot be greater than the original retail price.");
+        return false;
+      }
+      if (physicalImages.length === 0) {
+        showNotification("Please upload at least 1 product image so buyers can see its condition.");
+        return false;
+      }
+    }
+
+    if (prodType === "digital") {
+      if (digSub === "notes") {
+        if (!notesSubject.trim()) { showNotification("Subject or exam name is required."); return false; }
+        if (notesDocs.length === 0) { showNotification("Please upload the PDF notes / study files."); return false; }
+      }
+      if (digSub === "video") {
+        if (!vidInstructor.trim()) { showNotification("Instructor or course creator is required."); return false; }
+        if (!vidLecturesCount.trim()) { showNotification("Please specify the number of video lectures."); return false; }
+        if (courseVideos.length === 0) { showNotification("Please upload at least 1 course lecture video."); return false; }
+      }
+      if (digSub === "both") {
+        if (!notesSubject.trim()) { showNotification("Subject details are required."); return false; }
+        if (!vidInstructor.trim()) { showNotification("Instructor or course creator is required."); return false; }
+        if (bothDocs.length === 0) { showNotification("Please upload reference documents/PDFs."); return false; }
+        if (bothVideos.length === 0) { showNotification("Please upload lecture videos."); return false; }
+      }
+      if (digSub === "bundle") {
+        for (let i = 0; i < bundleItems.length; i++) {
+          const item = bundleItems[i];
+          if (!item.title.trim()) { showNotification(`Bundle Item #${i + 1} needs a title.`); return false; }
+          if (!item.file) { showNotification(`Please upload the file for bundle item "${item.title || `#${i+1}`}".`); return false; }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  // POST Submission
+  async function submitToAPI() {
+    setSubmitting(true);
+    const fd = new FormData();
+    fd.append("title", title.trim());
+    fd.append("price", calculatedSellPrice.toString());
+    fd.append("originalPrice", calculatedOrigPrice.toString());
+    fd.append("category", prodType === "physical" ? category : "Digital Resource");
+    fd.append("condition", prodType === "physical" ? condition : "Digital");
+    fd.append("productType", prodType || "physical");
+    if (digSub) fd.append("digitalSubType", digSub);
+
+    // Build enriched description reflecting structured details
+    let fullDesc = desc.trim();
+    const detailsList: string[] = [];
+
+    if (prodType === "digital") {
+      if (digSub === "notes") {
+        detailsList.push(`Subject: ${notesSubject.trim()}`);
+        if (notesCourseCode) detailsList.push(`Course Code: ${notesCourseCode.trim()}`);
+        if (notesUniv) detailsList.push(`College/University: ${notesUniv.trim()}`);
+        if (notesPages) detailsList.push(`Total Pages: ${notesPages.trim()}`);
+      } else if (digSub === "video") {
+        detailsList.push(`Instructor: ${vidInstructor.trim()}`);
+        detailsList.push(`Total Videos: ${vidLecturesCount.trim()}`);
+        if (vidDuration) detailsList.push(`Duration: ${vidDuration.trim()}`);
+        if (vidAudience) detailsList.push(`Target Audience: ${vidAudience.trim()}`);
+        if (vidPrereqs) detailsList.push(`Prerequisites: ${vidPrereqs.trim()}`);
+      } else if (digSub === "both") {
+        detailsList.push(`Subject: ${notesSubject.trim()}`);
+        detailsList.push(`Instructor: ${vidInstructor.trim()}`);
+        if (notesPages) detailsList.push(`Notes Pages: ${notesPages.trim()}`);
+        if (vidLecturesCount) detailsList.push(`Lectures: ${vidLecturesCount.trim()}`);
+      } else if (digSub === "bundle") {
+        detailsList.push(`Bundle Pack Items:`);
+        bundleItems.forEach((item, index) => {
+          detailsList.push(`  [Item ${index+1}] ${item.title} (${item.type.toUpperCase()}) - ${item.description || "No description"}`);
+        });
+      }
+    }
+
+    if (detailsList.length > 0) {
+      fullDesc = `${fullDesc}\n\n📝 STRUCTURED SPECIFICATIONS:\n${detailsList.join("\n")}`;
+    }
+    fd.append("description", fullDesc);
+
+    // Append files based on sections
+    if (prodType === "physical") {
+      physicalImages.forEach(img => fd.append("images", img));
+    } else {
+      if (digSub === "notes") {
+        notesDocs.forEach(doc => fd.append("documents", doc));
+      } else if (digSub === "video") {
+        courseVideos.forEach(vid => fd.append("videos", vid));
+      } else if (digSub === "both") {
+        bothDocs.forEach(doc => fd.append("documents", doc));
+        bothVideos.forEach(vid => fd.append("videos", vid));
+      } else if (digSub === "bundle") {
+        bundleItems.forEach(item => {
+          if (item.file) {
+            if (item.type === "video") {
+              fd.append("videos", item.file);
+            } else if (item.type === "notes") {
+              fd.append("documents", item.file);
+            } else {
+              fd.append("images", item.file);
+            }
+          }
+        });
+      }
+    }
+
+    try {
+      await api.post("/api/marketplace/products", fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setPayStep("done");
+      setTimeout(() => {
+        setPayModal(false);
+        setSubmitted(true);
+      }, 1500);
+    } catch (err) {
+      console.error("Submitting listing failed:", err);
+      showNotification("Network or system failure while submitting product. Please try again.");
+      setPayModal(false);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleCancel() {
+    setStep(1);
+    setProdType(null);
+    setDigSub(null);
+    setTitle("");
+    setDesc("");
+    setSellPrice("");
+    setOrigPrice("");
+    setNotesSubject("");
+    setNotesCourseCode("");
+    setNotesUniv("");
+    setNotesPages("");
+    setVidInstructor("");
+    setVidLecturesCount("");
+    setVidDuration("");
+    setVidAudience("");
+    setVidPrereqs("");
+    setBundleItems([{ id: "item-1", title: "", type: "notes", description: "", file: null }]);
+    setPhysicalImages([]);
+    setNotesDocs([]);
+    setCourseVideos([]);
+    setBothDocs([]);
+    setBothVideos([]);
+  }
 
   return (
     <StudentLayout>
-      <div style={{ padding: "32px 36px", maxWidth: 900 }}>
-
-        {/* Draft Saved Toast */}
-        {draftToast && (
-          <div style={{ position:"fixed", top:20, right:24, zIndex:999, background:"#4F8EF7", color:"#fff", borderRadius:12, padding:"12px 20px", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:700, boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
-            💾 Draft saved! You can continue later.
+      <div style={{ padding: "36px 40px", maxWidth: 1040, margin: "0 auto", minHeight: "85vh", color: "#F0F4FF" }}>
+        
+        {/* Error/Warning Notification Toast */}
+        {errorToast && (
+          <div style={{ 
+            position: "fixed", top: 24, right: 24, zIndex: 1100, 
+            background: "#EF4444", color: "#fff", borderRadius: 12, 
+            padding: "14px 22px", fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, 
+            boxShadow: "0 10px 30px rgba(239, 68, 68, 0.4)", 
+            display: "flex", alignItems: "center", gap: 10,
+            animation: "slideInRight 0.25s ease-out"
+          }}>
+            <AlertCircle size={18} />
+            <span>{errorToast}</span>
           </div>
         )}
 
-        {/* Listing Fee Payment Modal */}
+        {/* Dynamic Payment Modal */}
         {payModal && (
-          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-            <div style={{ background:"#111827", border:"1.5px solid #1e2d45", borderRadius:20, padding:"32px 36px", maxWidth:420, width:"90%", animation:"fadeUp .25s ease" }}>
-              {payStep === "choose" ? (<>
-                <div style={{ textAlign:"center", marginBottom:20 }}>
-                  <div style={{ fontSize:42, marginBottom:8 }}>🏷️</div>
-                  <h2 style={{ fontFamily:"'Sora',sans-serif", fontSize:20, fontWeight:800, color:"#F0F4FF", marginBottom:4 }}>Pay Listing Fee</h2>
-                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280" }}>One-time fee to publish your product on CampusConnect Marketplace</p>
-                </div>
-                <div style={{ background:"rgba(79,142,247,0.06)", border:"1px solid rgba(79,142,247,0.2)", borderRadius:12, padding:"16px 18px", marginBottom:20 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                    <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280" }}>Listing Fee ({prodType === "digital" ? "Digital" : "Physical"}):</span>
-                    <span style={{ fontFamily:"'Sora',sans-serif", fontSize:18, fontWeight:800, color:"#4F8EF7" }}>₹{listFee}</span>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(3, 7, 18, 0.88)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+            <div style={{ 
+              background: "#0F172A", border: "1.5px solid #1E293B", borderRadius: 24, 
+              padding: "36px", maxWidth: 440, width: "90%", 
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              animation: "scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
+            }}>
+              {payStep === "choose" ? (
+                <>
+                  <div style={{ textAlign: "center", marginBottom: 24 }}>
+                    <div style={{ display: "inline-flex", padding: 14, background: "rgba(59, 130, 246, 0.1)", borderRadius: 16, color: "#3B82F6", marginBottom: 12 }}>
+                      <ShieldCheck size={36} />
+                    </div>
+                    <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Pay Listing Fee</h2>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>
+                      One-time fee to review and activate your listed items inside the campus network.
+                    </p>
                   </div>
-                  <div style={{ display:"flex", justifyContent:"space-between" }}>
-                    <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#374151" }}>Product goes live after admin review</span>
-                    <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"#10B981" }}>✓ One time only</span>
+
+                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid #334155", borderRadius: 16, padding: "18px", marginBottom: 24 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>
+                        Category: <strong style={{ color: "#F1F5F9" }}>{prodType === "digital" ? "Digital Product" : "Physical Product"}</strong>
+                      </span>
+                      <span style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10B981", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>Active</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>One-time Fee:</span>
+                      <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFee}</span>
+                    </div>
                   </div>
+
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: "#64748B", textTransform: "uppercase", marginBottom: 12 }}>Select Secure Payment Mode</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+                    {[
+                      { icon: "📱", label: "Instant UPI (GPay, PhonePe, Paytm)" },
+                      { icon: "💳", label: "Credit / Debit Card (Visa, RuPay)" },
+                      { icon: "🏦", label: "NetBanking Support" }
+                    ].map(method => (
+                      <button 
+                        key={method.label} 
+                        onClick={submitToAPI} 
+                        disabled={submitting}
+                        style={{ 
+                          display: "flex", alignItems: "center", gap: 14, 
+                          background: "#1E293B", border: "1.5px solid #334155", borderRadius: 14, 
+                          padding: "14px 18px", cursor: "pointer", transition: "all 0.2s",
+                          textAlign: "left", width: "100%"
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = "#3B82F6";
+                          e.currentTarget.style.background = "#1e293b80";
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = "#334155";
+                          e.currentTarget.style.background = "#1E293B";
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>{method.icon}</span>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: "#F1F5F9" }}>{method.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => setPayModal(false)} 
+                    style={{ 
+                      width: "100%", height: 40, borderRadius: 10, 
+                      background: "transparent", border: "1.5px solid #334155", 
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", 
+                      cursor: "pointer", fontWeight: 600, transition: "colors 0.2s" 
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#F1F5F9"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#94A3B8"}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <div style={{ textAlign: "center", padding: "24px 0" }}>
+                  <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+                  <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#10B981", marginBottom: 6 }}>Payment Completed!</h2>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>
+                    ₹{listFee} successfully processed. Uploading documents and metadata...
+                  </p>
                 </div>
-                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:700, letterSpacing:"1px", color:"#6B7280", textTransform:"uppercase", marginBottom:12 }}>Choose Payment Method</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
-                  {[{icon:"📱", label:"UPI / GPay / PhonePe"}, {icon:"💳", label:"Debit / Credit Card"}, {icon:"🏦", label:"Net Banking"}].map(m => (
-                    <div key={m.label} onClick={completePay} style={{ display:"flex", alignItems:"center", gap:12, background:"#1a2235", border:"1.5px solid #1e2d45", borderRadius:12, padding:"14px 16px", cursor:"pointer", transition:"border-color 0.15s" }}
-                      onMouseEnter={e=>(e.currentTarget.style.borderColor="#4F8EF7")}
-                      onMouseLeave={e=>(e.currentTarget.style.borderColor="#1e2d45")}>
-                      <span style={{ fontSize:22 }}>{m.icon}</span>
-                      <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:600, color:"#F0F4FF" }}>{m.label}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Success / Finished Screen */}
+        {submitted ? (
+          <div style={{ 
+            maxWidth: 640, margin: "60px auto", textAlign: "center",
+            background: "rgba(15, 23, 42, 0.4)", border: "1.5px solid #1E293B",
+            borderRadius: 32, padding: "50px 40px", backdropFilter: "blur(12px)",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.3)"
+          }}>
+            <div style={{ fontSize: 80, marginBottom: 20 }}>🚀</div>
+            <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 12 }}>Product Listing Published!</h1>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "#94A3B8", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 30px" }}>
+              Your item is now undergoing quick security &amp; accuracy review by administrative moderators. It will go live inside the campus feed within 24 hours.
+            </p>
+
+            <div style={{ 
+              display: "inline-flex", flexDirection: "column", gap: 10, 
+              background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", 
+              borderRadius: 16, padding: "20px 30px", marginBottom: 36, textAlign: "left" 
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#F1F5F9", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
+                <CheckCircle size={16} style={{ color: "#10B981" }} />
+                <span>One-time publication fee of ₹{listFee} received</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#F1F5F9", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
+                <CheckCircle size={16} style={{ color: "#10B981" }} />
+                <span>Encrypted attachments saved securely</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#F1F5F9", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
+                <CheckCircle size={16} style={{ color: "#10B981" }} />
+                <span>Buyer platform fee settled at {platformFeePercent}% per sale</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 16, justifyContent: "center" }}>
+              <a href="/marketplace/listings" style={{ 
+                height: 48, padding: "0 28px", borderRadius: 9999, 
+                background: "linear-gradient(90deg, #10B981, #059669)", border: "none", 
+                fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", 
+                cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none",
+                boxShadow: "0 4px 20px rgba(16, 185, 129, 0.3)"
+              }}>
+                <ShoppingBag size={18} /> Manage My Listings
+              </a>
+              
+              <button onClick={() => { setSubmitted(false); handleCancel(); }} style={{ 
+                height: 48, padding: "0 28px", borderRadius: 9999, 
+                background: "transparent", border: "1.5px solid #334155", 
+                fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#94A3B8", 
+                cursor: "pointer", fontWeight: 700, transition: "all 0.2s" 
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = "#F1F5F9";
+                e.currentTarget.style.color = "#F1F5F9";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = "#334155";
+                e.currentTarget.style.color = "#94A3B8";
+              }}>
+                List Another Product
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Steps Visual Header */}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 44, background: "rgba(15, 23, 42, 0.3)", border: "1px solid #1E293B", borderRadius: 20, padding: "20px 24px", backdropFilter: "blur(6px)" }}>
+              {STEPS.map((s, i) => {
+                const n = i + 1;
+                const done = n < step;
+                const curr = n === step;
+                return (
+                  <div key={s} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ 
+                        width: 32, height: 32, borderRadius: "50%", 
+                        background: done ? "#10B981" : curr ? "#3B82F6" : "#1E293B", 
+                        border: `1.5px solid ${done ? "#10B981" : curr ? "#3B82F6" : "#334155"}`, 
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        boxShadow: curr ? "0 0 15px rgba(59, 130, 246, 0.4)" : "none",
+                        transition: "all 0.3s"
+                      }}>
+                        {done ? <CheckCircle size={16} style={{ color: "#fff" }} /> : (
+                          <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 800, color: curr ? "#fff" : "#64748B" }}>{n}</span>
+                        )}
+                      </div>
+                      <span style={{ 
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 13, 
+                        fontWeight: curr ? 700 : 500, 
+                        color: curr ? "#fff" : done ? "#10B981" : "#64748B", 
+                        whiteSpace: "nowrap" 
+                      }}>{s}</span>
+                    </div>
+                    {i < 2 && (
+                      <div style={{ 
+                        flex: 1, height: 2, marginLeft: 16, marginRight: 16,
+                        background: done ? "#10B981" : "#1E293B", 
+                        transition: "background 0.4s" 
+                      }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* STEP 1: Select Type & Category */}
+            {step === 1 && (
+              <div style={{ maxWidth: 840, margin: "0 auto", animation: "fadeIn 0.3s ease" }}>
+                <div style={{ textAlign: "center", marginBottom: 40 }}>
+                  <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: "-0.5px" }}>Choose Product Medium</h1>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#94A3B8", maxWidth: 500, margin: "0 auto" }}>
+                    Select how you want to list your study aids, hardware, or campus assets.
+                  </p>
+                </div>
+
+                {/* Primary Physical / Digital choice cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: prodType === "digital" ? 40 : 0 }}>
+                  {[
+                    { 
+                      key: "physical" as ProdType, 
+                      icon: "📚", 
+                      label: "Physical Assets", 
+                      desc: "Textbooks, lab kits, drawing equipment, calculators, electronics, or dorm gear.", 
+                      fee: feePhysical, 
+                      color: "#3B82F6", 
+                      glow: "rgba(59,130,246,0.15)",
+                      bullets: ["Cash in-person transaction", "Instant on-campus meetup", "Upload detailed pictures"]
+                    },
+                    { 
+                      key: "digital" as ProdType, 
+                      icon: "⚡", 
+                      label: "Digital Publications", 
+                      desc: "Handwritten notes, complete courses, test series, or comprehensive exam bundles.", 
+                      fee: feeDigital, 
+                      color: "#8B5CF6", 
+                      glow: "rgba(139,92,246,0.15)",
+                      bullets: ["Hosted secure downloads", "Immediate access for buyers", "Automated distribution system"]
+                    },
+                  ].map(t => (
+                    <div
+                      key={t.key!}
+                      onClick={() => { 
+                        setProdType(t.key); 
+                        setDigSub(null); 
+                        if (t.key === "physical") setStep(2); 
+                      }}
+                      style={{
+                        background: "#0F172A",
+                        border: `1.5px solid ${prodType === t.key ? t.color : "#1E293B"}`,
+                        borderRadius: 24, padding: "32px 28px",
+                        cursor: "pointer", transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                        boxShadow: prodType === t.key ? `0 10px 30px ${t.glow}` : "none",
+                        position: "relative",
+                        overflow: "hidden"
+                      }}
+                      onMouseEnter={e => {
+                        if (prodType !== t.key) {
+                          e.currentTarget.style.borderColor = "#334155";
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (prodType !== t.key) {
+                          e.currentTarget.style.borderColor = "#1E293B";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                        <span style={{ fontSize: 36 }}>{t.icon}</span>
+                        <span style={{ 
+                          background: `${t.color}15`, color: t.color, 
+                          borderRadius: 8, padding: "4px 12px", 
+                          fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700 
+                        }}>
+                          ₹{t.fee} listing fee
+                        </span>
+                      </div>
+                      
+                      <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8 }}>{t.label}</h3>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", lineHeight: 1.6, marginBottom: 20 }}>{t.desc}</p>
+                      
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {t.bullets.map(b => (
+                          <div key={b} style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B" }}>
+                            <CheckCircle size={12} style={{ color: t.color }} />
+                            <span>{b}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
-                <button onClick={()=>setPayModal(false)} style={{ width:"100%", height:38, borderRadius:9999, background:"transparent", border:"1.5px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
-              </>) : (<>
-                <div style={{ textAlign:"center", padding:"20px 0" }}>
-                  <div style={{ fontSize:56, marginBottom:12 }}>✅</div>
-                  <h2 style={{ fontFamily:"'Sora',sans-serif", fontSize:20, fontWeight:800, color:"#10B981", marginBottom:6 }}>Payment Successful!</h2>
-                  <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#9CA3AF" }}>₹{listFee} paid. Submitting your listing…</p>
-                </div>
-              </>)}
-            </div>
-          </div>
-        )}
 
-        {/* Success Screen */}
-        {submitted ? (
-          <div style={{ textAlign:"center", padding:"60px 24px" }}>
-            <div style={{ fontSize:72, marginBottom:16 }}>🎉</div>
-            <h2 style={{ fontFamily:"'Sora',sans-serif", fontSize:28, fontWeight:800, color:"#F0F4FF", marginBottom:8 }}>Listing Submitted!</h2>
-            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:15, color:"#9CA3AF", marginBottom:6, maxWidth:440, margin:"0 auto 24px" }}>
-              Your product is now <strong style={{ color:"#10B981" }}>pending admin review</strong>. It will go live within 24 hours after approval.
-            </p>
-            <div style={{ display:"inline-flex", flexDirection:"column", gap:6, background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)", borderRadius:14, padding:"18px 28px", marginBottom:28, textAlign:"left" }}>
-              {["✅ Payment received","📋 Listing under review","📢 Goes live after approval"].map(s => (
-                <span key={s} style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#9CA3AF" }}>{s}</span>
-              ))}
-            </div>
-            <div style={{ display:"flex", gap:12, justifyContent:"center" }}>
-              <a href="/marketplace/listings" style={{ height:44, padding:"0 24px", borderRadius:9999, background:"#10B981", border:"none", fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:700, color:"#fff", cursor:"pointer", display:"inline-flex", alignItems:"center", gap:8, textDecoration:"none" }}>📋 View My Listings</a>
-              <button onClick={() => { setSubmitted(false); setStep(1); setProdType(null); setTitle(""); setDesc(""); setSellPrice(""); }} style={{ height:44, padding:"0 24px", borderRadius:9999, background:"transparent", border:"1.5px solid #1e2d45", fontFamily:"'DM Sans',sans-serif", fontSize:14, color:"#9CA3AF", cursor:"pointer" }}>+ List Another</button>
-            </div>
-          </div>
-        ) : (<>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 36 }}>
-          {STEPS.map((s, i) => {
-            const n = i + 1; const done = n < step; const curr = n === step;
-            return (
-              <div key={s} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: done ? "#10B981" : curr ? "#4F8EF7" : "#1e2d45", border: `2px solid ${done ? "#10B981" : curr ? "#4F8EF7" : "#1e2d45"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {done ? <CheckCircle size={18} style={{ color: "#fff" }} /> : <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 800, color: curr ? "#fff" : "#6B7280" }}>{n}</span>}
-                  </div>
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: curr ? 700 : 500, color: curr ? "#F0F4FF" : done ? "#10B981" : "#6B7280", whiteSpace: "nowrap" }}>{s}</span>
-                </div>
-                {i < 2 && <div style={{ flex: 1, height: 2, marginBottom: 20, marginLeft: 8, marginRight: 8, background: done ? "#10B981" : "#1e2d45", transition: "background 0.3s" }} />}
-              </div>
-            );
-          })}
-        </div>
+                {/* Step 1.2: Digital subtype choice */}
+                {prodType === "digital" && (
+                  <div style={{ marginTop: 40, animation: "slideUp 0.3s ease-out" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                      <div style={{ background: "rgba(139, 92, 246, 0.1)", borderRadius: 8, padding: 6, color: "#8B5CF6" }}>
+                        <Package size={16} />
+                      </div>
+                      <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, color: "#fff" }}>Select Content Format</h3>
+                    </div>
 
-        {/* ── STEP 1: Choose Physical / Digital ── */}
-        {step === 1 && (
-          <div style={{ maxWidth: 700, margin: "0 auto" }}>
-            <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 26, fontWeight: 800, color: "#F0F4FF", textAlign: "center", marginBottom: 6 }}>List Your Product</h1>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", marginBottom: 36 }}>
-              Reach thousands of students in the CampusConnect ecosystem.
-            </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 32 }}>
+                      {DIG_SUBS.map(d => (
+                        <div
+                          key={d.key!}
+                          onClick={() => setDigSub(d.key)}
+                          style={{
+                            background: "#0F172A",
+                            border: `1.5px solid ${digSub === d.key ? d.color : "#1E293B"}`,
+                            borderRadius: 20, padding: "22px 20px",
+                            cursor: "pointer", transition: "all 0.2s ease",
+                            boxShadow: digSub === d.key ? `0 8px 24px ${d.glow}` : "none",
+                            display: "flex", gap: 16, alignItems: "flex-start"
+                          }}
+                          onMouseEnter={e => {
+                            if (digSub !== d.key) e.currentTarget.style.borderColor = "#334155";
+                          }}
+                          onMouseLeave={e => {
+                            if (digSub !== d.key) e.currentTarget.style.borderColor = "#1E293B";
+                          }}
+                        >
+                          <div style={{ 
+                            color: digSub === d.key ? d.color : "#64748B", 
+                            background: "rgba(30, 41, 59, 0.5)", borderRadius: 12, 
+                            padding: 10, flexShrink: 0 
+                          }}>{d.icon}</div>
+                          <div>
+                            <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: digSub === d.key ? d.color : "#fff", marginBottom: 4 }}>{d.label}</p>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8", lineHeight: 1.5, marginBottom: 8 }}>{d.desc}</p>
+                            <span style={{ fontSize: 10, color: "#475569", fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>
+                              📁 {d.fileDesc}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
-            {/* Two main cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, marginBottom: prodType === "digital" ? 32 : 0 }}>
-              {[
-                { key: "physical" as ProdType, icon: "🔧", label: "Physical Product", desc: "Sell gadgets, textbooks, lab equipment, or any tangible item.", fee: 50, color: "#4F8EF7", glow: "rgba(79,142,247,0.2)", tags: ["Laptop", "Books", "Electronics", "Equipment"] },
-                { key: "digital"  as ProdType, icon: "💻", label: "Digital Product",  desc: "Sell study notes, video courses, bundles, or any digital content.", fee: 20, color: "#A78BFA", glow: "rgba(167,139,250,0.2)", tags: ["Notes PDF", "Video Course", "Bundle"] },
-              ].map(t => (
-                <div
-                  key={t.key!}
-                  onClick={() => { setProdType(t.key); setDigSub(null); if (t.key === "physical") setStep(2); }}
-                  style={{
-                    background: "#111827",
-                    border: `2px solid ${prodType === t.key ? t.color : "#1e2d45"}`,
-                    borderRadius: 18, padding: "28px 24px",
-                    cursor: "pointer", transition: "all 0.22s",
-                    boxShadow: prodType === t.key ? `0 4px 28px ${t.glow}` : "none",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <span style={{ fontSize: 40 }}>{t.icon}</span>
-                    <span style={{ background: `${t.color}20`, color: t.color, borderRadius: 8, padding: "4px 12px", fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700 }}>₹{t.fee} listing</span>
-                  </div>
-                  <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 800, color: "#F0F4FF", marginBottom: 10 }}>{t.label}</h3>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", lineHeight: 1.65, marginBottom: 16 }}>{t.desc}</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {t.tags.map(g => <span key={g} style={{ background: "#1a2235", borderRadius: 6, padding: "3px 10px", fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#9CA3AF" }}>{g}</span>)}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Digital sub-type picker */}
-            {prodType === "digital" && (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 700, color: "#F0F4FF", marginBottom: 4 }}>What are you selling?</p>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280" }}>Choose the type of digital content you want to list.</p>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
-                  {DIG_SUBS.map(d => (
-                    <div
-                      key={d.key!}
-                      onClick={() => setDigSub(d.key)}
+                    <button
+                      disabled={!digSub}
+                      onClick={() => setStep(2)}
                       style={{
-                        background: "#111827",
-                        border: `2px solid ${digSub === d.key ? d.color : "#1e2d45"}`,
-                        borderRadius: 14, padding: "20px 18px",
-                        cursor: "pointer", transition: "all 0.2s",
-                        boxShadow: digSub === d.key ? `0 4px 20px ${d.glow}` : "none",
-                        display: "flex", gap: 14, alignItems: "flex-start",
+                        width: "100%", height: 50, borderRadius: 14,
+                        background: digSub ? `linear-gradient(90deg, ${activeColor}, ${activeColor}dd)` : "#1E293B",
+                        border: "none", cursor: digSub ? "pointer" : "not-allowed",
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700,
+                        color: digSub ? "#fff" : "#475569",
+                        boxShadow: digSub ? `0 10px 20px ${activeGlow}` : "none",
+                        transition: "all 0.25s"
                       }}
                     >
-                      <div style={{ color: digSub === d.key ? d.color : "#374151", flexShrink: 0, marginTop: 2 }}>{d.icon}</div>
-                      <div>
-                        <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: digSub === d.key ? d.color : "#F0F4FF", marginBottom: 6 }}>{d.label}</p>
-                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", lineHeight: 1.6, marginBottom: 10 }}>{d.desc}</p>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                          {d.tags.map(g => <span key={g} style={{ background: "#1a2235", borderRadius: 5, padding: "2px 8px", fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#9CA3AF" }}>{g}</span>)}
+                      {digSub ? `Configure Product Fields →` : "Select Sub-type format to proceed"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STEP 2: Structured Form & Calculator Grid */}
+            {step === 2 && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 32, alignItems: "start", animation: "fadeIn 0.3s ease" }}>
+                
+                {/* Left Side: Structured Form Panels */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  
+                  {/* General Header */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(15, 23, 42, 0.4)", border: "1px solid #1E293B", padding: "16px 20px", borderRadius: 16 }}>
+                    <div>
+                      <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 2 }}>Define Specifications</h2>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#64748B" }}>Input correct academic metadata for visibility.</p>
+                    </div>
+                    <span style={{ 
+                      background: `${activeColor}15`, color: activeColor, 
+                      borderRadius: 8, padding: "4px 12px", 
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700 
+                    }}>
+                      {prodType === "physical" ? "🔧 Physical" : `⚡ ${DIG_SUBS.find(d => d.key === digSub)?.label}`}
+                    </span>
+                  </div>
+
+                  {/* Panel A: Basic Product Identity */}
+                  <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                    <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Product Identity</h3>
+                    
+                    <div style={{ marginBottom: 18 }}>
+                      <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>
+                        Product Title <span style={{ color: "#EF4444" }}>*</span>
+                      </label>
+                      <input 
+                        value={title} 
+                        onChange={e => setTitle(e.target.value)}
+                        maxLength={60}
+                        placeholder={
+                          prodType === "physical" 
+                            ? "e.g., Apple iPad Pro (11-inch, M2 Chip, 128GB) — Space Grey" 
+                            : digSub === "notes" 
+                            ? "e.g., Digital Signal Processing Exam Cheat-sheets & Formula Guide" 
+                            : digSub === "video" 
+                            ? "e.g., Master Data Structures and Algorithms in C++ Lectures" 
+                            : "e.g., Semester 4 Complete Electrical Engineering Bundle"
+                        }
+                        style={{
+                          width: "100%", height: 44, padding: "0 16px",
+                          background: "#1E293B", border: "1.5px solid #334155",
+                          borderRadius: 10, outline: "none",
+                          fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9",
+                          boxSizing: "border-box"
+                        }}
+                      />
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>
+                        <span>Clear and concise title without promotional words.</span>
+                        <span>{title.length}/60</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>
+                        Product Description <span style={{ color: "#EF4444" }}>*</span>
+                      </label>
+                      <textarea 
+                        value={desc} 
+                        onChange={e => setDesc(e.target.value)}
+                        rows={5}
+                        placeholder={
+                          prodType === "physical"
+                            ? "State detailed usage history, battery health, scratches, structural issues, included accessories..."
+                            : "Detail what specific chapters are fully covered, reference books used, topics breakdown, total duration, resources, and benefits..."
+                        }
+                        style={{
+                          width: "100%", padding: "12px 16px",
+                          background: "#1E293B", border: "1.5px solid #334155",
+                          borderRadius: 10, outline: "none",
+                          fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9",
+                          lineHeight: 1.5, boxSizing: "border-box", resize: "vertical"
+                        }}
+                      />
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>
+                        <span>Minimum 15 characters describing key attributes.</span>
+                        <span style={{ color: desc.length >= 15 ? "#10B981" : "#EF4444" }}>{desc.length} chars</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel B: Physical Classification & Condition */}
+                  {prodType === "physical" && (
+                    <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                      <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Classification</h3>
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                        <div>
+                          <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Category</label>
+                          <select 
+                            value={category} 
+                            onChange={e => setCategory(e.target.value)}
+                            style={{
+                              width: "100%", height: 44, padding: "0 12px",
+                              background: "#1E293B", border: "1.5px solid #334155",
+                              borderRadius: 10, outline: "none",
+                              fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9"
+                            }}
+                          >
+                            {["Electronics", "Books", "Clothing", "Stationery", "Lab Equipment", "Dorm Decor", "Others"].map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Condition Grade</label>
+                          <select 
+                            value={condition} 
+                            onChange={e => setCondition(e.target.value)}
+                            style={{
+                              width: "100%", height: 44, padding: "0 12px",
+                              background: "#1E293B", border: "1.5px solid #334155",
+                              borderRadius: 10, outline: "none",
+                              fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9"
+                            }}
+                          >
+                            {["Brand New", "Like New (Perfect)", "Slightly Used (Good)", "Heavily Used (Fair)"].map(cond => (
+                              <option key={cond} value={cond}>{cond}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-                <button
-                  disabled={!digSub}
-                  onClick={() => setStep(2)}
-                  style={{
-                    width: "100%", height: 50, borderRadius: 9999,
-                    background: digSub ? `linear-gradient(90deg, ${digSubColor}, ${digSubColor}cc)` : "#1a2235",
-                    border: "none", cursor: digSub ? "pointer" : "not-allowed",
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700,
-                    color: digSub ? "#fff" : "#6B7280",
-                    boxShadow: digSub ? `0 4px 20px ${DIG_SUBS.find(d=>d.key===digSub)?.glow}` : "none",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {digSub ? `Continue with ${DIG_SUBS.find(d => d.key === digSub)?.label} →` : "Select a type to continue"}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+                  )}
 
-        {/* ── STEP 2: Details ── */}
-        {step === 2 && (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800, color: "#F0F4FF" }}>Product Details</h2>
-              <span style={{ background: prodType === "digital" ? `${digSubColor}20` : "rgba(79,142,247,0.12)", color: prodType === "digital" ? digSubColor : "#4F8EF7", borderRadius: 8, padding: "3px 12px", fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700 }}>
-                {prodType === "physical" ? "🔧 Physical" : `${DIG_SUBS.find(d => d.key === digSub)?.label}`}
-              </span>
-            </div>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", marginBottom: 24 }}>Fill in the details for your listing.</p>
+                  {/* Panel C: Digital Structured Specifications Panel */}
+                  {prodType === "digital" && (
+                    <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                      <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>
+                        {digSub === "notes" ? "PDF & Document Specs" : digSub === "video" ? "Course Lectures Specs" : digSub === "both" ? "Lectures & Material Specs" : "Custom Bundle Configuration"}
+                      </h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 28 }}>
-              {/* Left form */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                <label style={label}>Product Title</label>
-                <input value={title} onChange={e => setTitle(e.target.value)}
-                  placeholder={prodType === "physical" ? "e.g. MacBook Pro M2 2023 — Space Gray" : digSub === "notes" ? "e.g. GATE 2024 Complete Notes — ECE" : digSub === "video" ? "e.g. Data Structures Full Course" : "e.g. Semester 4 Complete Pack"}
-                  style={input} />
+                      {/* 1. Notes Subtype Fields */}
+                      {digSub === "notes" && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Subject / Topic Name <span style={{ color: "#EF4444" }}>*</span></label>
+                            <input value={notesSubject} onChange={e => setNotesSubject(e.target.value)} placeholder="e.g., Computer Networks" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Course Code</label>
+                            <input value={notesCourseCode} onChange={e => setNotesCourseCode(e.target.value)} placeholder="e.g., CS-402" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div style={{ gridColumn: "span 2" }}>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>College / Institution Name</label>
+                            <input value={notesUniv} onChange={e => setNotesUniv(e.target.value)} placeholder="e.g., IIT Bombay, NIT Trichy" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div style={{ gridColumn: "span 2" }}>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Approx Pages Count</label>
+                            <input value={notesPages} onChange={e => setNotesPages(e.target.value)} placeholder="e.g., 148 pages" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                        </div>
+                      )}
 
-                <label style={{ ...label, marginTop: 16 }}>Description</label>
-                <textarea value={desc} onChange={e => setDesc(e.target.value)}
-                  placeholder={prodType === "physical" ? "Describe the condition, usage, any defects..." : "Describe what's included, topics covered, number of pages/videos..."}
-                  rows={4}
-                  style={{ ...input, height: "auto", resize: "vertical", padding: "10px 16px", lineHeight: 1.6 }} />
+                      {/* 2. Video Subtype Fields */}
+                      {digSub === "video" && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Course Instructor / Author <span style={{ color: "#EF4444" }}>*</span></label>
+                            <input value={vidInstructor} onChange={e => setVidInstructor(e.target.value)} placeholder="e.g., Prof. Harish Sen" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Total Lectures / Videos <span style={{ color: "#EF4444" }}>*</span></label>
+                            <input value={vidLecturesCount} onChange={e => setVidLecturesCount(e.target.value)} placeholder="e.g., 18 recorded lectures" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Total Dynamic Duration</label>
+                            <input value={vidDuration} onChange={e => setVidDuration(e.target.value)} placeholder="e.g., ~6 hours" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Target Audience</label>
+                            <input value={vidAudience} onChange={e => setVidAudience(e.target.value)} placeholder="e.g., Semester 3, GATE Aspirants" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div style={{ gridColumn: "span 2" }}>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Pre-requisites</label>
+                            <input value={vidPrereqs} onChange={e => setVidPrereqs(e.target.value)} placeholder="e.g., Basic knowledge of discrete structures" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                        </div>
+                      )}
 
-                {/* Physical-only fields */}
-                {prodType === "physical" && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}>
-                    <div>
-                      <label style={label}>Category</label>
-                      <select value={category} onChange={e => setCategory(e.target.value)} style={input}>
-                        {["Electronics","Books","Clothing","Stationery","Equipment","Other"].map(o => <option key={o}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={label}>Condition</label>
-                      <select value={condition} onChange={e => setCondition(e.target.value)} style={input}>
-                        {["Brand New","Like New","Good","Fair"].map(o => <option key={o}>{o}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                )}
+                      {/* 3. Notes + Video Subtype Fields */}
+                      {digSub === "both" && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Subject Name <span style={{ color: "#EF4444" }}>*</span></label>
+                            <input value={notesSubject} onChange={e => setNotesSubject(e.target.value)} placeholder="e.g., Signals and Systems" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Instructor Name <span style={{ color: "#EF4444" }}>*</span></label>
+                            <input value={vidInstructor} onChange={e => setVidInstructor(e.target.value)} placeholder="e.g., Prof. Harish Sen" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Total Pages Count</label>
+                            <input value={notesPages} onChange={e => setNotesPages(e.target.value)} placeholder="e.g., 90 pages PDF" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Total Video Lectures</label>
+                            <input value={vidLecturesCount} onChange={e => setVidLecturesCount(e.target.value)} placeholder="e.g., 10 modules" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
+                          </div>
+                        </div>
+                      )}
 
-                {/* Digital-only fields */}
-                {prodType === "digital" && (
-                  <div style={{ marginTop: 16 }}>
-                    {(digSub === "notes" || digSub === "both" || digSub === "bundle") && (
-                      <>
-                        <label style={label}>Subject / Topic</label>
-                        <input placeholder="e.g. Digital Signal Processing, GATE ECE" style={{ ...input, marginBottom: 14 }} />
-                        <label style={label}>Number of Pages / Files</label>
-                        <input placeholder="e.g. 120 pages, 5 PDFs" style={input} />
-                      </>
-                    )}
-                    {(digSub === "video" || digSub === "both" || digSub === "bundle") && (
-                      <div style={{ marginTop: 16 }}>
-                        <label style={label}>Number of Videos / Duration</label>
-                        <input placeholder="e.g. 24 videos, ~8 hours total" style={input} />
-                      </div>
-                    )}
-                    {digSub === "bundle" && (
-                      <div style={{ marginTop: 16 }}>
-                        <label style={label}>Bundle Contents</label>
-                        <input placeholder="e.g. 5 subjects, 200 pages + 30 videos" style={input} />
-                      </div>
-                    )}
-                  </div>
-                )}
+                      {/* 4. Bundle Dynamic Items Builder */}
+                      {digSub === "bundle" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8", marginTop: -6 }}>
+                            Bundles combine multiple documents, cheat sheets, or videos. Map out each resource below.
+                          </p>
 
-                {/* Prices */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}>
-                  {prodType === "physical" && (
-                    <div>
-                      <label style={label}>Original Price (₹)</label>
-                      <input value={origPrice} onChange={e => setOrigPrice(e.target.value)} placeholder="25000" style={input} />
+                          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            {bundleItems.map((item, idx) => (
+                              <div 
+                                key={item.id} 
+                                style={{ 
+                                  background: "rgba(30, 41, 59, 0.4)", border: "1px solid #1E293B", 
+                                  borderRadius: 16, padding: 18, position: "relative" 
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 700, color: "#3B82F6" }}>
+                                    📦 Bundle Resource #{idx + 1}
+                                  </span>
+                                  
+                                  {bundleItems.length > 1 && (
+                                    <button 
+                                      onClick={() => removeBundleItem(item.id)}
+                                      style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", alignItems: "center" }}
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 12, marginBottom: 12 }}>
+                                  <input 
+                                    value={item.title} 
+                                    onChange={e => updateBundleItem(item.id, "title", e.target.value)}
+                                    placeholder="Resource Name (e.g. Unit 1 Revision Slide)"
+                                    style={{ height: 38, padding: "0 12px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 8, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9" }}
+                                  />
+                                  <select
+                                    value={item.type}
+                                    onChange={e => updateBundleItem(item.id, "type", e.target.value)}
+                                    style={{ height: 38, padding: "0 6px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 8, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9" }}
+                                  >
+                                    <option value="notes">📄 Doc/PDF</option>
+                                    <option value="video">🎥 Video</option>
+                                    <option value="other">📂 Misc Asset</option>
+                                  </select>
+                                </div>
+
+                                <div style={{ marginBottom: 12 }}>
+                                  <input 
+                                    value={item.description}
+                                    onChange={e => updateBundleItem(item.id, "description", e.target.value)}
+                                    placeholder="Short description of covered topics (optional)"
+                                    style={{ width: "100%", height: 36, padding: "0 12px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 8, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9", boxSizing: "border-box" }}
+                                  />
+                                </div>
+
+                                {/* Bundle Item File Attachment */}
+                                <div style={{ 
+                                  border: "1.5px dashed #334155", borderRadius: 10, 
+                                  padding: 10, display: "flex", alignItems: "center", gap: 10,
+                                  background: "#0F172A", cursor: "pointer", position: "relative"
+                                }}>
+                                  <input 
+                                    type="file"
+                                    accept={
+                                      item.type === "notes" ? ".pdf,.doc,.docx,.ppt,.pptx,.txt" :
+                                      item.type === "video" ? "video/*" : "*"
+                                    }
+                                    onChange={e => handleBundleFileChange(item.id, e.target.files, item.type)}
+                                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}
+                                  />
+                                  <Upload size={14} style={{ color: "#64748B" }} />
+                                  <div style={{ flex: 1, overflow: "hidden" }}>
+                                    {item.file ? (
+                                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#10B981", fontWeight: 700, margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                                        ✓ {item.file.name} ({(item.file.size / (1024 * 1024)).toFixed(2)} MB)
+                                      </p>
+                                    ) : (
+                                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>
+                                        Attach {item.type === "notes" ? "PDF/Word Document" : item.type === "video" ? "Video (MP4)" : "Any Asset File"}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button 
+                            onClick={addBundleItem}
+                            style={{ 
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                              height: 38, borderRadius: 10, background: "transparent", border: "1.5px dashed #334155",
+                              color: "#3B82F6", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700,
+                              cursor: "pointer", transition: "all 0.2s"
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.borderColor = "#3B82F6";
+                              e.currentTarget.style.background = "rgba(59,130,246,0.02)";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = "#334155";
+                              e.currentTarget.style.background = "transparent";
+                            }}
+                          >
+                            <Plus size={14} /> Add Bundle Resource Item
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
-                  <div style={prodType === "digital" ? { gridColumn: "1 / -1" } : {}}>
-                    <label style={label}>Selling Price (₹) *</label>
-                    <input value={sellPrice} onChange={e => setSellPrice(e.target.value)} placeholder={prodType === "digital" ? "e.g. 199" : "18000"}
-                      style={{ ...input, borderColor: sellPrice ? "#4F8EF7" : "#1e2d45", boxShadow: sellPrice ? "0 0 0 3px rgba(79,142,247,0.12)" : "none" }} />
+
+                  {/* Panel D: Pricing Setup */}
+                  <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                    <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Pricing Strategy</h3>
+                    
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                      {prodType === "physical" && (
+                        <div>
+                          <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Original Price (Retail ₹)</label>
+                          <input 
+                            value={origPrice} 
+                            onChange={e => setOrigPrice(e.target.value.replace(/\D/g, ""))} 
+                            placeholder="e.g., 25000" 
+                            style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }}
+                          />
+                        </div>
+                      )}
+
+                      <div style={prodType === "digital" ? { gridColumn: "span 2" } : {}}>
+                        <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Selling Price (₹) <span style={{ color: "#EF4444" }}>*</span></label>
+                        <input 
+                          value={sellPrice} 
+                          onChange={e => setSellPrice(e.target.value.replace(/\D/g, ""))} 
+                          placeholder={prodType === "digital" ? "e.g., 199" : "e.g., 14999"} 
+                          style={{ 
+                            width: "100%", height: 44, padding: "0 14px", 
+                            background: "#1E293B", 
+                            border: `1.5px solid ${sellPrice ? activeColor : "#334155"}`, 
+                            borderRadius: 10, outline: "none", 
+                            fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9",
+                            boxShadow: sellPrice ? `0 0 10px ${activeGlow}` : "none"
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {discountPercent > 0 && prodType === "physical" && (
+                      <div style={{ marginTop: 14, background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: 10, display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 14 }}>💡</span>
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#10B981", margin: 0, fontWeight: 700 }}>
+                          Attractive Pricing! You are offering a massive {discountPercent}% discount off original retail price.
+                        </p>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Panel E: File Vault / Dropzone (Except for Bundle) */}
+                  {digSub !== "bundle" && (
+                    <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                      <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>
+                        {prodType === "physical" ? "Asset Gallery Photos" : "Secure Publication Uploads"}
+                      </h3>
+
+                      {/* 1. Physical Images Upload */}
+                      {prodType === "physical" && (
+                        <div>
+                          <input ref={physicalImgRef} type="file" multiple accept="image/*" onChange={handlePhysicalImages} style={{ display: "none" }} />
+                          <div 
+                            onClick={() => physicalImgRef.current?.click()}
+                            style={{ border: "2px dashed #334155", borderRadius: 16, minHeight: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(30, 41, 59, 0.2)", padding: 20, transition: "all 0.2s" }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = activeColor}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = "#334155"}
+                          >
+                            <Upload size={28} style={{ color: "#64748B", marginBottom: 10 }} />
+                            <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9", margin: "0 0 4px 0" }}>Click to upload product photos</p>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>Supports PNG, JPG, or WEBP (Max 200MB each)</p>
+                          </div>
+
+                          {physicalImages.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 16 }}>
+                              {physicalImages.map((img, idx) => (
+                                <div key={idx} style={{ position: "relative", width: 72, height: 72, borderRadius: 10, overflow: "hidden", border: "1.5px solid #334155" }}>
+                                  <img src={URL.createObjectURL(img)} alt="upload preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                  <button 
+                                    onClick={() => setPhysicalImages(prev => prev.filter((_, i) => i !== idx))}
+                                    style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(239,68,68,0.9)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 2. Digital Notes Upload (PDF/Docs only) */}
+                      {prodType === "digital" && digSub === "notes" && (
+                        <div>
+                          <input ref={notesDocRef} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" onChange={handleNotesDocs} style={{ display: "none" }} />
+                          <div 
+                            onClick={() => notesDocRef.current?.click()}
+                            style={{ border: "2px dashed #334155", borderRadius: 16, minHeight: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(30, 41, 59, 0.2)", padding: 20, transition: "all 0.2s" }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = activeColor}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = "#334155"}
+                          >
+                            <FileText size={28} style={{ color: activeColor, marginBottom: 10 }} />
+                            <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9", margin: "0 0 4px 0" }}>Upload Lecture notes / PDF</p>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>Accepts PDF, Word, PowerPoint, or Text only (Max 200MB)</p>
+                          </div>
+
+                          {notesDocs.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+                              {notesDocs.map((doc, idx) => (
+                                <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(30, 41, 59, 0.3)", border: "1px solid #1E293B", borderRadius: 10, padding: "8px 12px" }}>
+                                  <File size={16} style={{ color: activeColor }} />
+                                  <span style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{doc.name}</span>
+                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>({(doc.size / (1024*1024)).toFixed(2)} MB)</span>
+                                  <button onClick={() => setNotesDocs(prev => prev.filter((_, i) => i !== idx))} style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer" }}><X size={14} /></button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 3. Digital Video Course Upload (Videos only) */}
+                      {prodType === "digital" && digSub === "video" && (
+                        <div>
+                          <input ref={courseVideoRef} type="file" multiple accept="video/*" onChange={handleCourseVideos} style={{ display: "none" }} />
+                          <div 
+                            onClick={() => courseVideoRef.current?.click()}
+                            style={{ border: "2px dashed #334155", borderRadius: 16, minHeight: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(30, 41, 59, 0.2)", padding: 20, transition: "all 0.2s" }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = activeColor}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = "#334155"}
+                          >
+                            <Video size={28} style={{ color: activeColor, marginBottom: 10 }} />
+                            <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9", margin: "0 0 4px 0" }}>Upload Lecture Videos</p>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>Accepts MP4, WEBM, MKV (Max 200MB per file)</p>
+                          </div>
+
+                          {courseVideos.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+                              {courseVideos.map((vid, idx) => (
+                                <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(30, 41, 59, 0.3)", border: "1px solid #1E293B", borderRadius: 10, padding: "8px 12px" }}>
+                                  <Video size={16} style={{ color: activeColor }} />
+                                  <span style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{vid.name}</span>
+                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>({(vid.size / (1024*1024)).toFixed(2)} MB)</span>
+                                  <button onClick={() => setCourseVideos(prev => prev.filter((_, i) => i !== idx))} style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer" }}><X size={14} /></button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 4. Digital Notes + Video Dual Dropzones */}
+                      {prodType === "digital" && digSub === "both" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          {/* Part 1: Documents */}
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Academic Materials (PDFs/Slides)</label>
+                            <input ref={bothDocRef} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" onChange={handleBothDocs} style={{ display: "none" }} />
+                            <div 
+                              onClick={() => bothDocRef.current?.click()}
+                              style={{ border: "1.5px dashed #334155", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: "rgba(30, 41, 59, 0.15)" }}
+                            >
+                              <FileText size={20} style={{ color: "#8B5CF6" }} />
+                              <div style={{ textAlign: "left" }}>
+                                <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 700, color: "#F1F5F9", margin: 0 }}>Attach Notes &amp; PDF guides</p>
+                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B", margin: 0 }}>Only PDFs, Word, or presentations</p>
+                              </div>
+                            </div>
+
+                            {bothDocs.length > 0 && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                                {bothDocs.map((doc, idx) => (
+                                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(30,41,59,0.2)", padding: "6px 10px", borderRadius: 8, border: "1px solid #1E293B" }}>
+                                    <File size={12} style={{ color: "#8B5CF6" }} />
+                                    <span style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#F1F5F9", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{doc.name}</span>
+                                    <button onClick={() => setBothDocs(prev => prev.filter((_, i) => i !== idx))} style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer" }}><X size={12} /></button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Part 2: Videos */}
+                          <div>
+                            <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Video Explainer Lectures</label>
+                            <input ref={bothVideoRef} type="file" multiple accept="video/*" onChange={handleBothVideos} style={{ display: "none" }} />
+                            <div 
+                              onClick={() => bothVideoRef.current?.click()}
+                              style={{ border: "1.5px dashed #334155", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: "rgba(30, 41, 59, 0.15)" }}
+                            >
+                              <Video size={20} style={{ color: "#10B981" }} />
+                              <div style={{ textAlign: "left" }}>
+                                <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 700, color: "#F1F5F9", margin: 0 }}>Attach MP4/WEBM Course Lectures</p>
+                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B", margin: 0 }}>Videos only (Max 200MB each)</p>
+                              </div>
+                            </div>
+
+                            {bothVideos.length > 0 && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                                {bothVideos.map((vid, idx) => (
+                                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(30,41,59,0.2)", padding: "6px 10px", borderRadius: 8, border: "1px solid #1E293B" }}>
+                                    <Video size={12} style={{ color: "#10B981" }} />
+                                    <span style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#F1F5F9", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{vid.name}</span>
+                                    <button onClick={() => setBothVideos(prev => prev.filter((_, i) => i !== idx))} style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer" }}><X size={12} /></button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Upload */}
-                <div style={{ marginTop: 24 }}>
-                  <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", marginBottom: 12 }}>
-                    {prodType === "physical" ? "Product Photos" : "Upload Files"}
-                  </p>
-                  <div
-                    style={{ border: "2px dashed #1e2d45", borderRadius: 12, height: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", background: "#111827", transition: "border-color 0.15s" }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = "#4F8EF7")}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = "#1e2d45")}
+                {/* Right Side: Sticky live calculations panel */}
+                <div style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+                  
+                  {/* Fee Calculator Card */}
+                  <div style={{ 
+                    background: "#0F172A", border: "1.5px solid #1E293B", borderRadius: 24, 
+                    padding: "22px", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3)",
+                    backgroundImage: "linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)"
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+                      <span style={{ fontSize: 18 }}>📊</span>
+                      <h4 style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 800, color: "#fff", margin: 0 }}>Fee Calculator Breakdown</h4>
+                    </div>
+
+                    {/* Section 1: Seller's instant cost */}
+                    <div style={{ marginBottom: 16 }}>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#3B82F6", textTransform: "uppercase", marginBottom: 8 }}>Seller Fee (One-Time)</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Listing Submission:</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>₹{listFee}</span>
+                      </div>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", margin: 0, lineHeight: 1.4 }}>
+                        Paid at Step 3 to publish your assets to the administrative verification queue.
+                      </p>
+                    </div>
+
+                    <div style={{ height: 1, background: "#1E293B", margin: "14px 0" }} />
+
+                    {/* Section 2: Buyer percentage fee */}
+                    <div>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#10B981", textTransform: "uppercase", marginBottom: 8 }}>Buyer Fee ({platformFeePercent}% per transaction)</p>
+                      
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Base Product Price:</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>
+                          {calculatedSellPrice ? `₹${calculatedSellPrice.toLocaleString("en-IN")}` : "₹0"}
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Platform Share ({platformFeePercent}%):</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>
+                          {buyerFee ? `₹${buyerFee.toLocaleString("en-IN")}` : "₹0"}
+                        </span>
+                      </div>
+
+                      <div style={{ background: "rgba(30, 41, 59, 0.4)", borderRadius: 12, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#fff", fontWeight: 600 }}>Buyer Total Cost:</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#10B981" }}>
+                          {buyerTotal ? `₹${buyerTotal.toLocaleString("en-IN")}` : "₹0"}
+                        </span>
+                      </div>
+                      
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", marginTop: 8, lineHeight: 1.4 }}>
+                        * Paid directly by the student customer upon purchase on campus. Platform fee helps keep hosting active.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions buttons */}
+                  <button
+                    onClick={() => {
+                      if (validateStep2()) {
+                        setStep(3);
+                      }
+                    }}
+                    style={{
+                      width: "100%", height: 48, borderRadius: 14,
+                      background: `linear-gradient(90deg, ${activeColor}, ${activeColor}dd)`,
+                      border: "none", cursor: "pointer",
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700,
+                      color: "#fff", boxShadow: `0 10px 20px ${activeGlow}`,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      transition: "all 0.2s"
+                    }}
                   >
-                    <Upload size={22} style={{ color: "#6B7280" }} />
-                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF" }}>
-                      {prodType === "physical" ? "Click to upload photos" : "Upload PDFs / Videos"}
-                    </p>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151" }}>
-                      {prodType === "physical" ? "PNG, JPG or WEBP — Max 5MB" : "PDF, MP4, ZIP — Max 500MB"}
-                    </p>
-                  </div>
+                    Proceed to Verification <ArrowRight size={16} />
+                  </button>
+
+                  <button 
+                    onClick={() => setStep(1)}
+                    style={{ 
+                      width: "100%", height: 40, borderRadius: 12, 
+                      background: "transparent", border: "1.5px solid #1E293B", 
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8", 
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+                    }}
+                  >
+                    <ArrowLeft size={14} /> Back to medium select
+                  </button>
                 </div>
               </div>
+            )}
 
-              {/* Right panel */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <FeeCalc price={sellPrice} isDigital={prodType === "digital"} />
-                <button
-                  onClick={() => setStep(3)}
-                  disabled={!title || !sellPrice}
-                  style={{
-                    width: "100%", height: 46, borderRadius: 9999,
-                    background: title && sellPrice ? "#4F8EF7" : "#1a2235",
-                    border: "none", cursor: title && sellPrice ? "pointer" : "not-allowed",
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700,
-                    color: title && sellPrice ? "#fff" : "#6B7280",
-                    boxShadow: title && sellPrice ? "0 4px 16px rgba(79,142,247,0.3)" : "none",
-                    transition: "all 0.2s",
+            {/* STEP 3: Live Card Mock & Final Confirmation */}
+            {step === 3 && (
+              <div style={{ maxWidth: 720, margin: "0 auto", animation: "fadeIn 0.3s ease" }}>
+                <div style={{ textAlign: "center", marginBottom: 36 }}>
+                  <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Review Publication Card</h2>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#94A3B8" }}>
+                    This is how your listed publication card will present itself to buyers in feeds.
+                  </p>
+                </div>
+
+                {/* Mock Card Preview Container */}
+                <div style={{ 
+                  background: "#0F172A", border: "2px solid #1E293B", borderRadius: 28, 
+                  padding: 24, marginBottom: 28, boxShadow: "0 20px 40px rgba(0,0,0,0.3)"
+                }}>
+                  <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+                    
+                    {/* Visual Media Placeholder/Thumb */}
+                    <div style={{ 
+                      width: 110, height: 110, borderRadius: 16, background: "rgba(30, 41, 59, 0.6)", 
+                      border: "1.5px solid #334155", display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 36, flexShrink: 0, overflow: "hidden" 
+                    }}>
+                      {prodType === "physical" && physicalImages.length > 0 ? (
+                        <img src={URL.createObjectURL(physicalImages[0])} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : digSub === "notes" && notesDocs.length > 0 ? (
+                        <span style={{ color: activeColor }}>📄</span>
+                      ) : digSub === "video" && courseVideos.length > 0 ? (
+                        <span style={{ color: activeColor }}>🎥</span>
+                      ) : digSub === "both" && bothDocs.length > 0 ? (
+                        <span style={{ color: activeColor }}>📦</span>
+                      ) : (
+                        <span>🗂️</span>
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                        <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", margin: "0 0 6px 0" }}>{title}</h3>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800, color: "#10B981" }}>₹{calculatedSellPrice.toLocaleString("en-IN")}</span>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                        <span style={{ 
+                          background: "rgba(30, 41, 59, 0.6)", border: "1px solid #1E293B",
+                          color: "#94A3B8", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontFamily: "'DM Sans', sans-serif"
+                        }}>
+                          {prodType === "physical" ? category : `${DIG_SUBS.find(d => d.key === digSub)?.label}`}
+                        </span>
+                        {prodType === "physical" && (
+                          <span style={{ 
+                            background: "rgba(30, 41, 59, 0.6)", border: "1px solid #1E293B",
+                            color: "#94A3B8", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontFamily: "'DM Sans', sans-serif"
+                          }}>
+                            {condition}
+                          </span>
+                        )}
+                        {prodType === "digital" && digSub === "bundle" && (
+                          <span style={{ 
+                            background: "rgba(59, 130, 246, 0.1)", color: "#3B82F6",
+                            borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 
+                          }}>
+                            {bundleItems.length} Bundled Items
+                          </span>
+                        )}
+                      </div>
+
+                      <p style={{ 
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#64748B", 
+                        lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, 
+                        WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0
+                      }}>
+                        {desc}
+                      </p>
+
+                      {/* Display tags/metadata visually */}
+                      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                        {prodType === "digital" && notesSubject && (
+                          <span style={{ background: "rgba(139, 92, 246, 0.08)", color: "#8B5CF6", border: "1px solid rgba(139, 92, 246, 0.2)", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontFamily: "'DM Sans', sans-serif" }}>
+                            📚 {notesSubject}
+                          </span>
+                        )}
+                        {prodType === "digital" && vidInstructor && (
+                          <span style={{ background: "rgba(16, 185, 129, 0.08)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontFamily: "'DM Sans', sans-serif" }}>
+                            👨‍🏫 {vidInstructor}
+                          </span>
+                        )}
+                        {prodType === "physical" && physicalImages.length > 0 && (
+                          <span style={{ background: "rgba(59, 130, 246, 0.08)", color: "#3B82F6", border: "1px solid rgba(59, 130, 246, 0.2)", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontFamily: "'DM Sans', sans-serif" }}>
+                            📸 {physicalImages.length} Image{physicalImages.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ height: 1, background: "#1E293B", margin: "20px 0" }} />
+
+                  {/* Pricing Breakdown Summary */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 6 }}>Publication Cost</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Listing Fee (One-time):</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff" }}>₹{listFee}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 6 }}>Buyer Pricing Structure</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Buyer Cost (With {platformFeePercent}% Fee):</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#10B981" }}>₹{buyerTotal.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Panel */}
+                <div style={{ 
+                  background: "#0F172A", border: "1px solid #1E293B", borderRadius: 24, 
+                  padding: "24px 28px", display: "flex", flexDirection: "column", gap: 16 
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <h4 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 800, color: "#fff", margin: "0 0 2px 0" }}>Final Listing Submission</h4>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>Review all attachments and prices before confirming.</p>
+                    </div>
+                    
+                    <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFee}</span>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      setPayStep("choose");
+                      setPayModal(true);
+                    }} 
+                    style={{ 
+                      width: "100%", height: 50, borderRadius: 14, 
+                      background: "linear-gradient(90deg, #3B82F6, #1D4ED8)", border: "none", 
+                      cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", 
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                      boxShadow: "0 10px 20px rgba(59, 130, 246, 0.3)"
+                    }}
+                  >
+                    💳 Pay ₹{listFee} &amp; Submit Product
+                  </button>
+                </div>
+
+                <button 
+                  onClick={() => setStep(2)} 
+                  style={{ 
+                    marginTop: 20, background: "transparent", border: "1.5px solid #1E293B", 
+                    height: 40, width: "100%", borderRadius: 12, fontFamily: "'DM Sans', sans-serif", 
+                    fontSize: 12, color: "#94A3B8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6
                   }}
-                >Continue to Review →</button>
-                <button onClick={saveDraft} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid #1e2d45", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", cursor: "pointer" }}>
-                  💾 Save as Draft
-                </button>
-                <button onClick={() => setStep(1)} style={{ background: "transparent", border: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#374151", cursor: "pointer", textAlign: "center" }}>
-                  ← Change product type
+                >
+                  <ArrowLeft size={14} /> Back to Details Form
                 </button>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
-
-        {/* ── STEP 3: Review & Pay ── */}
-        {step === 3 && (
-          <div style={{ maxWidth: 600, margin: "0 auto" }}>
-            <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#F0F4FF", marginBottom: 6 }}>Review &amp; Pay</h2>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", marginBottom: 24 }}>Check your listing before publishing.</p>
-
-            <div style={{ background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 14, padding: "20px 22px", marginBottom: 20 }}>
-              <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 16 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 10, background: "#1e3a5f", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>
-                  {prodType === "physical" ? "🔧" : digSub === "notes" ? "📄" : digSub === "video" ? "🎥" : digSub === "both" ? "📦" : "🗂️"}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 700, color: "#F0F4FF", marginBottom: 4 }}>{title || "Your Product"}</p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280" }}>{prodType === "physical" ? category : DIG_SUBS.find(d => d.key === digSub)?.label}</span>
-                    {prodType === "physical" && <><span style={{ color: "#6B7280", fontSize: 11 }}>•</span><span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280" }}>{condition}</span></>}
-                  </div>
-                </div>
-                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#10B981" }}>₹{sellPrice || "—"}</span>
-              </div>
-              <div style={{ height: 1, background: "#1e2d45", marginBottom: 16 }} />
-              <FeeCalc price={sellPrice} isDigital={prodType === "digital"} />
-            </div>
-
-            <div style={{ background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 14, padding: "20px 22px" }}>
-              <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", marginBottom: 4 }}>
-                Listing Fee: <span style={{ color: "#F7C948" }}>₹{prodType === "digital" ? "20" : "50"}</span>
-              </p>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", marginBottom: 20 }}>This fee ensures only genuine sellers list products.</p>
-              <button onClick={openPayModal} style={{ width: "100%", height: 50, borderRadius: 9999, background: "linear-gradient(90deg, #1a6fff, #4F8EF7)", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 20px rgba(79,142,247,0.35)" }}>
-                <span style={{ fontSize: 18 }}>💳</span> Pay ₹{listFee} Listing Fee &amp; Publish
-              </button>
-            </div>
-
-            <button onClick={saveDraft} style={{ marginTop: 12, background: "transparent", border: "1.5px solid #1e2d45", height:44, width:"100%", borderRadius:9999, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", cursor: "pointer" }}>
-              💾 Save as Draft
-            </button>
-
-            <button onClick={() => setStep(2)} style={{ marginTop: 16, background: "transparent", border: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", cursor: "pointer" }}>
-              ← Back to Details
-            </button>
-          </div>
-        )}
-        </>)}
       </div>
     </StudentLayout>
   );

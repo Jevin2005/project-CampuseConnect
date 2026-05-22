@@ -18,27 +18,23 @@ async function main() {
   const masterPassword = process.env.MASTER_PASSWORD || 'MasterAdmin@2024!';
   const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
 
-  // Check if master admin already exists
-  const existing = await prisma.masterAdmin.findUnique({
+  const hashedPassword = await bcrypt.hash(masterPassword, bcryptRounds);
+
+  const master = await prisma.masterAdmin.upsert({
     where: { email: masterEmail },
+    update: {
+      password: hashedPassword,
+      name: 'Platform Admin',
+    },
+    create: {
+      email: masterEmail,
+      password: hashedPassword,
+      name: 'Platform Admin',
+      tokenVersion: 0,
+    },
   });
 
-  if (existing) {
-    console.log(`✅ Master admin already exists: ${masterEmail}`);
-  } else {
-    const hashedPassword = await bcrypt.hash(masterPassword, bcryptRounds);
-
-    const master = await prisma.masterAdmin.create({
-      data: {
-        email: masterEmail,
-        password: hashedPassword,
-        name: 'Platform Admin',
-        tokenVersion: 0,
-      },
-    });
-
-    console.log(`✅ Master admin created: ${master.email}`);
-  }
+  console.log(`✅ Master admin created or updated: ${master.email}`);
 
   // Optional: seed a demo college for local development
   const demoCollegeDomain = 'demo.edu';

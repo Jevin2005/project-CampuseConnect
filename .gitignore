@@ -1,0 +1,33 @@
+# Dependency Directories
+node_modules/
+**/node_modules/
+
+# Local Environment Variables (CRITICAL FOR SAFETY)
+.env
+.env.local
+.env.*
+**/.env
+**/.env.local
+**/.env.*
+
+# Build Directories & Cache
+.next/
+dist/
+build/
+out/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local User Uploads (Prevents uploading heavy PDFs/videos)
+backend/uploads/
+**/uploads/
+**/uploads/images/
+**/uploads/videos/
+**/uploads/thumbnails/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+*.pem
+*.key

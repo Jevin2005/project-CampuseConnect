@@ -21,6 +21,7 @@ async function refresh(req, res) {
     try {
       decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     } catch {
+      res.clearCookie('refreshToken', { path: '/' });
       return res.status(401).json({ message: 'Invalid or expired refresh token' });
     }
 
@@ -74,16 +75,19 @@ async function refresh(req, res) {
         };
       }
     } else {
+      res.clearCookie('refreshToken', { path: '/' });
       return res.status(401).json({ message: 'Invalid token role' });
     }
 
     if (!dbUser) {
+      res.clearCookie('refreshToken', { path: '/' });
       return res.status(401).json({ message: 'User not found' });
     }
 
     // Check tokenVersion to support instant session invalidation
     // All models have tokenVersion field, so this check is always valid
     if (dbUser.tokenVersion !== tokenVersion) {
+      res.clearCookie('refreshToken', { path: '/' });
       return res.status(401).json({ message: 'Session invalidated. Please log in again.' });
     }
 
@@ -103,6 +107,8 @@ async function refresh(req, res) {
     return res.json(responseBody);
   } catch (err) {
     console.error('[refresh] Error:', err);
+    // Do NOT clear the cookie on a generic server error (DB timeout, crash, etc.)
+    // Only clear it on definitive auth failures (handled above with 401 responses).
     return res.status(500).json({ message: 'Server error' });
   }
 }

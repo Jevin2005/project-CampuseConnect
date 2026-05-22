@@ -42,26 +42,55 @@ api.interceptors.response.use(
           { withCredentials: true }
         );
 
-        const { accessToken } = data as { accessToken: string };
-        // Restore token in store; user data already there from previous setAuth
+        const { accessToken, user, role, collegeId } = data as {
+          accessToken: string;
+          user: any;
+          role: any;
+          collegeId?: string;
+        };
+
+        const activeUser = user || useAuthStore.getState().user;
+        const activeRole = role || useAuthStore.getState().role;
+        const activeCollegeId = collegeId || useAuthStore.getState().collegeId;
+
+        if (!activeUser || !activeRole) {
+          throw new Error("No valid session user or role returned from refresh");
+        }
+
+        // Restore token and user info in store
         useAuthStore.getState().setAuth(
           accessToken,
-          useAuthStore.getState().user!,
-          useAuthStore.getState().role!,
-          useAuthStore.getState().collegeId ?? undefined
+          activeUser,
+          activeRole,
+          activeCollegeId ?? undefined
         );
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
-      } catch {
-        useAuthStore.getState().clearAuth();
-        // Redirect to the correct login page based on current path
-        if (typeof window !== "undefined") {
-          const path = window.location.pathname;
-          if (path.startsWith("/admin")) window.location.href = "/admin/login";
-          else if (path.startsWith("/master")) window.location.href = "/master/login";
-          else window.location.href = "/login";
+      } catch (refreshError: any) {
+        // Only destroy the session if the refresh endpoint itself returned 401
+        // (meaning the refreshToken is definitively invalid/expired)
+        // For network errors or 500s on the refresh call, leave the session alone.
+        const refreshStatus = refreshError?.response?.status;
+        if (refreshStatus === 401) {
+          useAuthStore.getState().clearAuth();
+          // Clear the server-side cookie
+          try {
+            await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"}/api/auth/logout`,
+              {},
+              { withCredentials: true }
+            );
+          } catch { /* ignore */ }
+          // Redirect to the correct login page based on current path
+          if (typeof window !== "undefined") {
+            const path = window.location.pathname;
+            if (path.startsWith("/admin")) window.location.href = "/admin/login";
+            else if (path.startsWith("/master")) window.location.href = "/master/login";
+            else window.location.href = "/login";
+          }
         }
+        // For any other error (500, network) just reject — don't log out
       }
     }
 

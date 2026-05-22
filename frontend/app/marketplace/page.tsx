@@ -1,52 +1,80 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
+import api from "@/lib/axios";
 import { AdCard, AdBannerHorizontal, AdStrip } from "@/components/AdBanner";
 import { INLINE_ADS, OWN_COLLEGE_ADS, HOSTEL_ADS } from "@/lib/adsData";
-import { Search, SlidersHorizontal, TrendingUp, Zap, Star, X } from "lucide-react";
+import { Search, SlidersHorizontal, TrendingUp, Zap, X } from "lucide-react";
 
 type Category = "All" | "Notes PDF" | "Video Course" | "Physical" | "Ads";
 
 const CATEGORIES: { key: Category; icon: string; color: string; glow: string }[] = [
-  { key: "All", icon: "🏪", color: "#4F8EF7", glow: "rgba(79,142,247,0.2)" },
-  { key: "Notes PDF", icon: "📄", color: "#A78BFA", glow: "rgba(167,139,250,0.2)" },
+  { key: "All",          icon: "🏪", color: "#4F8EF7", glow: "rgba(79,142,247,0.2)" },
+  { key: "Notes PDF",    icon: "📄", color: "#A78BFA", glow: "rgba(167,139,250,0.2)" },
   { key: "Video Course", icon: "🎥", color: "#10B981", glow: "rgba(16,185,129,0.2)" },
-  { key: "Physical", icon: "🔧", color: "#F59E0B", glow: "rgba(245,158,11,0.2)" },
-  { key: "Ads", icon: "📢", color: "#F7C948", glow: "rgba(247,201,72,0.2)" },
+  { key: "Physical",     icon: "🔧", color: "#F59E0B", glow: "rgba(245,158,11,0.2)" },
+  { key: "Ads",          icon: "📢", color: "#F7C948", glow: "rgba(247,201,72,0.2)" },
 ];
 
-const PRODUCTS = [
-  { id: 1, type: "physical", icon: "💻", bg: "linear-gradient(135deg,#0d2040,#1e3a5f)", badge: "Physical", badgeC: "#4F8EF7", seller: "Rahul S.", year: "CS '24", title: "Dell Latitude i5 Laptop", price: "₹18,000", hot: true, rating: 4.8, reviews: 12 },
-  { id: 2, type: "pdf", icon: "📄", bg: "linear-gradient(135deg,#1a0d30,#2d1b4e)", badge: "Notes PDF", badgeC: "#A78BFA", seller: "Arjun M.", year: "ECE '23", title: "GATE 2024 ECE Complete Notes", price: "₹299", hot: true, rating: 4.9, reviews: 47 },
-  { id: 3, type: "video", icon: "🎥", bg: "linear-gradient(135deg,#0a1f20,#1b3040)", badge: "Video", badgeC: "#10B981", seller: "Priya K.", year: "IT '24", title: "Advanced DSP Full Course", price: "₹499", hot: false, rating: 4.7, reviews: 28 },
-  { id: 4, type: "physical", icon: "📚", bg: "linear-gradient(135deg,#1a0d0d,#2d1818)", badge: "Physical", badgeC: "#4F8EF7", seller: "Sneha P.", year: "ME '25", title: "Engineering Drawing Kit", price: "₹450", hot: false, rating: 4.5, reviews: 8 },
-  { id: 5, type: "pdf", icon: "📝", bg: "linear-gradient(135deg,#0d1a1a,#1b2d2a)", badge: "Notes PDF", badgeC: "#A78BFA", seller: "Vijay R.", year: "CE '24", title: "Thermodynamics Notes Vol.2", price: "₹149", hot: false, rating: 4.6, reviews: 19 },
-  { id: 6, type: "video", icon: "🐍", bg: "linear-gradient(135deg,#0a1f15,#122b1e)", badge: "Video", badgeC: "#10B981", seller: "Dev G.", year: "CS '23", title: "Python ML Bootcamp 2024", price: "₹799", hot: true, rating: 5.0, reviews: 63 },
-  { id: 7, type: "physical", icon: "🔊", bg: "linear-gradient(135deg,#1a1a0d,#2d2a1b)", badge: "Physical", badgeC: "#4F8EF7", seller: "Meera T.", year: "EE '24", title: "Sony WH-1000XM4 Headphones", price: "₹14,000", hot: false, rating: 4.8, reviews: 5 },
-  { id: 8, type: "pdf", icon: "📐", bg: "linear-gradient(135deg,#1a0d1a,#2d1b2d)", badge: "Notes PDF", badgeC: "#A78BFA", seller: "Raj K.", year: "MA '24", title: "Engineering Maths Handwritten", price: "₹199", hot: true, rating: 4.7, reviews: 33 },
-];
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+function mediaUrl(p: string) { return p?.startsWith("http") ? p : `${API}${p}`; }
+function isVideo(p: string)  { return /\.(mp4|webm|ogg|mov)$/i.test(p); }
+
+interface Product {
+  id: string;
+  productType: string;
+  images: string[];
+  title: string;
+  price: number;
+  category: string;
+  seller: { name: string };
+  views?: number;
+  isApproved?: boolean;
+  badge?: string;
+  badgeC?: string;
+  hot?: boolean;
+}
+
+function getBadge(p: Product): { badge: string; badgeC: string } {
+  const cat = (p.category || "").toLowerCase();
+  if (p.productType === "physical") return { badge: "Physical", badgeC: "#4F8EF7" };
+  if (cat.includes("video"))        return { badge: "Video",    badgeC: "#10B981" };
+  return { badge: "Notes PDF", badgeC: "#A78BFA" };
+}
 
 const BADGE_BG: Record<string, string> = {
   "Notes PDF": "rgba(167,139,250,0.15)",
-  "Video": "rgba(16,185,129,0.15)",
-  "Physical": "rgba(79,142,247,0.15)",
+  "Video":     "rgba(16,185,129,0.15)",
+  "Physical":  "rgba(79,142,247,0.15)",
 };
 
-function StarRating({ r }: { r: number }) {
-  return (
-    <span style={{ display: "flex", gap: 2, alignItems: "center" }}>
-      {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} style={{ fontSize: 9, color: i <= Math.round(r) ? "#F7C948" : "#374151" }}>★</span>
-      ))}
-      <span style={{ fontSize: 10, color: "#6B7280", marginLeft: 2 }}>{r.toFixed(1)}</span>
-    </span>
-  );
+function fallbackIcon(badge: string, cat: string) {
+  if (badge === "Video")    return "🎥";
+  if (badge === "Notes PDF") return "📄";
+  const c = cat.toLowerCase();
+  if (c.includes("electron") || c.includes("laptop")) return "💻";
+  if (c.includes("book") || c.includes("note"))       return "📚";
+  return "🛍️";
+}
+function fallbackBg(badge: string) {
+  if (badge === "Video")     return "linear-gradient(135deg,#0a1f20,#1b3040)";
+  if (badge === "Notes PDF") return "linear-gradient(135deg,#1a0d30,#2d1b4e)";
+  return "linear-gradient(135deg,#0d2040,#1e3a5f)";
 }
 
-function ProductCard({ p, cat }: { p: typeof PRODUCTS[0]; cat: Category }) {
+function ProductCard({ p }: { p: Product }) {
   const [hov, setHov] = useState(false);
-  const href = p.type === "physical" ? `/marketplace/product/${p.id}` : `/marketplace/digital/${p.id}`;
+  const { badge, badgeC } = getBadge(p);
+  const href = p.productType === "physical"
+    ? `/marketplace/product/${p.id}`
+    : `/marketplace/digital/${p.id}`;
+
+  const realImages = (p.images || []).filter(f => !isVideo(f));
+  const realVideos = (p.images || []).filter(f => isVideo(f));
+  const thumb      = realImages[0] ? mediaUrl(realImages[0]) : null;
+  const vidSrc     = realVideos[0] ? mediaUrl(realVideos[0]) : null;
 
   return (
     <Link href={href} style={{ textDecoration: "none" }}>
@@ -61,36 +89,74 @@ function ProductCard({ p, cat }: { p: typeof PRODUCTS[0]; cat: Category }) {
           transition: "all 0.25s", display: "flex", flexDirection: "column",
         }}
       >
-        {/* Thumbnail */}
-        <div style={{ height: 160, background: p.bg, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-          <span style={{ fontSize: 52, filter: hov ? "drop-shadow(0 0 16px rgba(255,255,255,0.2))" : "none", transition: "filter 0.25s" }}>{p.icon}</span>
-          <span style={{ position: "absolute", top: 10, left: 10, background: BADGE_BG[p.badge] || "rgba(79,142,247,0.15)", color: p.badgeC, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 6 }}>{p.badge}</span>
-          {p.hot && <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(239,68,68,0.15)", color: "#EF4444", fontSize: 9, fontWeight: 800, letterSpacing: "1px", padding: "3px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 3 }}><Zap size={9} />HOT</span>}
+        <div style={{ height: 170, position: "relative", overflow: "hidden", background: fallbackBg(badge) }}>
+          {thumb && !hov && (
+            <img src={thumb} alt={p.title}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          )}
+          {!vidSrc && realImages[1] && hov && (
+            <img src={mediaUrl(realImages[1])} alt={p.title}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          )}
+          {!vidSrc && !realImages[1] && thumb && hov && (
+            <img src={thumb} alt={p.title}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          )}
+          {vidSrc && hov && (
+            <video autoPlay muted loop playsInline
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}>
+              <source src={vidSrc} />
+            </video>
+          )}
+          {!thumb && !(vidSrc && hov) && (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 52, filter: hov ? "drop-shadow(0 0 16px rgba(255,255,255,0.25))" : "none", transition: "filter 0.25s" }}>
+                {fallbackIcon(badge, p.category)}
+              </span>
+            </div>
+          )}
+          {vidSrc && !hov && (
+            <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.75)", borderRadius: 6, padding: "3px 8px", color: "#10B981", fontSize: 10, fontWeight: 700 }}>
+              ▶ Video
+            </div>
+          )}
+          {vidSrc && hov && (
+            <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(16,185,129,0.2)", border: "1px solid #10B981", borderRadius: 6, padding: "3px 8px", color: "#10B981", fontSize: 10, fontWeight: 700 }}>
+              🔴 Live Preview
+            </div>
+          )}
+          <span style={{ position: "absolute", top: 10, left: 10, background: BADGE_BG[badge] || "rgba(79,142,247,0.15)", color: badgeC, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 6 }}>
+            {badge}
+          </span>
+          {p.hot && (
+            <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(239,68,68,0.15)", color: "#EF4444", fontSize: 9, fontWeight: 800, letterSpacing: "1px", padding: "3px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 3 }}>
+              <Zap size={9} />HOT
+            </span>
+          )}
         </div>
 
-        {/* Body */}
         <div style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-              {p.seller.split(" ").map(w => w[0]).join("")}
+              {(p.seller?.name || "U").split(" ").map((w: string) => w[0]).join("")}
             </div>
-            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280" }}>{p.seller} · {p.year}</span>
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280" }}>{p.seller?.name || "Anonymous"}</span>
           </div>
-
-          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.title}</p>
-
-          {p.reviews > 0 && <StarRating r={p.rating} />}
-
+          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {p.title}
+          </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-            <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#10B981" }}>{p.price}</span>
+            <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#10B981" }}>
+              ₹{p.price.toLocaleString("en-IN")}
+            </span>
             <button style={{
               height: 32, padding: "0 14px", borderRadius: 9999,
-              background: p.type === "video" ? "rgba(16,185,129,0.12)" : p.type === "pdf" ? "rgba(167,139,250,0.12)" : "rgba(79,142,247,0.12)",
-              border: `1px solid ${p.type === "video" ? "rgba(16,185,129,0.3)" : p.type === "pdf" ? "rgba(167,139,250,0.3)" : "rgba(79,142,247,0.3)"}`,
-              color: p.type === "video" ? "#10B981" : p.type === "pdf" ? "#A78BFA" : "#4F8EF7",
+              background: badge === "Video" ? "rgba(16,185,129,0.12)" : badge === "Notes PDF" ? "rgba(167,139,250,0.12)" : "rgba(79,142,247,0.12)",
+              border: `1px solid ${badge === "Video" ? "rgba(16,185,129,0.3)" : badge === "Notes PDF" ? "rgba(167,139,250,0.3)" : "rgba(79,142,247,0.3)"}`,
+              color: badge === "Video" ? "#10B981" : badge === "Notes PDF" ? "#A78BFA" : "#4F8EF7",
               fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer",
             }}>
-              {p.type === "physical" ? "View →" : p.type === "pdf" ? "Buy PDF" : "Enroll"}
+              {p.productType === "physical" ? "View →" : badge === "Notes PDF" ? "Buy PDF" : "Enroll"}
             </button>
           </div>
         </div>
@@ -99,34 +165,69 @@ function ProductCard({ p, cat }: { p: typeof PRODUCTS[0]; cat: Category }) {
   );
 }
 
-const PER_PAGE = 6;
+const PER_PAGE = 12;
 
-function priceNum(p: string) { return parseFloat(p.replace(/[₹,]/g, "")) || 0; }
+function normProduct(p: any): Product {
+  const cat = (p.category || "").toLowerCase();
+  let badge = "Physical"; let badgeC = "#4F8EF7";
+  if (p.productType === "digital") {
+    if (cat.includes("video") || p.digitalSubType === "video") { badge = "Video"; badgeC = "#10B981"; }
+    else { badge = "Notes PDF"; badgeC = "#A78BFA"; }
+  }
+  return { ...p, badge, badgeC };
+}
+
+// Demo products as fallback (shown while API loads)
+const DEMO: Product[] = [
+  { id:"1", productType:"physical", images:[], badge:"Physical", badgeC:"#4F8EF7", seller:{name:"Rahul S."}, title:"Dell Latitude i5 Laptop", price:18000, views:450, category:"Electronics", hot:true },
+  { id:"2", productType:"digital", images:[], badge:"Notes PDF", badgeC:"#A78BFA", seller:{name:"Arjun M."}, title:"GATE 2024 ECE Notes", price:299, views:120, category:"Notes PDF", hot:true },
+  { id:"3", productType:"digital", images:[], badge:"Video", badgeC:"#10B981", seller:{name:"Priya K."}, title:"Advanced DSP Full Course", price:499, views:230, category:"Video Course", hot:false },
+  { id:"4", productType:"physical", images:[], badge:"Physical", badgeC:"#4F8EF7", seller:{name:"Sneha P."}, title:"Engineering Drawing Kit", price:450, views:88, category:"Equipment", hot:false },
+  { id:"5", productType:"digital", images:[], badge:"Notes PDF", badgeC:"#A78BFA", seller:{name:"Vijay R."}, title:"Thermodynamics Notes", price:149, views:67, category:"Notes PDF", hot:false },
+  { id:"6", productType:"digital", images:[], badge:"Video", badgeC:"#10B981", seller:{name:"Dev G."}, title:"Python ML Bootcamp 2024", price:799, views:340, category:"Video Course", hot:true },
+  { id:"7", productType:"physical", images:[], badge:"Physical", badgeC:"#4F8EF7", seller:{name:"Meera T."}, title:"Sony WH-1000XM4", price:14000, views:55, category:"Electronics", hot:false },
+  { id:"8", productType:"digital", images:[], badge:"Notes PDF", badgeC:"#A78BFA", seller:{name:"Raj K."}, title:"Engg Maths Handwritten", price:199, views:99, category:"Notes PDF", hot:true },
+] as any;
 
 export default function MarketplacePage() {
-  const [cat, setCat]               = useState<Category>("All");
-  const [search, setSearch]         = useState("");
-  const [sort, setSort]             = useState("Newest");
-  const [page, setPage]             = useState(1);
+  const [cat, setCat] = useState<Category>("All");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("Newest");
+  const [page, setPage] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [minP, setMinP]             = useState("");
-  const [maxP, setMaxP]             = useState("");
-  const [minRating, setMinRating]   = useState(0);
+  const [minP, setMinP] = useState("");
+  const [maxP, setMaxP] = useState("");
+  const [allProducts, setAllProducts] = useState<Product[]>(DEMO as any);
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
 
-  const filtered = PRODUCTS.filter(p => {
-    if (cat === "Notes PDF"    && p.type !== "pdf")      return false;
-    if (cat === "Video Course" && p.type !== "video")    return false;
-    if (cat === "Physical"     && p.type !== "physical") return false;
+  useEffect(() => {
+    api.get("/api/marketplace/products?limit=100")
+      .then(res => {
+        const data = res.data;
+        if (data?.products?.length) {
+          setAllProducts(data.products.map(normProduct));
+        }
+        if (typeof data?.total === 'number') setTotalCount(data.total);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = allProducts.filter(p => {
+    const { badge } = getBadge(p);
+    if (cat === "Notes PDF" && badge !== "Notes PDF") return false;
+    if (cat === "Video Course" && badge !== "Video") return false;
+    if (cat === "Physical" && p.productType !== "physical") return false;
     if (cat === "Ads") return false;
     if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (minP && priceNum(p.price) < parseFloat(minP)) return false;
-    if (maxP && priceNum(p.price) > parseFloat(maxP)) return false;
-    if (minRating && p.rating < minRating) return false;
+    if (minP && p.price < parseFloat(minP)) return false;
+    if (maxP && p.price > parseFloat(maxP)) return false;
     return true;
   }).sort((a, b) => {
-    if (sort === "Price: Low to High")  return priceNum(a.price) - priceNum(b.price);
-    if (sort === "Price: High to Low") return priceNum(b.price) - priceNum(a.price);
-    if (sort === "Most Popular")        return b.reviews - a.reviews;
+    if (sort === "Price: Low to High") return a.price - b.price;
+    if (sort === "Price: High to Low") return b.price - a.price;
+    if (sort === "Most Popular") return (b.views || 0) - (a.views || 0);
     return 0;
   });
 
@@ -134,15 +235,10 @@ export default function MarketplacePage() {
   const safeP = Math.min(page, totalPages);
   const paged = filtered.slice((safeP - 1) * PER_PAGE, safeP * PER_PAGE);
 
-  const activeFilters = [minP, maxP, minRating > 0].filter(Boolean).length;
+  const activeFilters = [minP, maxP].filter(Boolean).length;
+  function clearFilters() { setMinP(""); setMaxP(""); setPage(1); }
 
-  function clearFilters() { setMinP(""); setMaxP(""); setMinRating(0); setPage(1); }
-
-  /* ─── Build mixed grid ─── */
-  type GridItem =
-    | { kind: "product"; data: typeof PRODUCTS[0] }
-    | { kind: "ad";     data: typeof INLINE_ADS[0] };
-
+  type GridItem = { kind: "product"; data: Product } | { kind: "ad"; data: typeof INLINE_ADS[0] };
   const gridItems: GridItem[] = [];
   let adIdx = 0;
   if (cat === "All") {
@@ -194,8 +290,8 @@ export default function MarketplacePage() {
             </div>
             <div style={{ display: "flex", gap: 20 }}>
               {[
-                { label: "Products", value: "240+", color: "#4F8EF7" },
-                { label: "Students", value: "1.2k", color: "#10B981" },
+                { label: "Products", value: totalCount !== null ? `${totalCount}+` : "—", color: "#4F8EF7" },
+                { label: "Students", value: "1.2k+", color: "#10B981" },
                 { label: "Sales Today", value: "18", color: "#F7C948" },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: "center" }}>
@@ -270,7 +366,7 @@ export default function MarketplacePage() {
               <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: "#F0F4FF" }}>🎛 Filters</p>
               <button onClick={clearFilters} style={{ background: "transparent", border: "none", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#EF4444", cursor: "pointer" }}>Clear All</button>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
               <div>
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 10 }}>Price Range (₹)</p>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -280,21 +376,10 @@ export default function MarketplacePage() {
                 </div>
               </div>
               <div>
-                <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 10 }}>Min Rating</p>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {([0, 4, 4.5, 4.8] as const).map(r => (
-                    <button key={r} onClick={() => { setMinRating(r); setPage(1); }} style={{ height: 32, padding: "0 12px", borderRadius: 8, cursor: "pointer", background: minRating === r ? "#4F8EF7" : "transparent", border: `1px solid ${minRating === r ? "#4F8EF7" : "#1e2d45"}`, color: minRating === r ? "#fff" : "#6B7280", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, transition: "all 0.15s" }}>
-                      {r === 0 ? "Any" : `${r}+⭐`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 10 }}>Active Filters</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {minP && <span style={{ background: "rgba(79,142,247,0.12)", color: "#4F8EF7", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>Min ₹{minP} <button onClick={() => setMinP("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#4F8EF7", padding: 0 }}><X size={10}/></button></span>}
-                  {maxP && <span style={{ background: "rgba(79,142,247,0.12)", color: "#4F8EF7", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>Max ₹{maxP} <button onClick={() => setMaxP("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#4F8EF7", padding: 0 }}><X size={10}/></button></span>}
-                  {minRating > 0 && <span style={{ background: "rgba(247,201,72,0.12)", color: "#F7C948", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>⭐{minRating}+ <button onClick={() => setMinRating(0)} style={{ background: "none", border: "none", cursor: "pointer", color: "#F7C948", padding: 0 }}><X size={10}/></button></span>}
+                  {minP && <span style={{ background: "rgba(79,142,247,0.12)", color: "#4F8EF7", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>Min ₹{minP} <button onClick={() => setMinP("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#4F8EF7", padding: 0 }}><X size={10} /></button></span>}
+                  {maxP && <span style={{ background: "rgba(79,142,247,0.12)", color: "#4F8EF7", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>Max ₹{maxP} <button onClick={() => setMaxP("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#4F8EF7", padding: 0 }}><X size={10} /></button></span>}
                   {activeFilters === 0 && <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#374151" }}>No filters applied</span>}
                 </div>
               </div>
@@ -386,7 +471,7 @@ export default function MarketplacePage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 22, marginBottom: 40 }}>
               {gridItems.map((item, idx) =>
                 item.kind === "product"
-                  ? <ProductCard key={`p-${item.data.id}`} p={item.data} cat={cat} />
+                  ? <ProductCard key={`p-${item.data.id}`} p={item.data} />
                   : <AdCard key={`ad-${item.data.id}-${idx}`} ad={item.data} />
               )}
               {filtered.length === 0 && (

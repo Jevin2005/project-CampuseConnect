@@ -47,38 +47,101 @@ model Admin {
 }
 
 model Student {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String?
-  isApproved   Boolean   @default(false)
-  tokenVersion Int       @default(0)
-  collegeId    String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  password     String?
-  enrollmentId String?
-  phone        String?
-  purchases    Order[]   @relation("BuyerOrders")
-  sales        Order[]   @relation("SellerOrders")
-  products     Product[]
-  college      College   @relation(fields: [collegeId], references: [id])
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String?
+  isApproved       Boolean          @default(false)
+  tokenVersion     Int              @default(0)
+  collegeId        String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  password         String?
+  enrollmentId     String?
+  phone            String?
+  purchases        Order[]          @relation("BuyerOrders")
+  sales            Order[]          @relation("SellerOrders")
+  products         Product[]
+  college          College          @relation(fields: [collegeId], references: [id])
+  sentRequests     BuyRequest[]     @relation("BuyerRequests")
+  receivedRequests BuyRequest[]     @relation("SellerRequests")
+  listingPayments  ListingPayment[]
+  sentMessages     ChatMessage[]
+  wishlistItems    WishlistItem[]
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  price       Float
-  imageUrl    String?
-  category    String?
-  isApproved  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  sellerId    String
-  collegeId   String
-  orders      Order[]
-  college     College  @relation(fields: [collegeId], references: [id])
-  seller      Student  @relation(fields: [sellerId], references: [id])
+  id             String          @id @default(cuid())
+  title          String
+  description    String?
+  price          Float
+  originalPrice  Float?
+  images         String[]        @default([])
+  category       String?
+  condition      String?         @default("Good")
+  productType    String          @default("physical")
+  digitalSubType String?
+  status         String          @default("pending_review")
+  isApproved     Boolean         @default(false)
+  views          Int             @default(0)
+  listingFeePaid Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  sellerId       String
+  collegeId      String
+  orders         Order[]
+  buyRequests    BuyRequest[]
+  wishlistItems  WishlistItem[]
+  college        College         @relation(fields: [collegeId], references: [id])
+  seller         Student         @relation(fields: [sellerId], references: [id])
+  listingPayment ListingPayment?
+}
+
+model ListingPayment {
+  id            String   @id @default(cuid())
+  amount        Float
+  method        String
+  status        String   @default("completed")
+  transactionId String?
+  createdAt     DateTime @default(now())
+  studentId     String
+  productId     String   @unique
+  student       Student  @relation(fields: [studentId], references: [id])
+  product       Product  @relation(fields: [productId], references: [id])
+}
+
+model BuyRequest {
+  id         String      @id @default(cuid())
+  message    String
+  status     String      @default("pending")
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  buyerId    String
+  sellerId   String
+  productId  String
+  buyer      Student     @relation("BuyerRequests",  fields: [buyerId],  references: [id])
+  seller     Student     @relation("SellerRequests", fields: [sellerId], references: [id])
+  product    Product     @relation(fields: [productId], references: [id])
+  chatThread ChatThread?
+}
+
+model ChatThread {
+  id        String        @id @default(cuid())
+  status    String        @default("active")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  requestId String        @unique
+  request   BuyRequest    @relation(fields: [requestId], references: [id])
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  text      String
+  createdAt DateTime   @default(now())
+  senderId  String
+  threadId  String
+  sender    Student    @relation(fields: [senderId], references: [id])
+  thread    ChatThread @relation(fields: [threadId], references: [id])
 }
 
 model Order {
@@ -90,9 +153,20 @@ model Order {
   buyerId   String
   sellerId  String
   productId String
-  buyer     Student  @relation("BuyerOrders", fields: [buyerId], references: [id])
+  buyer     Student  @relation("BuyerOrders",  fields: [buyerId],  references: [id])
   product   Product  @relation(fields: [productId], references: [id])
   seller    Student  @relation("SellerOrders", fields: [sellerId], references: [id])
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  studentId String
+  productId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@unique([studentId, productId])
 }
 
 model AuditLog {
