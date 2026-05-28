@@ -32,7 +32,7 @@ function initials(name: string) {
   return (name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
 
-type ReqStatus = "pending" | "accepted" | "rejected";
+type ReqStatus = "pending" | "accepted" | "rejected" | "completed";
 
 interface APIRequest {
   id: string;
@@ -44,9 +44,10 @@ interface APIRequest {
 }
 
 const STATUS_STYLE: Record<ReqStatus, { bg: string; color: string; label: string }> = {
-  pending:  { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "⏳ Pending"  },
-  accepted: { bg: "rgba(16,185,129,0.1)",  color: "#10B981", label: "✅ Accepted"  },
-  rejected: { bg: "rgba(239,68,68,0.1)",   color: "#EF4444", label: "❌ Rejected"  },
+  pending:   { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "⏳ Pending"  },
+  accepted:  { bg: "rgba(16,185,129,0.1)",  color: "#10B981", label: "✅ Accepted"  },
+  rejected:  { bg: "rgba(239,68,68,0.1)",   color: "#EF4444", label: "❌ Rejected"  },
+  completed: { bg: "rgba(16,185,129,0.12)", color: "#10B981", label: "🤝 Completed" },
 };
 
 export default function RequestsPage() {
@@ -239,7 +240,7 @@ export default function RequestsPage() {
                             <X size={13} /> Decline
                           </button>
                         </>
-                      ) : req.status === "accepted" ? (
+                      ) : req.status === "accepted" || req.status === "completed" ? (
                         <Link href="/marketplace/inbox" style={{ textDecoration: "none" }}>
                           <button style={{ height: 38, padding: "0 18px", borderRadius: 9999, background: "rgba(79,142,247,0.1)", border: "1.5px solid rgba(79,142,247,0.3)", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700, color: "#4F8EF7", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                             <MessageCircle size={13} /> Open Chat

@@ -410,22 +410,43 @@ function PdfViewerInner() {
     const docs = (product.images || []).filter(isDocumentUrl);
     if (docs.length === 0) return;
 
-    const pdfUrl = getFileUrl(docs[0]);
+    let active = true;
     const pdfjsLib = (window as any).pdfjsLib;
 
-    let active = true;
-    pdfjsLib.getDocument(pdfUrl).promise.then((pdf: any) => {
-      if (!active) return;
-      setPdfDocument(pdf);
-      setNumPages(pdf.numPages);
-    }).catch((err: any) => {
-      console.error("Failed to load real PDF file:", err);
-    });
+    const fetchPdf = async () => {
+      try {
+        const isPreviewRequested = searchParams.get("preview") === "true";
+        const isSeller = product?.sellerId === user?.id;
+        const isPreview = isPreviewRequested || (!purchased && !isSeller);
+
+        const response = await api.get(
+          `/api/marketplace/products/${productId}/file${isPreview ? '?preview=true' : ''}`,
+          { responseType: "arraybuffer" }
+        );
+
+        if (!active) return;
+
+        const loadingTask = pdfjsLib.getDocument({ data: response.data });
+        loadingTask.promise.then((pdf: any) => {
+          if (!active) return;
+          setPdfDocument(pdf);
+          setNumPages(pdf.numPages);
+        }).catch((err: any) => {
+          console.error("Failed to parse loaded PDF file:", err);
+          setError("Failed to render PDF pages securely.");
+        });
+      } catch (err: any) {
+        console.error("Failed to load real PDF file:", err);
+        setError("Secure document stream could not be loaded. Please check your credentials.");
+      }
+    };
+
+    fetchPdf();
 
     return () => {
       active = false;
     };
-  }, [pdfjsLoaded, product]);
+  }, [pdfjsLoaded, product, purchased, productId, searchParams, user]);
 
   // Render active page onto secure canvas when loaded
   useEffect(() => {

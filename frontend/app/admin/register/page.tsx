@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
@@ -15,6 +15,18 @@ export default function AdminRegisterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [codeAvailable, setCodeAvailable] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
+
+  // Email verification state
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
+  const [verifying, setVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [canResend, setCanResend] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
+
+  const otpInputsRef = useRef<HTMLInputElement[]>([]);
 
   const [step1, setStep1] = useState({
     collegeName: '',
@@ -66,13 +78,68 @@ export default function AdminRegisterPage() {
     setStep(2);
   };
 
+  // Countdown timer for Resend OTP
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showVerification && resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showVerification, resendTimer]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value && !/^\d$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpInputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (!otp[index] && index > 0) {
+        const newOtp = [...otp];
+        newOtp[index - 1] = '';
+        setOtp(newOtp);
+        otpInputsRef.current[index - 1]?.focus();
+      } else {
+        const newOtp = [...otp];
+        newOtp[index] = '';
+        setOtp(newOtp);
+      }
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').trim();
+    if (/^\d{6}$/.test(pastedData)) {
+      const digits = pastedData.split('');
+      setOtp(digits);
+      otpInputsRef.current[5]?.focus();
+    }
+  };
+
   const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step2.password !== step2.confirmPassword) return;
     setSubmitError('');
     setLoading(true);
     try {
-      await api.post('/api/auth/admin/register', {
+      const { data } = await api.post('/api/auth/admin/register', {
         collegeName: step1.collegeName,
         city: step1.city,
         emailDomain: step1.emailDomain,
@@ -82,8 +149,19 @@ export default function AdminRegisterPage() {
         adminEmail: step2.adminEmail,
         password: step2.password,
       });
-      setSubmitted(true);
-      setTimeout(() => router.push('/admin/login'), 3000);
+
+      if (data.status === 'VERIFICATION_REQUIRED') {
+        setVerificationEmail(data.email);
+        setMaskedEmail(data.maskedEmail);
+        setResendTimer(60);
+        setCanResend(false);
+        setOtp(Array(6).fill(''));
+        setVerificationError('');
+        setShowVerification(true);
+      } else {
+        setSubmitted(true);
+        setTimeout(() => router.push('/admin/login'), 3000);
+      }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         ?? 'Registration failed. Please try again.';
@@ -92,6 +170,54 @@ export default function AdminRegisterPage() {
       setLoading(false);
     }
   };
+
+  const handleVerifyOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const fullOtp = otp.join('');
+    if (fullOtp.length < 6) return;
+
+    setVerificationError('');
+    setVerifying(true);
+    try {
+      await api.post('/api/auth/admin/register/verify', {
+        email: verificationEmail,
+        otp: fullOtp,
+      });
+
+      setSubmitted(true);
+      setShowVerification(false);
+      setTimeout(() => router.push('/admin/login'), 3500);
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Invalid verification OTP. Please try again.';
+      setVerificationError(msg);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!canResend) return;
+    setVerificationError('');
+    setCanResend(false);
+    setResendTimer(60);
+    try {
+      await api.post('/api/auth/admin/register/resend', {
+        email: verificationEmail,
+      });
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Failed to resend OTP. Please try again.';
+      setVerificationError(msg);
+      setCanResend(true);
+    }
+  };
+
+  // Auto-submit OTP when 6 digits are complete
+  useEffect(() => {
+    const fullOtp = otp.join('');
+    if (fullOtp.length === 6 && showVerification) {
+      handleVerifyOtp();
+    }
+  }, [otp, showVerification]);
 
   return (
     <>
@@ -295,6 +421,61 @@ export default function AdminRegisterPage() {
         .already-link a { color: var(--accent-green); text-decoration: none; }
         .already-link a:hover { text-decoration: underline; }
 
+        /* Split-OTP Input styling */
+        .otp-container {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 28px 0 16px 0;
+        }
+        .otp-input {
+          width: 54px;
+          height: 64px;
+          background: var(--bg-card2);
+          border: 1.5px solid var(--border);
+          border-radius: 12px;
+          color: var(--text-primary);
+          font-size: 28px;
+          font-weight: 800;
+          text-align: center;
+          outline: none;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .otp-input:focus {
+          border-color: var(--accent-green);
+          box-shadow: 0 0 0 4px rgba(16, 185, 201, 0.18), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          transform: translateY(-2px);
+        }
+        .otp-input.filled {
+          border-color: rgba(16, 185, 201, 0.6);
+        }
+        .verification-card {
+          animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .timer-text {
+          font-size: 13px;
+          color: var(--text-muted);
+          text-align: center;
+          margin-top: 18px;
+        }
+        .resend-btn {
+          background: none;
+          border: none;
+          color: var(--accent-green);
+          cursor: pointer;
+          font-weight: 600;
+          text-decoration: none;
+          transition: color 0.2s;
+        }
+        .resend-btn:hover:not(:disabled) {
+          text-decoration: underline;
+        }
+        .resend-btn:disabled {
+          color: var(--text-muted);
+          cursor: not-allowed;
+        }
+
         @media (max-width: 700px) {
           .form-grid { grid-template-columns: 1fr; }
           .form-group.full { grid-column: auto; }
@@ -342,7 +523,7 @@ export default function AdminRegisterPage() {
         )}
 
         {/* STEP 1 */}
-        {!submitted && step === 1 && (
+        {!submitted && !showVerification && step === 1 && (
           <div className="form-card">
             <h2 className="card-title">College Information</h2>
             <form onSubmit={handleStep1Submit}>
@@ -396,7 +577,7 @@ export default function AdminRegisterPage() {
         )}
 
         {/* STEP 2 */}
-        {!submitted && step === 2 && (
+        {!submitted && !showVerification && step === 2 && (
           <div className="form-card">
             <h2 className="card-title">Admin Account Details</h2>
             <form onSubmit={handleStep2Submit}>
@@ -461,6 +642,80 @@ export default function AdminRegisterPage() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* OTP VERIFICATION STEP */}
+        {!submitted && showVerification && (
+          <div className="form-card verification-card">
+            <h2 className="card-title" style={{ textAlign: 'center', marginBottom: 8 }}>Verify Your Email</h2>
+            <p style={{ color: 'var(--text-soft)', fontSize: 14, lineHeight: 1.6, textAlign: 'center', marginBottom: 20 }}>
+              We have sent a 6-digit verification code to <strong style={{ color: 'var(--accent-green)' }}>{maskedEmail}</strong>. Please enter it below to complete registration.
+            </p>
+
+            {verificationError && (
+              <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>⚠️ {verificationError}</p>
+            )}
+
+            <form onSubmit={handleVerifyOtp}>
+              <div className="otp-container">
+                {otp.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => {
+                      if (el) otpInputsRef.current[idx] = el;
+                    }}
+                    type="text"
+                    maxLength={1}
+                    className={`otp-input ${digit ? 'filled' : ''}`}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    onPaste={idx === 0 ? handleOtpPaste : undefined}
+                    disabled={verifying}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoFocus={idx === 0}
+                  />
+                ))}
+              </div>
+
+              <div className="action-row" style={{ marginTop: 24 }}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={otp.join('').length < 6 || verifying}
+                >
+                  {verifying ? '⏳ Verifying OTP...' : 'Complete Verification & Submit →'}
+                </button>
+              </div>
+            </form>
+
+            <div className="timer-text">
+              {resendTimer > 0 ? (
+                <span>Resend code in <strong style={{ color: 'var(--text-primary)' }}>{resendTimer}s</strong></span>
+              ) : (
+                <button
+                  type="button"
+                  className="resend-btn"
+                  onClick={handleResendOtp}
+                  disabled={!canResend}
+                >
+                  Resend Verification Code
+                </button>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: 24 }}>
+              <button
+                type="button"
+                onClick={() => setShowVerification(false)}
+                className="btn-back"
+                style={{ fontSize: 13, textDecoration: 'underline' }}
+              >
+                ← Back to registration form
+              </button>
+            </div>
           </div>
         )}
 

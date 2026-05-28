@@ -19,6 +19,62 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
+ * Send email verification OTP during registration
+ */
+async function sendRegisterVerificationEmail(to, name, otp) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0A0E1A; margin: 0; padding: 20px; }
+        .container { max-width: 480px; margin: 0 auto; background: #111827; border-radius: 16px; border: 1px solid #1e2d45; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1830, #1a2235); padding: 32px; text-align: center; }
+        .logo { font-size: 24px; font-weight: 800; color: #F0F4FF; }
+        .logo span { color: #10B981; }
+        .body { padding: 32px; }
+        .otp-box { background: #1a2235; border: 2px solid #10B981; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0; }
+        .otp-code { font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #10B981; font-family: monospace; }
+        .text { color: #9CA3AF; font-size: 14px; line-height: 1.6; }
+        .expires { color: #F59E0B; font-weight: 600; }
+        .footer { background: #0d1217; padding: 20px 32px; text-align: center; color: #374151; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="logo">Campus<span>Connect</span></div>
+        </div>
+        <div class="body">
+          <p class="text" style="color:#F0F4FF; font-size:18px; font-weight:700; margin-bottom:8px;">Verify your email address</p>
+          <p class="text">Hi ${name},</p>
+          <p class="text">Thank you for registering on CampusConnect. Please use the following One-Time Password (OTP) to complete your email verification:</p>
+          <div class="otp-box">
+            <div class="otp-code">${otp}</div>
+          </div>
+          <p class="text">This OTP is valid for <span class="expires">10 minutes</span>. Do not share this code with anyone.</p>
+          <p class="text" style="margin-top:16px; font-size:12px; color:#6B7280;">If you did not request this registration, please ignore this email.</p>
+        </div>
+        <div class="footer">CampusConnect · Secure College Marketplace</div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to,
+      subject: `${otp} is your CampusConnect Verification Code`,
+      html,
+    });
+  } catch (err) {
+    console.error('[Email] Failed to send registration verification:', err.message);
+  }
+}
+
+/**
  * Send OTP email to student
  */
 async function sendOtpEmail(to, otp) {
@@ -254,6 +310,7 @@ async function notifyStudentRejected(studentEmail, studentName, collegeName, rea
 }
 
 module.exports = {
+  sendRegisterVerificationEmail,
   sendOtpEmail,
   sendApprovalEmail,
   notifyMasterAdminRegistration,

@@ -94,7 +94,7 @@ export default function InboxPage() {
           role: isBuyer ? "buyer" : "seller",
           lastMsg: lm?.text || "No messages yet",
           lastTime: lm ? timeAgo(lm.createdAt) : timeAgo(bt.updatedAt),
-          status: bt.status === "closed" ? "closed" : "active",
+          status: bt.status === "closed" ? "closed" : bt.status === "deal_done" ? "deal_done" : "active",
         } as UIThread;
       });
       setThreads(mapped);
@@ -145,9 +145,15 @@ export default function InboxPage() {
     setSending(false);
   }
 
-  function markDeal() {
-    setThreads(ts => ts.map(t => t.id === activeId ? { ...t, status: "deal_done" } : t));
-    sendMsg("✅ Deal done! We agreed to meet on campus for the handover.");
+  async function markDeal() {
+    if (!activeId) return;
+    try {
+      await api.patch(`/api/marketplace/threads/${activeId}/complete`);
+      setThreads(ts => ts.map(t => t.id === activeId ? { ...t, status: "deal_done" } : t));
+      await sendMsg("✅ Deal done! We agreed to meet on campus for the handover.");
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to mark deal as done.");
+    }
   }
 
   const active = threads.find(t => t.id === activeId);

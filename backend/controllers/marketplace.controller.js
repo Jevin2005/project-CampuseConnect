@@ -6,7 +6,6 @@
 
 const { PrismaClient } = require('@prisma/client');
 const r2 = require('../services/r2.service');
-
 const prisma = new PrismaClient();
 
 /* ─── Helper: extract uploaded file URLs (works with both R2 and disk) ── */
@@ -54,7 +53,10 @@ exports.getProducts = async (req, res) => {
     const { category, type, search, sort = 'newest', page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = { isApproved: true };
+    const where = { isApproved: true, status: 'active' };
+    if (req.user && req.user.collegeId) {
+      where.collegeId = req.user.collegeId;
+    }
     if (category) where.category = category;
     if (type)     where.productType = type;
     if (search)   where.title = { contains: search, mode: 'insensitive' };
@@ -95,6 +97,11 @@ exports.getProductById = async (req, res) => {
       },
     });
     if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    // Security check: restrict cross-college product viewing
+    if (req.user && req.user.collegeId && product.collegeId !== req.user.collegeId) {
+      return res.status(403).json({ message: 'Access denied: Product belongs to another college.' });
+    }
 
     // Increment view count (fire-and-forget)
     prisma.product.update({ where: { id: req.params.id }, data: { views: { increment: 1 } } }).catch(() => {});
@@ -449,7 +456,12 @@ exports.removeFromWishlist = async (req, res) => {
 exports.getThreads = async (req, res) => {
   try {
     const threads = await prisma.chatThread.findMany({
-      where: { request: { OR: [{ buyerId: req.user.id }, { sellerId: req.user.id }] } },
+      where: {
+        OR: [
+          { request: { buyerId: req.user.id } },
+          { request: { sellerId: req.user.id } }
+        ]
+      },
       orderBy: { updatedAt: 'desc' },
       include: {
         request: {
@@ -516,6 +528,81 @@ exports.sendMessage = async (req, res) => {
   } catch (err) {
     console.error('[sendMessage]', err);
     res.status(500).json({ message: 'Error sending message' });
+  }
+};
+
+/** PATCH /api/marketplace/threads/:id/complete */
+exports.completeDeal = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Fetch thread
+    const thread = await prisma.chatThread.findUnique({
+      where: { id },
+      include: {
+        request: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    if (!thread) {
+      return res.status(404).json({ message: 'Chat thread not found' });
+    }
+
+    // 2. Authorize: user must be buyer or seller
+    const isBuyer = thread.request.buyerId === req.user.id;
+    const isSeller = thread.request.sellerId === req.user.id;
+
+    if (!isBuyer && !isSeller) {
+      return res.status(403).json({ message: 'Forbidden: You are not part of this conversation.' });
+    }
+
+    // 3. Prevent duplicate completions
+    if (thread.status === 'deal_done') {
+      return res.status(400).json({ message: 'Deal already completed for this conversation.' });
+    }
+
+    // 4. Transaction: complete thread, request, product, and log order
+    const result = await prisma.$transaction(async (tx) => {
+      // a. Update chat thread status
+      const updatedThread = await tx.chatThread.update({
+        where: { id },
+        data: { status: 'deal_done' }
+      });
+
+      // b. Update buy request status
+      await tx.buyRequest.update({
+        where: { id: thread.requestId },
+        data: { status: 'completed' }
+      });
+
+      // c. Update product status to sold
+      await tx.product.update({
+        where: { id: thread.request.productId },
+        data: { status: 'sold' }
+      });
+
+      // d. Create verified order log
+      const order = await tx.order.create({
+        data: {
+          amount: thread.request.product.price,
+          status: 'COMPLETED',
+          buyerId: thread.request.buyerId,
+          sellerId: thread.request.sellerId,
+          productId: thread.request.productId
+        }
+      });
+
+      return { updatedThread, order };
+    });
+
+    res.json({ message: 'Deal successfully completed!', thread: result.updatedThread, order: result.order });
+  } catch (err) {
+    console.error('[completeDeal]', err);
+    res.status(500).json({ message: 'Error completing deal', detail: err.message });
   }
 };
 
@@ -596,5 +683,135 @@ exports.getMyProfile = async (req, res) => {
   } catch (err) {
     console.error('[getMyProfile]', err);
     res.status(500).json({ message: 'Error fetching profile' });
+  }
+};
+
+/** GET /api/marketplace/products/:id/file — Securely stream PDF/video files with auth & DRM check */
+exports.streamProductFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isPreview = req.query.preview === 'true';
+
+    // 1. Fetch product
+    const product = await prisma.product.findUnique({
+      where: { id },
+    });
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    // 2. Enforce purchase check if not the seller and not previewing
+    const isSeller = product.sellerId === req.user.id;
+    if (!isSeller && !isPreview) {
+      const order = await prisma.order.findFirst({
+        where: {
+          buyerId: req.user.id,
+          productId: id,
+          status: 'COMPLETED',
+        },
+      });
+      if (!order) {
+        return res.status(403).json({ message: 'Purchase required to view full secure content.' });
+      }
+    }
+
+    // 3. Find target file (we look for PDFs, docs, videos in product.images)
+    const files = product.images || [];
+    const isDoc = (url) => {
+      const clean = url.split('?')[0].toLowerCase();
+      const ext = clean.substring(clean.lastIndexOf('.') + 1);
+      return ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt'].includes(ext);
+    };
+    const isVid = (url) => {
+      const clean = url.split('?')[0].toLowerCase();
+      const ext = clean.substring(clean.lastIndexOf('.') + 1);
+      return ['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext);
+    };
+
+    let targetFile = '';
+    if (product.digitalSubType === 'video') {
+      targetFile = files.find(isVid);
+    } else if (product.digitalSubType === 'notes') {
+      targetFile = files.find(isDoc);
+    } else {
+      // both/bundle/other: find any matching doc or video depending on query or default
+      targetFile = files.find(f => isDoc(f) || isVid(f));
+    }
+
+    if (!targetFile) {
+      return res.status(404).json({ message: 'Secure file attachment not found.' });
+    }
+
+    // 4. Stream the file!
+    const isR2Url = targetFile.startsWith('http://') || targetFile.startsWith('https://');
+
+    if (isR2Url) {
+      // Stream from R2
+      try {
+        const stream = await r2.getObjectStreamByUrl(targetFile);
+        
+        // Detect content type
+        let contentType = 'application/octet-stream';
+        if (isDoc(targetFile)) contentType = 'application/pdf';
+        else if (isVid(targetFile)) contentType = 'video/mp4';
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+        stream.pipe(res);
+      } catch (err) {
+        console.error('[streamProductFile - R2 Error]', err);
+        res.status(500).json({ message: 'Error streaming file from cloud storage.' });
+      }
+    } else {
+      // Stream from local disk
+      // Disk URL looks like `/uploads/documents/some-uuid.pdf`
+      // We convert it to local absolute path
+      const fs = require('fs');
+      const path = require('path');
+      const relPath = targetFile.replace(/^\/uploads\//, '');
+      const absolutePath = path.join(__dirname, '..', 'uploads', relPath);
+
+      if (!fs.existsSync(absolutePath)) {
+        return res.status(404).json({ message: 'Local secure file not found.' });
+      }
+
+      const stat = fs.statSync(absolutePath);
+      const fileSize = stat.size;
+      const range = req.headers.range;
+
+      let contentType = 'application/octet-stream';
+      if (isDoc(targetFile)) contentType = 'application/pdf';
+      else if (isVid(targetFile)) contentType = 'video/mp4';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+      if (range && isVid(targetFile)) {
+        // Video range support for streaming seeking
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunksize = (end - start) + 1;
+        const fileStream = fs.createReadStream(absolutePath, { start, end });
+
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize,
+          'Content-Type': contentType,
+        });
+        fileStream.pipe(res);
+      } else {
+        res.setHeader('Content-Length', fileSize);
+        const fileStream = fs.createReadStream(absolutePath);
+        fileStream.pipe(res);
+      }
+    }
+  } catch (err) {
+    console.error('[streamProductFile]', err);
+    res.status(500).json({ message: 'Internal server error while streaming file.' });
   }
 };

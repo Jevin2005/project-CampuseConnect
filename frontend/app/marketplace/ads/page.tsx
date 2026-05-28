@@ -5,6 +5,7 @@ import { StudentLayout } from "@/components/StudentLayout";
 import { AdCard, AdBannerHorizontal, AdStrip } from "@/components/AdBanner";
 import { HOSTEL_ADS, OWN_COLLEGE_ADS, CROSS_COLLEGE_ADS, ALL_ADS } from "@/lib/adsData";
 import { Megaphone, Building2, GraduationCap, Globe, Search, Filter, TrendingUp, Zap, Star, MapPin } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
 type AdCategory = "All" | "Hostel & PG" | "College Events" | "Cross-College" | "Sponsored";
 
@@ -90,6 +91,7 @@ function HostelCompareCard({ ad }: { ad: typeof HOSTEL_ADS[0] }) {
 }
 
 export default function AdsPage() {
+  const user = useAuthStore((s) => s.user);
   const [cat, setCat] = useState<AdCategory>("All");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -139,7 +141,7 @@ export default function AdsPage() {
                 Campus Advertisements
               </h1>
               <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", maxWidth: 520 }}>
-                Discover hostels, PG accommodations, college events from MIT and other colleges — all in one place.
+                Discover hostels, PG accommodations, college events from {user?.collegeName || "your college"} and other colleges — all in one place.
               </p>
             </div>
 
@@ -285,7 +287,7 @@ export default function AdsPage() {
           <div style={{ marginBottom: 36 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
               <div style={{ width: 4, height: 20, borderRadius: 2, background: "#A78BFA" }} />
-              <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#F0F4FF" }}>🎓 MIT College Events</p>
+              <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#F0F4FF" }}>🎓 {user?.collegeName || "Your College"} Events</p>
               <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#A78BFA", background: "rgba(167,139,250,0.1)", padding: "2px 10px", borderRadius: 9999 }}>Official</span>
             </div>
 

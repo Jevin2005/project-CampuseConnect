@@ -23,8 +23,9 @@ router.get('/settings', (req, res) => {
   }
 });
 
-router.get('/products',     ctrl.getProducts);
-router.get('/products/:id', ctrl.getProductById);
+router.get('/products',     auth, ctrl.getProducts);
+router.get('/products/:id', auth, ctrl.getProductById);
+router.get('/products/:id/file', auth, ctrl.streamProductFile);
 
 /* ─── Authenticated Student ──────────────────────────────────────────── */
 
@@ -76,6 +77,7 @@ router.delete('/wishlist/:productId', auth, ctrl.removeFromWishlist);
 router.get('/threads',                 auth, ctrl.getThreads);
 router.get('/threads/:id/messages',    auth, ctrl.getMessages);
 router.post('/threads/:id/messages',   auth, ctrl.sendMessage);
+router.patch('/threads/:id/complete',  auth, ctrl.completeDeal);
 
 /* ─── Admin ──────────────────────────────────────────────────────────── */
 router.get('/admin/products',               ...requireAdmin, ctrl.getPendingProducts);

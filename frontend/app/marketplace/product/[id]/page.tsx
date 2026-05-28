@@ -63,26 +63,48 @@ export default function PhysicalProductPage() {
     setTimeout(() => setToast(""), 3000);
   }
 
-  // Fetch product & Set Page Title
+  // Fetch product & Set Page Title & Wishlist Status
   useEffect(() => {
     if (!id) return;
-    api.get(`/api/marketplace/products/${id}`)
-      .then(res => {
+
+    const loadData = async () => {
+      try {
+        const res = await api.get(`/api/marketplace/products/${id}`);
         setProduct(res.data);
         if (res.data?.title) {
           document.title = `${res.data.title} | CampusConnect`;
         }
-        setLoading(false);
-      })
-      .catch(err => {
+
+        // Fetch wishlist to see if this product is saved
+        const wishlistRes = await api.get("/api/marketplace/wishlist");
+        const wishlist = wishlistRes.data || [];
+        const exists = wishlist.some((item: any) => item.product?.id === id);
+        setWishlisted(exists);
+      } catch (err: any) {
         setError(err.response?.data?.message || "Product not found");
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
   }, [id]);
 
-  function handleWishlist() {
-    setWishlisted(w => !w);
-    showToast(wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️");
+  async function handleWishlist() {
+    if (!product) return;
+    try {
+      if (wishlisted) {
+        await api.delete(`/api/marketplace/wishlist/${product.id}`);
+        setWishlisted(false);
+        showToast("Removed from wishlist");
+      } else {
+        await api.post(`/api/marketplace/wishlist`, { productId: product.id });
+        setWishlisted(true);
+        showToast("Added to wishlist ❤️");
+      }
+    } catch (err: any) {
+      showToast("Failed to update wishlist");
+    }
   }
 
   function handleShare() {

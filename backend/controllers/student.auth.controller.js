@@ -25,6 +25,7 @@ const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 const redis = require('../services/redis.service');
 const {
+  sendRegisterVerificationEmail,
   sendOtpEmail,
   notifyCollegeAdminOfStudentRequest,
 } = require('../services/email.service');
@@ -122,43 +123,74 @@ async function register(req, res) {
     const existing = await prisma.student.findUnique({
       where: { email: normalizedEmail },
     });
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    let student;
     if (existing) {
-      return res.status(409).json({
-        message: 'An account with this email already exists. Please log in instead.',
+      if (existing.isEmailVerified) {
+        return res.status(409).json({
+          message: 'An account with this email already exists. Please log in instead.',
+        });
+      } else {
+        // Abandoned/unverified registration -> let's update their details and resend OTP
+        student = await prisma.student.update({
+          where: { email: normalizedEmail },
+          data: {
+            name: name.trim(),
+            password: hashedPassword,
+            phone: phone?.trim() || null,
+            enrollmentId: enrollmentId?.trim() || null,
+            collegeId: college.id,
+            isApproved: false,
+          },
+        });
+      }
+    } else {
+      // Create student (pending verification and approval)
+      student = await prisma.student.create({
+        data: {
+          name: name.trim(),
+          email: normalizedEmail,
+          password: hashedPassword,
+          phone: phone?.trim() || null,
+          enrollmentId: enrollmentId?.trim() || null,
+          collegeId: college.id,
+          isApproved: false,
+          isEmailVerified: false,
+        },
       });
     }
 
-    // — Hash password —
-    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    // Generate Verification OTP
+    const otp = generateOtp();
+    const hashedOtp = await bcrypt.hash(otp, 10);
 
-    // — Create student (pending approval) —
-    const student = await prisma.student.create({
-      data: {
-        name: name.trim(),
-        email: normalizedEmail,
-        password: hashedPassword,
-        phone: phone?.trim() || null,
-        enrollmentId: enrollmentId?.trim() || null,
-        collegeId: college.id,
-        isApproved: false,
-      },
-    });
-
-    // — Notify college admin —
-    const adminEmail = college.admins[0]?.email;
-    if (adminEmail) {
-      await notifyCollegeAdminOfStudentRequest(
-        adminEmail,
-        college.admins[0]?.name || 'Admin',
-        student.name,
-        student.email,
-        college.name
-      ).catch((e) => console.error('[Email] Failed to notify admin:', e.message));
+    // Store in Redis / memory fallback
+    try {
+      await redis.setex(`reg-otp:${normalizedEmail}`, 600, hashedOtp);
+    } catch (err) {
+      console.warn('[Reg-OTP] Redis unavailable, using memory store:', err.message);
+      global._regOtpStore = global._regOtpStore || {};
+      global._regOtpStore[normalizedEmail] = {
+        hash: hashedOtp,
+        expires: Date.now() + 600 * 1000,
+      };
     }
 
-    return res.status(201).json({
-      message:
-        'Registration submitted! Your college admin will review and approve your account within 24–48 hours.',
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`\n[DEV] Reg OTP for ${normalizedEmail}: ${otp}\n`);
+    }
+
+    // Send verification email
+    await sendRegisterVerificationEmail(normalizedEmail, student.name || 'Student', otp);
+
+    return res.status(200).json({
+      status: 'VERIFICATION_REQUIRED',
+      message: 'A verification OTP has been sent to your email. Please verify your email to complete registration.',
+      maskedEmail: maskEmail(normalizedEmail),
+      email: normalizedEmail,
     });
   } catch (err) {
     console.error('[studentRegister] Error:', err);
@@ -190,6 +222,14 @@ async function login(req, res) {
     const isPasswordValid = await bcrypt.compare(password, student.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid email or password.' });
+    }
+
+    // Check email verification
+    if (!student.isEmailVerified) {
+      return res.status(403).json({
+        message: 'Please verify your email address first.',
+        status: 'EMAIL_UNVERIFIED',
+      });
     }
 
     // Check approval status
@@ -451,4 +491,140 @@ async function checkApprovalStatus(req, res) {
   }
 }
 
-module.exports = { register, login, sendOtp, verifyOtp, checkApprovalStatus };
+/* ─── POST /api/auth/student/register/verify ────────────────────────── */
+async function verifyRegisterOtp(req, res) {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Retrieve OTP hash from Redis or global store
+    let storedHash = null;
+    try {
+      storedHash = await redis.get(`reg-otp:${normalizedEmail}`);
+    } catch {
+      const stored = global._regOtpStore?.[normalizedEmail];
+      if (stored && stored.expires > Date.now()) {
+        storedHash = stored.hash;
+      }
+    }
+
+    if (!storedHash) {
+      return res.status(400).json({ message: 'Verification OTP expired or not found. Please request a new one.' });
+    }
+
+    const isValid = await bcrypt.compare(otp.toString(), storedHash);
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid verification OTP. Please try again.' });
+    }
+
+    // Delete OTP
+    try {
+      await redis.del(`reg-otp:${normalizedEmail}`);
+    } catch {
+      if (global._regOtpStore) delete global._regOtpStore[normalizedEmail];
+    }
+
+    // Find student
+    const student = await prisma.student.findUnique({
+      where: { email: normalizedEmail },
+      include: { college: { include: { admins: { where: { isApproved: true }, take: 1 } } } },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'Registration record not found.' });
+    }
+
+    // Update email as verified
+    await prisma.student.update({
+      where: { email: normalizedEmail },
+      data: { isEmailVerified: true },
+    });
+
+    // Notify college admin
+    const adminEmail = student.college.admins[0]?.email;
+    if (adminEmail) {
+      await notifyCollegeAdminOfStudentRequest(
+        adminEmail,
+        student.college.admins[0]?.name || 'Admin',
+        student.name,
+        student.email,
+        student.college.name
+      ).catch((e) => console.error('[Email] Failed to notify admin:', e.message));
+    }
+
+    return res.status(200).json({
+      message: 'Email verified successfully! Your college admin will review and approve your account within 24–48 hours.',
+    });
+  } catch (err) {
+    console.error('[verifyRegisterOtp] Error:', err);
+    return res.status(500).json({ message: 'Server error. Please try again.' });
+  }
+}
+
+/* ─── POST /api/auth/student/register/resend ────────────────────────── */
+async function resendRegisterOtp(req, res) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const student = await prisma.student.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'No registration record found for this email.' });
+    }
+
+    if (student.isEmailVerified) {
+      return res.status(400).json({ message: 'This email is already verified. Please log in.' });
+    }
+
+    const otp = generateOtp();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    // Store in Redis / memory fallback
+    try {
+      await redis.setex(`reg-otp:${normalizedEmail}`, 600, hashedOtp);
+    } catch {
+      global._regOtpStore = global._regOtpStore || {};
+      global._regOtpStore[normalizedEmail] = {
+        hash: hashedOtp,
+        expires: Date.now() + 600 * 1000,
+      };
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`\n[DEV] Reg OTP for ${normalizedEmail}: ${otp}\n`);
+    }
+
+    await sendRegisterVerificationEmail(normalizedEmail, student.name || 'Student', otp);
+
+    return res.json({
+      message: 'Verification OTP resent successfully.',
+      maskedEmail: maskEmail(normalizedEmail),
+    });
+  } catch (err) {
+    console.error('[resendRegisterOtp] Error:', err);
+    return res.status(500).json({ message: 'Server error. Please try again.' });
+  }
+}
+
+module.exports = {
+  register,
+  login,
+  sendOtp,
+  verifyOtp,
+  checkApprovalStatus,
+  verifyRegisterOtp,
+  resendRegisterOtp,
+};

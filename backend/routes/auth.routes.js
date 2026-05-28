@@ -90,6 +90,8 @@ const masterLoginLimiter = rateLimit({
 
 // Registration (new: any email + college code + password)
 router.post('/student/register', studentRegisterLimiter, studentController.register);
+router.post('/student/register/verify', verifyOtpLimiter, studentController.verifyRegisterOtp);
+router.post('/student/register/resend', sendOtpLimiter, studentController.resendRegisterOtp);
 
 // Password login (new primary login method)
 router.post('/student/login', studentLoginLimiter, studentController.login);
@@ -105,6 +107,8 @@ router.get('/student/approval-status', studentController.checkApprovalStatus);
 /* ─── Admin Auth Routes ────────────────────────────────────────────── */
 router.get('/admin/check-code', adminController.checkCollegeCode);
 router.post('/admin/register', adminController.register);
+router.post('/admin/register/verify', adminController.verifyRegisterOtp);
+router.post('/admin/register/resend', adminController.resendRegisterOtp);
 router.post('/admin/login', adminLoginLimiter, adminController.login);
 router.post('/admin/logout', adminController.logout);
 

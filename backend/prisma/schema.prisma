@@ -34,16 +34,17 @@ model College {
 }
 
 model Admin {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  password     String
-  isApproved   Boolean  @default(false)
-  tokenVersion Int      @default(0)
-  collegeId    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  college      College  @relation(fields: [collegeId], references: [id])
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  password        String
+  isApproved      Boolean  @default(false)
+  isEmailVerified Boolean  @default(false)
+  tokenVersion    Int      @default(0)
+  collegeId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  college         College  @relation(fields: [collegeId], references: [id])
 }
 
 model Student {
@@ -51,6 +52,7 @@ model Student {
   email            String           @unique
   name             String?
   isApproved       Boolean          @default(false)
+  isEmailVerified  Boolean          @default(false)
   tokenVersion     Int              @default(0)
   collegeId        String
   createdAt        DateTime         @default(now())

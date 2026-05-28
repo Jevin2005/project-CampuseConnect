@@ -15,6 +15,7 @@ const {
   PutObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  GetObjectCommand,
 } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
@@ -113,6 +114,21 @@ function isConfigured() {
   return true;
 }
 
+/** Stream an object from R2 by key */
+async function getObjectStream(key) {
+  const response = await R2.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  return response.Body; // This is a readable stream (SDK v3 returns a stream for Node.js)
+}
+
+/** Stream an object from R2 by public URL */
+async function getObjectStreamByUrl(url) {
+  if (!url || !url.startsWith(PUBLIC_URL)) {
+    throw new Error('Not an R2 URL');
+  }
+  const key = url.replace(`${PUBLIC_URL}/`, '');
+  return getObjectStream(key);
+}
+
 module.exports = {
   R2,
   BUCKET,
@@ -123,4 +139,6 @@ module.exports = {
   deleteByUrl,
   presignedUpload,
   isConfigured,
+  getObjectStream,
+  getObjectStreamByUrl,
 };

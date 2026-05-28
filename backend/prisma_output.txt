@@ -1,0 +1,22 @@
+DB PUSH:
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "campusconnect", schema "public" at "127.0.0.1:5432"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 585ms
+
+
+
+GENERATE:
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 249ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+

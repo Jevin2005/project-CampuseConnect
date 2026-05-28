@@ -160,7 +160,15 @@ function VideoViewerInner() {
 
   const videoFiles = (product?.images || []).filter(isVideoUrl);
   const activeVideoFile = videoFiles[Math.min(currentLessonId - 1, Math.max(0, videoFiles.length - 1))];
-  const realVideoUrl = activeVideoFile ? getFileUrl(activeVideoFile) : "";
+  
+  // Direct video elements to the backend proxy stream URL for range-compatible secure delivery
+  const isPreviewRequested = searchParams.get("preview") === "true";
+  const isSeller = product?.sellerId === user?.id;
+  const isPreview = isPreviewRequested || (!purchased && !isSeller);
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+  const realVideoUrl = activeVideoFile
+    ? `${baseUrl.replace(/\/$/, "")}/api/marketplace/products/${productId}/file${isPreview ? "?preview=true" : ""}`
+    : "";
 
   // Fetch product data & orders status
   useEffect(() => {

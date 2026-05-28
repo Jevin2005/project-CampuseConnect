@@ -106,6 +106,12 @@ export default function DigitalProductPage() {
         if (bought || seller) {
           setIsPurchased(true);
         }
+
+        // Fetch wishlist status
+        const wishlistRes = await api.get("/api/marketplace/wishlist");
+        const wishlist = wishlistRes.data || [];
+        const exists = wishlist.some((item: any) => item.product?.id === id);
+        setWishlisted(exists);
       } catch (err: any) {
         setError(err.response?.data?.message || "Product not found");
       } finally {
@@ -116,9 +122,21 @@ export default function DigitalProductPage() {
     loadData();
   }, [id, user]);
 
-  function handleWishlist() {
-    setWishlisted(w => !w);
-    showToast(wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️");
+  async function handleWishlist() {
+    if (!product) return;
+    try {
+      if (wishlisted) {
+        await api.delete(`/api/marketplace/wishlist/${product.id}`);
+        setWishlisted(false);
+        showToast("Removed from wishlist");
+      } else {
+        await api.post(`/api/marketplace/wishlist`, { productId: product.id });
+        setWishlisted(true);
+        showToast("Added to wishlist ❤️");
+      }
+    } catch (err: any) {
+      showToast("Failed to update wishlist");
+    }
   }
 
   function handleShare() {

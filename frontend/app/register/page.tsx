@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
@@ -20,6 +20,18 @@ export default function StudentRegisterPage() {
   const [submitError, setSubmitError] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Email verification state
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
+  const [verifying, setVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [canResend, setCanResend] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
+
+  const otpInputsRef = useRef<HTMLInputElement[]>([]);
 
   const [form, setForm] = useState({
     name: '',
@@ -41,13 +53,68 @@ export default function StudentRegisterPage() {
     form.collegeCode.trim() &&
     !loading;
 
+  // Countdown timer for Resend OTP
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showVerification && resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showVerification, resendTimer]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value && !/^\d$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpInputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (!otp[index] && index > 0) {
+        const newOtp = [...otp];
+        newOtp[index - 1] = '';
+        setOtp(newOtp);
+        otpInputsRef.current[index - 1]?.focus();
+      } else {
+        const newOtp = [...otp];
+        newOtp[index] = '';
+        setOtp(newOtp);
+      }
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').trim();
+    if (/^\d{6}$/.test(pastedData)) {
+      const digits = pastedData.split('');
+      setOtp(digits);
+      otpInputsRef.current[5]?.focus();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitError('');
     setLoading(true);
     try {
-      await api.post('/api/auth/student/register', {
+      const { data } = await api.post('/api/auth/student/register', {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
@@ -55,8 +122,20 @@ export default function StudentRegisterPage() {
         phone: form.phone.trim() || undefined,
         enrollmentId: form.enrollmentId.trim() || undefined,
       });
-      setSubmitted(true);
-      setTimeout(() => router.push(`/pending-approval?email=${encodeURIComponent(form.email.trim())}`), 3500);
+
+      if (data.status === 'VERIFICATION_REQUIRED') {
+        setVerificationEmail(data.email);
+        setMaskedEmail(data.maskedEmail);
+        setResendTimer(60);
+        setCanResend(false);
+        setOtp(Array(6).fill(''));
+        setVerificationError('');
+        setShowVerification(true);
+      } else {
+        // Fallback or original standard success
+        setSubmitted(true);
+        setTimeout(() => router.push(`/pending-approval?email=${encodeURIComponent(form.email.trim())}`), 3500);
+      }
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -66,6 +145,54 @@ export default function StudentRegisterPage() {
       setLoading(false);
     }
   };
+
+  const handleVerifyOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const fullOtp = otp.join('');
+    if (fullOtp.length < 6) return;
+
+    setVerificationError('');
+    setVerifying(true);
+    try {
+      await api.post('/api/auth/student/register/verify', {
+        email: verificationEmail,
+        otp: fullOtp,
+      });
+
+      setSubmitted(true);
+      setShowVerification(false);
+      setTimeout(() => router.push(`/pending-approval?email=${encodeURIComponent(verificationEmail)}`), 3500);
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Invalid verification OTP. Please try again.';
+      setVerificationError(msg);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!canResend) return;
+    setVerificationError('');
+    setCanResend(false);
+    setResendTimer(60);
+    try {
+      await api.post('/api/auth/student/register/resend', {
+        email: verificationEmail,
+      });
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Failed to resend OTP. Please try again.';
+      setVerificationError(msg);
+      setCanResend(true);
+    }
+  };
+
+  // Auto-submit OTP when 6 digits are complete
+  useEffect(() => {
+    const fullOtp = otp.join('');
+    if (fullOtp.length === 6 && showVerification) {
+      handleVerifyOtp();
+    }
+  }, [otp, showVerification]);
 
   return (
     <>
@@ -228,6 +355,61 @@ export default function StudentRegisterPage() {
           font-size:13px; color:var(--soft); display:flex; gap:12; align-items:flex-start;
         }
 
+        /* Split-OTP Input styling */
+        .otp-container {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 28px 0 16px 0;
+        }
+        .otp-input {
+          width: 54px;
+          height: 64px;
+          background: var(--card2);
+          border: 1.5px solid var(--border);
+          border-radius: 12px;
+          color: var(--text);
+          font-size: 28px;
+          font-weight: 800;
+          text-align: center;
+          outline: none;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .otp-input:focus {
+          border-color: var(--blue);
+          box-shadow: 0 0 0 4px rgba(79, 142, 247, 0.18), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          transform: translateY(-2px);
+        }
+        .otp-input.filled {
+          border-color: rgba(79, 142, 247, 0.6);
+        }
+        .verification-card {
+          animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .timer-text {
+          font-size: 13px;
+          color: var(--muted);
+          text-align: center;
+          margin-top: 18px;
+        }
+        .resend-btn {
+          background: none;
+          border: none;
+          color: var(--blue);
+          cursor: pointer;
+          font-weight: 600;
+          text-decoration: none;
+          transition: color 0.2s;
+        }
+        .resend-btn:hover:not(:disabled) {
+          text-decoration: underline;
+        }
+        .resend-btn:disabled {
+          color: var(--muted);
+          cursor: not-allowed;
+        }
+
         @media (max-width:680px) {
           .form-grid { grid-template-columns:1fr; }
           .fg.full { grid-column:auto; }
@@ -261,6 +443,84 @@ export default function StudentRegisterPage() {
               You&apos;ll receive an email notification once approved (usually within 24–48 hours).
             </p>
             <p style={{ color: '#6B7280', fontSize: 12, marginTop: 16 }}>Redirecting you…</p>
+          </div>
+        ) : showVerification ? (
+          <div className="card verification-card">
+            <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
+              Verify Your Email
+            </h2>
+            <p style={{ color: 'var(--soft)', fontSize: 14, lineHeight: 1.6, textAlign: 'center', marginBottom: 20 }}>
+              We have sent a 6-digit verification code to <strong style={{ color: 'var(--blue)' }}>{maskedEmail}</strong>. Please enter it below to complete registration.
+            </p>
+
+            {verificationError && (
+              <div className="err-box">
+                <span>⚠️</span>
+                <span>{verificationError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyOtp}>
+              <div className="otp-container">
+                {otp.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => {
+                      if (el) otpInputsRef.current[idx] = el;
+                    }}
+                    type="text"
+                    maxLength={1}
+                    className={`otp-input ${digit ? 'filled' : ''}`}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    onPaste={idx === 0 ? handleOtpPaste : undefined}
+                    disabled={verifying}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoFocus={idx === 0}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                className="submit-btn"
+                disabled={otp.join('').length < 6 || verifying}
+                style={{ marginTop: 24 }}
+              >
+                {verifying ? (
+                  <><div className="spinner" /> Verifying OTP…</>
+                ) : (
+                  <>Complete Verification &amp; Submit →</>
+                )}
+              </button>
+            </form>
+
+            <div className="timer-text">
+              {resendTimer > 0 ? (
+                <span>Resend code in <strong style={{ color: 'var(--text)' }}>{resendTimer}s</strong></span>
+              ) : (
+                <button
+                  type="button"
+                  className="resend-btn"
+                  onClick={handleResendOtp}
+                  disabled={!canResend}
+                >
+                  Resend Verification Code
+                </button>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: 24 }}>
+              <button
+                type="button"
+                onClick={() => setShowVerification(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                ← Back to registration form
+              </button>
+            </div>
           </div>
         ) : (
           <div className="card">

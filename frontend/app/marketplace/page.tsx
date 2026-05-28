@@ -6,6 +6,7 @@ import api from "@/lib/axios";
 import { AdCard, AdBannerHorizontal, AdStrip } from "@/components/AdBanner";
 import { INLINE_ADS, OWN_COLLEGE_ADS, HOSTEL_ADS } from "@/lib/adsData";
 import { Search, SlidersHorizontal, TrendingUp, Zap, X } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
 type Category = "All" | "Notes PDF" | "Video Course" | "Physical" | "Ads";
 
@@ -190,6 +191,7 @@ const DEMO: Product[] = [
 ] as any;
 
 export default function MarketplacePage() {
+  const user = useAuthStore((s) => s.user);
   const [cat, setCat] = useState<Category>("All");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Newest");
@@ -275,7 +277,9 @@ export default function MarketplacePage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, position: "relative" }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: 10, fontWeight: 800, letterSpacing: "1.2px", padding: "3px 10px", borderRadius: 9999 }}>🔒 MIT Campus Only</span>
+                <span style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: 10, fontWeight: 800, letterSpacing: "1.2px", padding: "3px 10px", borderRadius: 9999 }}>
+                  🔒 {user?.collegeName || "Your Campus"} Only
+                </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#10B981" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10B981", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }} />
                   Live Marketplace
@@ -285,7 +289,7 @@ export default function MarketplacePage() {
                 Campus Marketplace
               </h1>
               <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", maxWidth: 500 }}>
-                Buy &amp; sell notes, video courses, gadgets and more — exclusively within MIT College of Engineering.
+                Buy &amp; sell notes, video courses, gadgets and more — exclusively within {user?.collegeName || "your college"}.
               </p>
             </div>
             <div style={{ display: "flex", gap: 20 }}>
@@ -413,7 +417,7 @@ export default function MarketplacePage() {
 
             {/* MIT Events */}
             <div style={{ marginBottom: 28 }}>
-              <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase", marginBottom: 14 }}>🎓 MIT COLLEGE EVENTS</p>
+              <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase", marginBottom: 14 }}>🎓 {user?.collegeName ? user.collegeName.toUpperCase() : "YOUR CAMPUS"} EVENTS</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 20, marginBottom: 20 }}>
                 {OWN_COLLEGE_ADS.map(ad => <AdCard key={ad.id} ad={ad} />)}
               </div>
