@@ -78,6 +78,7 @@ router.get('/threads',                 auth, ctrl.getThreads);
 router.get('/threads/:id/messages',    auth, ctrl.getMessages);
 router.post('/threads/:id/messages',   auth, ctrl.sendMessage);
 router.patch('/threads/:id/complete',  auth, ctrl.completeDeal);
+router.patch('/threads/:id/close',     auth, ctrl.closeThread);
 
 /* ─── Admin ──────────────────────────────────────────────────────────── */
 router.get('/admin/products',               ...requireAdmin, ctrl.getPendingProducts);

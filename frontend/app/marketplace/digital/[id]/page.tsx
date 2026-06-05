@@ -140,7 +140,7 @@ export default function DigitalProductPage() {
   }
 
   function handleShare() {
-    navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    navigator.clipboard?.writeText(window.location.href).catch(() => { });
     showToast("Link copied to clipboard! 🔗");
   }
 
@@ -320,7 +320,7 @@ export default function DigitalProductPage() {
       {buyModal && (
         <div onClick={() => { if (buyStep !== "done" && !buyLoading) setBuyModal(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
           <div onClick={e => e.stopPropagation()} className="glass-panel" style={{ padding: "32px", maxWidth: 430, width: "90%", animation: "modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)", border: `1.5px solid ${themeBorder}`, boxShadow: `0 0 24px ${themeGlow}` }}>
-            
+
             {buyStep === "confirm" && (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -328,7 +328,7 @@ export default function DigitalProductPage() {
                   <button onClick={() => setBuyModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><X size={18} /></button>
                 </div>
                 <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>Instant lifetime access is granted to your profile immediately after payment.</p>
-                
+
                 <div style={{ background: "rgba(0,0,0,0.25)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px", marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
                   {[
                     ["Resource", product.title],
@@ -389,7 +389,7 @@ export default function DigitalProductPage() {
                 <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
                 <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>Access Granted!</h2>
                 <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginBottom: 22 }}>Your purchase was successful. Lifetime DRM secured access is added to your account library.</p>
-                
+
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
                   {sub === "notes" || sub === "both" ? (
                     <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
@@ -429,7 +429,7 @@ export default function DigitalProductPage() {
       )}
 
       <div className="digital-page" style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 60px" }}>
-        
+
         {/* Breadcrumb Trail */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
           {[
@@ -450,10 +450,10 @@ export default function DigitalProductPage() {
 
         {/* Dynamic Detail Sections Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="md:grid-cols-[1fr_380px] grid">
-          
+
           {/* LEFT SIDEBAR: Resource Showcase card, description, bundle items, and specifications */}
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-            
+
             {/* Top Showcase Frame */}
             <div className="glass-panel active-glow" style={{ position: "relative", overflow: "hidden", padding: "40px 32px", display: "flex", flexDirection: "column", alignItems: "center", background: `linear-gradient(135deg, rgba(10,14,26,0.9), ${themeBg})` }}>
               <div style={{ width: 84, height: 84, borderRadius: 20, background: themeBg, border: `1.5px solid ${themeBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, marginBottom: 18, boxShadow: `0 0 14px ${themeGlow}` }}>
@@ -489,12 +489,12 @@ export default function DigitalProductPage() {
             {sub === "bundle" && bundleItems.length > 0 && (
               <div className="glass-panel" style={{ padding: "28px" }}>
                 <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>Inside this Semester Pack ({bundleItems.length} resources)</h3>
-                
+
                 <div style={{ display: "flex", flexDirection: "column", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                   {bundleItems.map((item, idx) => {
                     const isNotes = item.type.includes("note") || item.type.includes("pdf");
                     const isVideo = item.type.includes("video") || item.type.includes("course");
-                    
+
                     return (
                       <div key={idx} className="bundle-row" style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 14, padding: "16px 20px", borderBottom: idx === bundleItems.length - 1 ? "none" : "1px solid var(--border)" }}>
                         <div style={{ width: 36, height: 36, borderRadius: 8, background: isNotes ? "rgba(124, 58, 237, 0.08)" : isVideo ? "rgba(16, 185, 129, 0.08)" : "rgba(59, 130, 246, 0.08)", border: `1px solid ${isNotes ? "rgba(124,58,237,0.2)" : isVideo ? "rgba(16,185,129,0.2)" : "rgba(59,130,246,0.2)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
@@ -526,7 +526,7 @@ export default function DigitalProductPage() {
 
           {/* RIGHT SIDEBAR: Purchase CTAs, platform stats, DRM details, Seller profile card */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            
+
             {/* Wishlist Header Tool */}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button onClick={handleWishlist} style={{ width: 38, height: 38, borderRadius: "50%", background: wishlisted ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${wishlisted ? "rgba(239,68,68,0.3)" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
@@ -543,9 +543,9 @@ export default function DigitalProductPage() {
                 <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", fontWeight: 500 }}>Lifetime Access Cost</span>
                 <span style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>₹{product.price.toLocaleString("en-IN")}</span>
               </div>
-              
+
               <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-              
+
               {isPurchased ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {sub === "notes" || sub === "both" ? (
@@ -586,7 +586,7 @@ export default function DigitalProductPage() {
                   >
                     Instant Buy & Unlock
                   </button>
-                  
+
                   {sub === "notes" || sub === "both" || sub === "bundle" ? (
                     <Link href={`/marketplace/viewer/pdf?id=${product.id}&preview=true`} style={{ textDecoration: "none", width: "100%" }}>
                       <button className="btn btn-outline-white" style={{ width: "100%", height: 42, borderColor: themeColor, color: themeColor, background: "transparent", border: "1.5px solid", borderRadius: 9999, fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -637,7 +637,7 @@ export default function DigitalProductPage() {
             {/* Instructor / Seller profile card */}
             <div className="glass-panel" style={{ padding: "20px" }}>
               <p style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Resource Creator</p>
-              
+
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 42, height: 42, borderRadius: "50%", background: `linear-gradient(135deg, ${themeColor}, var(--accent-purple))`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "#fff", boxShadow: "var(--shadow-card)", flexShrink: 0 }}>
                   {initials(product.seller.name)}

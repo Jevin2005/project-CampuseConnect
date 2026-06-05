@@ -206,9 +206,7 @@ function VideoViewerInner() {
     }
   }, [productId, user, authLoading, router]);
 
-  const isPreviewRequested = searchParams.get("preview") === "true";
-  const isSeller = product?.sellerId === user?.id;
-  const isPreview = isPreviewRequested || (!purchased && !isSeller);
+
 
   const PREVIEW_LIMIT_SECS = 300; // 5 minutes
   const activeLesson = SYLLABUS_LESSONS.find(l => l.id === currentLessonId) || SYLLABUS_LESSONS[0];

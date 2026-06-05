@@ -239,6 +239,27 @@ exports.createBuyRequest = async (req, res) => {
     if (product.sellerId === req.user.id)
       return res.status(400).json({ message: "Can't buy your own product" });
 
+    // Check for any existing active request from this buyer for the same product
+    const existingActiveRequest = await prisma.buyRequest.findFirst({
+      where: {
+        buyerId: req.user.id,
+        productId: req.params.id,
+        status: { in: ['pending', 'accepted', 'completed'] }
+      }
+    });
+
+    if (existingActiveRequest) {
+      if (existingActiveRequest.status === 'pending') {
+        return res.status(400).json({ message: 'You already have a pending request for this product.' });
+      }
+      if (existingActiveRequest.status === 'accepted') {
+        return res.status(400).json({ message: 'Your request for this product has already been accepted. Check your Inbox!' });
+      }
+      if (existingActiveRequest.status === 'completed') {
+        return res.status(400).json({ message: 'The deal for this product has already been completed.' });
+      }
+    }
+
     const { message } = req.body;
     const request = await prisma.buyRequest.create({
       data: {
@@ -518,6 +539,10 @@ exports.sendMessage = async (req, res) => {
     if (thread.request.buyerId !== req.user.id && thread.request.sellerId !== req.user.id)
       return res.status(403).json({ message: 'Forbidden' });
 
+    if (thread.status !== 'active') {
+      return res.status(400).json({ message: 'Cannot send messages in a completed or closed conversation.' });
+    }
+
     const message = await prisma.chatMessage.create({
       data:    { text: text.trim(), threadId: req.params.id, senderId: req.user.id },
       include: { sender: { select: { id: true, name: true } } },
@@ -552,12 +577,10 @@ exports.completeDeal = async (req, res) => {
       return res.status(404).json({ message: 'Chat thread not found' });
     }
 
-    // 2. Authorize: user must be buyer or seller
-    const isBuyer = thread.request.buyerId === req.user.id;
+    // 2. Authorize: ONLY the seller can mark a deal complete
     const isSeller = thread.request.sellerId === req.user.id;
-
-    if (!isBuyer && !isSeller) {
-      return res.status(403).json({ message: 'Forbidden: You are not part of this conversation.' });
+    if (!isSeller) {
+      return res.status(403).json({ message: 'Forbidden: Only the seller can mark the deal as done.' });
     }
 
     // 3. Prevent duplicate completions
@@ -565,7 +588,7 @@ exports.completeDeal = async (req, res) => {
       return res.status(400).json({ message: 'Deal already completed for this conversation.' });
     }
 
-    // 4. Transaction: complete thread, request, product, and log order
+    // 4. Transaction: complete thread, request, product, log order, and close other active threads for this product
     const result = await prisma.$transaction(async (tx) => {
       // a. Update chat thread status
       const updatedThread = await tx.chatThread.update({
@@ -596,6 +619,36 @@ exports.completeDeal = async (req, res) => {
         }
       });
 
+      // e. Find all other active conversation threads for this specific product
+      const otherThreads = await tx.chatThread.findMany({
+        where: {
+          request: {
+            productId: thread.request.productId
+          },
+          id: { not: id },
+          status: 'active'
+        }
+      });
+
+      // f. Close them and send auto sold-out messages from the seller
+      for (const otherThread of otherThreads) {
+        await tx.chatThread.update({
+          where: { id: otherThread.id },
+          data: { status: 'closed' }
+        });
+        await tx.buyRequest.update({
+          where: { id: otherThread.requestId },
+          data: { status: 'rejected' }
+        });
+        await tx.chatMessage.create({
+          data: {
+            text: "This product is sold out. Sorry!",
+            threadId: otherThread.id,
+            senderId: thread.request.sellerId
+          }
+        });
+      }
+
       return { updatedThread, order };
     });
 
@@ -603,6 +656,64 @@ exports.completeDeal = async (req, res) => {
   } catch (err) {
     console.error('[completeDeal]', err);
     res.status(500).json({ message: 'Error completing deal', detail: err.message });
+  }
+};
+
+/** PATCH /api/marketplace/threads/:id/close */
+exports.closeThread = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Fetch thread
+    const thread = await prisma.chatThread.findUnique({
+      where: { id },
+      include: {
+        request: true
+      }
+    });
+
+    if (!thread) {
+      return res.status(404).json({ message: 'Chat thread not found' });
+    }
+
+    // 2. Authorize: Only the seller can close the conversation
+    const isSeller = thread.request.sellerId === req.user.id;
+    if (!isSeller) {
+      return res.status(403).json({ message: 'Forbidden: Only the seller can close the conversation.' });
+    }
+
+    // 3. Prevent duplicate close
+    if (thread.status !== 'active') {
+      return res.status(400).json({ message: 'Conversation is not active.' });
+    }
+
+    // 4. Update thread status and create seller end conversation message
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedThread = await tx.chatThread.update({
+        where: { id },
+        data: { status: 'closed' }
+      });
+
+      await tx.buyRequest.update({
+        where: { id: thread.requestId },
+        data: { status: 'rejected' }
+      });
+
+      await tx.chatMessage.create({
+        data: {
+          text: "The seller has ended this conversation.",
+          threadId: id,
+          senderId: req.user.id
+        }
+      });
+
+      return updatedThread;
+    });
+
+    res.json({ message: 'Conversation successfully ended!', thread: result });
+  } catch (err) {
+    console.error('[closeThread]', err);
+    res.status(500).json({ message: 'Error closing conversation', detail: err.message });
   }
 };
 

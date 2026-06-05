@@ -108,7 +108,7 @@ export default function PhysicalProductPage() {
   }
 
   function handleShare() {
-    navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    navigator.clipboard?.writeText(window.location.href).catch(() => { });
     showToast("Link copied to clipboard! 🔗");
   }
 
@@ -195,10 +195,10 @@ export default function PhysicalProductPage() {
   // Format creation date
   const dateFormatted = product.createdAt
     ? new Date(product.createdAt).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric"
-      })
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    })
     : "";
 
   return (
@@ -302,7 +302,7 @@ export default function PhysicalProductPage() {
       )}
 
       <div className="pd-page" style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px 60px" }}>
-        
+
         {/* Breadcrumb Trail */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
           {[
@@ -323,10 +323,10 @@ export default function PhysicalProductPage() {
 
         {/* Core Layout Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="md:grid-cols-[1fr_380px] grid">
-          
+
           {/* LEFT COLUMN: Media Showcase, Description, Technical Specifications */}
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-            
+
             {/* Visual Header Panel */}
             <div className="glass-panel" style={{ padding: "24px", position: "relative", overflow: "hidden" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -411,7 +411,7 @@ export default function PhysicalProductPage() {
 
           {/* RIGHT COLUMN: Sidebar details, Pricing, CTA request, Seller details */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            
+
             {/* Purchase CTA Card */}
             <div className="glass-panel" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -466,7 +466,7 @@ export default function PhysicalProductPage() {
             {/* Seller Contact Card */}
             <div className="glass-panel" style={{ padding: "20px" }}>
               <p style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Listed by Seller</p>
-              
+
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-blue), var(--accent-purple))", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 800, color: "#fff", boxShadow: "var(--shadow-card)" }}>
                   {initials(product.seller.name)}

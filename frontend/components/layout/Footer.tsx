@@ -6,13 +6,9 @@ export default function Footer() {
       background: "#111827",
       borderTop: "1px solid #1e2d45",
     }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "64px 40px 40px" }}>
+      <div className="max-w-7xl mx-auto py-16 px-4 sm:px-10">
         {/* top grid */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 48, marginBottom: 48,
-        }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 mb-12">
           {/* brand */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center" }}>
@@ -35,11 +31,11 @@ export default function Footer() {
           </div>
 
           {/* links */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <p style={{
               fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700,
               letterSpacing: "1.5px", textTransform: "uppercase",
-              color: "#6B7280", marginBottom: 8,
+              color: "#6B7280", marginBottom: 12,
             }}>
               Platform
             </p>
@@ -54,7 +50,7 @@ export default function Footer() {
                 style={{
                   fontFamily: "'DM Sans', sans-serif", fontSize: 14,
                   color: "#9CA3AF", textDecoration: "none",
-                  padding: "5px 0", transition: "color 0.2s",
+                  padding: "8px 0", transition: "color 0.2s",
                   display: "inline-block",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = "#F0F4FF")}
@@ -70,7 +66,7 @@ export default function Footer() {
             background: "rgba(247,201,72,0.05)",
             border: "1px solid rgba(247,201,72,0.18)",
             borderRadius: 14, padding: "20px 22px",
-            display: "flex", flexDirection: "column", gap: 12,
+            display: "flex", flexDirection: "column", gap: 16,
           }}>
             <p style={{
               fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700,
@@ -108,11 +104,7 @@ export default function Footer() {
         </div>
 
         {/* bottom bar */}
-        <div style={{
-          borderTop: "1px solid #1e2d45", paddingTop: 24,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexWrap: "wrap", gap: 12,
-        }}>
+        <div className="border-t border-[#1e2d45] pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <p style={{
             fontFamily: "'DM Sans', sans-serif", fontSize: 12,
             color: "#6B7280",
@@ -128,22 +120,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <style jsx>{`
-        @media (max-width: 900px) {
-          footer > div > div:first-child {
-            grid-template-columns: 1fr 1fr !important;
-          }
-        }
-        @media (max-width: 600px) {
-          footer > div {
-            padding: 40px 16px 24px !important;
-          }
-          footer > div > div:first-child {
-            grid-template-columns: 1fr !important;
-            gap: 32px !important;
-          }
-        }
-      `}</style>
+
     </footer>
   );
 }

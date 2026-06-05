@@ -27,11 +27,7 @@ export default function PublicNavbar() {
         transition: "background 0.3s, border-color 0.3s, backdrop-filter 0.3s",
       }}
     >
-      <div style={{
-        maxWidth: 1280, margin: "0 auto",
-        width: "100%", padding: "0 40px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-10 flex items-center justify-between">
         {/* Logo */}
         <Link
           href="/"
@@ -56,8 +52,7 @@ export default function PublicNavbar() {
 
         {/* Desktop nav */}
         <div
-          className="desktop-nav"
-          style={{ display: "flex", alignItems: "center", gap: 32 }}
+          className="desktop-nav hidden md:flex items-center gap-8"
         >
           <Link
             href="/how-it-works"
@@ -120,11 +115,7 @@ export default function PublicNavbar() {
 
         {/* Mobile hamburger */}
         <button
-          style={{
-            display: "none", background: "transparent", border: "none",
-            cursor: "pointer", color: "#9CA3AF", padding: 6,
-          }}
-          className="mobile-menu-btn"
+          className="mobile-menu-btn md:hidden flex items-center justify-center bg-transparent border-none cursor-pointer text-[#9CA3AF] p-1.5 focus:outline-none"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -144,7 +135,7 @@ export default function PublicNavbar() {
             href="/how-it-works"
             style={{
               fontFamily: "'DM Sans', sans-serif", fontSize: 14,
-              color: "#9CA3AF", textDecoration: "none", padding: "8px 0",
+              color: "#9CA3AF", textDecoration: "none", padding: "12px 4px",
             }}
             onClick={() => setMenuOpen(false)}
           >
@@ -155,7 +146,7 @@ export default function PublicNavbar() {
             style={{
               display: "flex", justifyContent: "center",
               background: "transparent", border: "1.5px solid rgba(79,142,247,0.55)",
-              color: "#4F8EF7", padding: "10px 20px", borderRadius: 9999,
+              color: "#4F8EF7", padding: "12px 24px", borderRadius: 9999,
               fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700,
               textDecoration: "none",
             }}
@@ -168,7 +159,7 @@ export default function PublicNavbar() {
             style={{
               display: "flex", justifyContent: "center",
               background: "#4F8EF7", color: "#fff",
-              padding: "10px 20px", borderRadius: 9999,
+              padding: "12px 24px", borderRadius: 9999,
               fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700,
               textDecoration: "none",
             }}
@@ -179,15 +170,7 @@ export default function PublicNavbar() {
         </div>
       )}
 
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
-          .mobile-menu-btn { display: flex !important; }
-        }
-        @media (max-width: 640px) {
-          nav > div { padding: 0 16px !important; }
-        }
-      `}</style>
+
     </nav>
   );
 }

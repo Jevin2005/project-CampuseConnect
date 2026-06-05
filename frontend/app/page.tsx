@@ -151,6 +151,7 @@ function StatsRow() {
 
   return (
     <div
+      className="stats-row"
       ref={ref as React.RefObject<HTMLDivElement>}
       style={{
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -158,9 +159,9 @@ function StatsRow() {
       }}
     >
       {stats.map((s, i) => (
-        <div key={s.label} style={{ display: "flex", alignItems: "center" }}>
+        <div key={s.label} className="stat-item" style={{ display: "flex", alignItems: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 36px" }}>
-            <span style={{
+            <span className="stat-number" style={{
               fontFamily: "'Sora', sans-serif",
               fontSize: 30, fontWeight: 800,
               color: "#F7C948",
@@ -193,11 +194,12 @@ export default function LandingPage() {
   const { ref: ctaRef, visible: ctaVis } = useInView(0.3);
 
   return (
-    <div style={{ position: "relative", zIndex: 1, overflowX: "hidden" }}>
+    <div className="landing-page-wrapper" style={{ position: "relative", zIndex: 1, overflowX: "hidden" }}>
       <PublicNavbar />
 
       {/* ══════ HERO ══════ */}
       <section
+        className="hero-section"
         style={{
           minHeight: "100vh",
           display: "flex", flexDirection: "column",
@@ -222,7 +224,7 @@ export default function LandingPage() {
         }} />
 
         {/* badge */}
-        <div style={{
+        <div className="hero-badge" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           background: "rgba(13,30,46,0.85)",
           border: "1px solid rgba(79,142,247,0.25)",
@@ -235,7 +237,7 @@ export default function LandingPage() {
         </div>
 
         {/* h1 */}
-        <h1 style={{
+        <h1 className="hero-h1" style={{
           fontFamily: "'Sora', sans-serif",
           fontSize: "clamp(38px, 5.5vw, 58px)",
           fontWeight: 900, letterSpacing: "-2px", lineHeight: 1.05,
@@ -253,7 +255,7 @@ export default function LandingPage() {
         </h1>
 
         {/* subtext */}
-        <p style={{
+        <p className="hero-sub" style={{
           fontFamily: "'DM Sans', sans-serif",
           fontSize: 16, lineHeight: 1.75,
           color: "#9CA3AF", maxWidth: 520, marginTop: 20,
@@ -264,7 +266,7 @@ export default function LandingPage() {
         </p>
 
         {/* CTAs */}
-        <div style={{
+        <div className="hero-ctas" style={{
           display: "flex", gap: 16, marginTop: 36,
           flexWrap: "wrap", justifyContent: "center",
           animation: "fadeInUp 0.55s ease 0.28s both",
@@ -330,11 +332,11 @@ export default function LandingPage() {
       </section>
 
       {/* ══════ FEATURES ══════ */}
-      <section style={{ padding: "96px 24px" }}>
+      <section className="features-section" style={{ padding: "96px 24px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
           {/* heading */}
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <p style={{
+          <div className="features-heading section-heading-center" style={{ textAlign: "center", marginBottom: 56 }}>
+            <p className="section-label" style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: 11, fontWeight: 700,
               letterSpacing: "1.5px", textTransform: "uppercase",
@@ -342,7 +344,7 @@ export default function LandingPage() {
             }}>
               WHY CAMPUSCONNECT
             </p>
-            <h2 style={{
+            <h2 className="section-title" style={{
               fontFamily: "'Sora', sans-serif",
               fontSize: "clamp(24px, 3vw, 32px)",
               fontWeight: 800, letterSpacing: "-1px",
@@ -352,8 +354,9 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          {/* 2×2 grid */}
+          {/* 2×2 grid → 1 col on mobile */}
           <div
+            className="features-grid"
             ref={featRef as React.RefObject<HTMLDivElement>}
             style={{
               display: "grid",
@@ -378,13 +381,13 @@ export default function LandingPage() {
       </section>
 
       {/* ══════ HOW IT WORKS PREVIEW ══════ */}
-      <section style={{
+      <section className="hiw-section" style={{
         padding: "96px 24px",
         background: "linear-gradient(180deg, transparent, rgba(79,142,247,0.025) 50%, transparent)",
       }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <h2 style={{
+          <div className="section-heading-center" style={{ textAlign: "center", marginBottom: 64 }}>
+            <h2 className="section-title" style={{
               fontFamily: "'Sora', sans-serif",
               fontSize: "clamp(22px, 3vw, 30px)",
               fontWeight: 800, letterSpacing: "-1px",
@@ -402,8 +405,8 @@ export default function LandingPage() {
             ref={stepsRef as React.RefObject<HTMLDivElement>}
             style={{ position: "relative" }}
           >
-            {/* horizontal dotted connector — desktop */}
-            <div aria-hidden style={{
+            {/* horizontal dotted connector — desktop only */}
+            <div className="hiw-connector" aria-hidden style={{
               position: "absolute", top: 44,
               left: "calc(12.5% + 20px)", right: "calc(12.5% + 20px)",
               height: 1,
@@ -411,7 +414,7 @@ export default function LandingPage() {
               display: "block",
             }} />
 
-            <div style={{
+            <div className="hiw-grid" style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
               gap: 24,
@@ -422,6 +425,7 @@ export default function LandingPage() {
                 return (
                   <div
                     key={s.title}
+                    className="hiw-step"
                     style={{
                       display: "flex", flexDirection: "column",
                       alignItems: "center", textAlign: "center", gap: 16,
@@ -431,7 +435,7 @@ export default function LandingPage() {
                     }}
                   >
                     {/* icon circle */}
-                    <div style={{
+                    <div className="hiw-step-icon" style={{
                       width: 88, height: 88, borderRadius: "50%",
                       background: c.bg, border: `2px solid ${c.border}`,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -441,7 +445,7 @@ export default function LandingPage() {
                       {s.emoji}
                     </div>
 
-                    <div>
+                    <div className="hiw-step-text">
                       <div style={{
                         fontFamily: "'Sora', sans-serif",
                         fontSize: 11, fontWeight: 700,
@@ -470,7 +474,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 48 }}>
+          <div className="hiw-learn-more" style={{ display: "flex", justifyContent: "center", marginTop: 48 }}>
             <Link
               href="/how-it-works"
               style={{
@@ -497,10 +501,10 @@ export default function LandingPage() {
       </section>
 
       {/* ══════ PRODUCT TYPES ══════ */}
-      <section style={{ padding: "96px 24px" }}>
+      <section className="pt-section" style={{ padding: "96px 24px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <p style={{
+          <div className="section-heading-center" style={{ textAlign: "center", marginBottom: 56 }}>
+            <p className="section-label" style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: 11, fontWeight: 700,
               letterSpacing: "1.5px", textTransform: "uppercase",
@@ -508,7 +512,7 @@ export default function LandingPage() {
             }}>
               WHAT YOU CAN TRADE
             </p>
-            <h2 style={{
+            <h2 className="section-title" style={{
               fontFamily: "'Sora', sans-serif",
               fontSize: "clamp(22px, 3vw, 30px)",
               fontWeight: 800, letterSpacing: "-1px", color: "#F0F4FF",
@@ -518,6 +522,7 @@ export default function LandingPage() {
           </div>
 
           <div
+            className="pt-grid"
             ref={ptRef as React.RefObject<HTMLDivElement>}
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}
           >
@@ -554,9 +559,10 @@ export default function LandingPage() {
       </section>
 
       {/* ══════ COLLEGE CTA ══════ */}
-      <section style={{ padding: "0 24px 96px" }}>
+      <section className="cta-section" style={{ padding: "0 24px 96px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
           <div
+            className="cta-box"
             ref={ctaRef as React.RefObject<HTMLDivElement>}
             style={{
               background: "linear-gradient(135deg, rgba(247,201,72,0.05) 0%, #111827 55%)",

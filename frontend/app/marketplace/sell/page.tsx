@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { 
-  CheckCircle, Upload, FileText, Video, Package, Layers, X, 
-  Plus, Trash2, ShieldCheck, HelpCircle, ArrowLeft, ArrowRight, 
+import {
+  CheckCircle, Upload, FileText, Video, Package, Layers, X,
+  Plus, Trash2, ShieldCheck, HelpCircle, ArrowLeft, ArrowRight,
   File, AlertCircle, ShoppingBag
 } from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
@@ -24,7 +24,7 @@ export default function SellProductPage() {
   const [step, setStep] = useState(1);
   const [prodType, setProdType] = useState<ProdType>(null);
   const [digSub, setDigSub] = useState<DigSub>(null);
-  
+
   // General Fields
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -39,7 +39,7 @@ export default function SellProductPage() {
   const [notesCourseCode, setNotesCourseCode] = useState("");
   const [notesUniv, setNotesUniv] = useState("");
   const [notesPages, setNotesPages] = useState("");
-  
+
   // 2. Video Course
   const [vidInstructor, setVidInstructor] = useState("");
   const [vidLecturesCount, setVidLecturesCount] = useState("");
@@ -111,8 +111,8 @@ export default function SellProductPage() {
 
   // File Handlers & Validations
   function validateAndAddFiles(
-    uploadedFiles: FileList | null, 
-    allowedExtensions: string[], 
+    uploadedFiles: FileList | null,
+    allowedExtensions: string[],
     setList: React.Dispatch<React.SetStateAction<File[]>>,
     typeDescription: string
   ) {
@@ -181,7 +181,7 @@ export default function SellProductPage() {
     if (!fileList || fileList.length === 0) return;
     const file = fileList[0];
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-    
+
     let allowed: string[] = [];
     let label = "";
     if (type === "notes") {
@@ -209,8 +209,8 @@ export default function SellProductPage() {
   const calculatedOrigPrice = parseFloat(origPrice.replace(/,/g, "")) || 0;
   const buyerFee = (calculatedSellPrice * platformFeePercent) / 100;
   const buyerTotal = calculatedSellPrice + buyerFee;
-  const discountPercent = calculatedOrigPrice > calculatedSellPrice 
-    ? Math.round(((calculatedOrigPrice - calculatedSellPrice) / calculatedOrigPrice) * 100) 
+  const discountPercent = calculatedOrigPrice > calculatedSellPrice
+    ? Math.round(((calculatedOrigPrice - calculatedSellPrice) / calculatedOrigPrice) * 100)
     : 0;
 
   // Validation before step transition
@@ -220,7 +220,7 @@ export default function SellProductPage() {
     if (!desc.trim()) { showNotification("Product description is required."); return false; }
     if (desc.length < 15) { showNotification("Description must be at least 15 characters to explain details properly."); return false; }
     if (!sellPrice || calculatedSellPrice <= 0) { showNotification("A valid selling price is required."); return false; }
-    
+
     if (prodType === "physical") {
       if (calculatedOrigPrice > 0 && calculatedSellPrice > calculatedOrigPrice) {
         showNotification("Selling price cannot be greater than the original retail price.");
@@ -252,7 +252,7 @@ export default function SellProductPage() {
         for (let i = 0; i < bundleItems.length; i++) {
           const item = bundleItems[i];
           if (!item.title.trim()) { showNotification(`Bundle Item #${i + 1} needs a title.`); return false; }
-          if (!item.file) { showNotification(`Please upload the file for bundle item "${item.title || `#${i+1}`}".`); return false; }
+          if (!item.file) { showNotification(`Please upload the file for bundle item "${item.title || `#${i + 1}`}".`); return false; }
         }
       }
     }
@@ -296,7 +296,7 @@ export default function SellProductPage() {
       } else if (digSub === "bundle") {
         detailsList.push(`Bundle Pack Items:`);
         bundleItems.forEach((item, index) => {
-          detailsList.push(`  [Item ${index+1}] ${item.title} (${item.type.toUpperCase()}) - ${item.description || "No description"}`);
+          detailsList.push(`  [Item ${index + 1}] ${item.title} (${item.type.toUpperCase()}) - ${item.description || "No description"}`);
         });
       }
     }
@@ -378,14 +378,14 @@ export default function SellProductPage() {
   return (
     <StudentLayout>
       <div style={{ padding: "36px 40px", maxWidth: 1040, margin: "0 auto", minHeight: "85vh", color: "#F0F4FF" }}>
-        
+
         {/* Error/Warning Notification Toast */}
         {errorToast && (
-          <div style={{ 
-            position: "fixed", top: 24, right: 24, zIndex: 1100, 
-            background: "#EF4444", color: "#fff", borderRadius: 12, 
-            padding: "14px 22px", fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, 
-            boxShadow: "0 10px 30px rgba(239, 68, 68, 0.4)", 
+          <div style={{
+            position: "fixed", top: 24, right: 24, zIndex: 1100,
+            background: "#EF4444", color: "#fff", borderRadius: 12,
+            padding: "14px 22px", fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700,
+            boxShadow: "0 10px 30px rgba(239, 68, 68, 0.4)",
             display: "flex", alignItems: "center", gap: 10,
             animation: "slideInRight 0.25s ease-out"
           }}>
@@ -397,9 +397,9 @@ export default function SellProductPage() {
         {/* Dynamic Payment Modal */}
         {payModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(3, 7, 18, 0.88)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-            <div style={{ 
-              background: "#0F172A", border: "1.5px solid #1E293B", borderRadius: 24, 
-              padding: "36px", maxWidth: 440, width: "90%", 
+            <div style={{
+              background: "#0F172A", border: "1.5px solid #1E293B", borderRadius: 24,
+              padding: "36px", maxWidth: 440, width: "90%",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
               animation: "scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
             }}>
@@ -435,13 +435,13 @@ export default function SellProductPage() {
                       { icon: "💳", label: "Credit / Debit Card (Visa, RuPay)" },
                       { icon: "🏦", label: "NetBanking Support" }
                     ].map(method => (
-                      <button 
-                        key={method.label} 
-                        onClick={submitToAPI} 
+                      <button
+                        key={method.label}
+                        onClick={submitToAPI}
                         disabled={submitting}
-                        style={{ 
-                          display: "flex", alignItems: "center", gap: 14, 
-                          background: "#1E293B", border: "1.5px solid #334155", borderRadius: 14, 
+                        style={{
+                          display: "flex", alignItems: "center", gap: 14,
+                          background: "#1E293B", border: "1.5px solid #334155", borderRadius: 14,
                           padding: "14px 18px", cursor: "pointer", transition: "all 0.2s",
                           textAlign: "left", width: "100%"
                         }}
@@ -460,13 +460,13 @@ export default function SellProductPage() {
                     ))}
                   </div>
 
-                  <button 
-                    onClick={() => setPayModal(false)} 
-                    style={{ 
-                      width: "100%", height: 40, borderRadius: 10, 
-                      background: "transparent", border: "1.5px solid #334155", 
-                      fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", 
-                      cursor: "pointer", fontWeight: 600, transition: "colors 0.2s" 
+                  <button
+                    onClick={() => setPayModal(false)}
+                    style={{
+                      width: "100%", height: 40, borderRadius: 10,
+                      background: "transparent", border: "1.5px solid #334155",
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8",
+                      cursor: "pointer", fontWeight: 600, transition: "colors 0.2s"
                     }}
                     onMouseEnter={e => e.currentTarget.style.color = "#F1F5F9"}
                     onMouseLeave={e => e.currentTarget.style.color = "#94A3B8"}
@@ -489,7 +489,7 @@ export default function SellProductPage() {
 
         {/* Success / Finished Screen */}
         {submitted ? (
-          <div style={{ 
+          <div style={{
             maxWidth: 640, margin: "60px auto", textAlign: "center",
             background: "rgba(15, 23, 42, 0.4)", border: "1.5px solid #1E293B",
             borderRadius: 32, padding: "50px 40px", backdropFilter: "blur(12px)",
@@ -501,10 +501,10 @@ export default function SellProductPage() {
               Your item is now undergoing quick security &amp; accuracy review by administrative moderators. It will go live inside the campus feed within 24 hours.
             </p>
 
-            <div style={{ 
-              display: "inline-flex", flexDirection: "column", gap: 10, 
-              background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", 
-              borderRadius: 16, padding: "20px 30px", marginBottom: 36, textAlign: "left" 
+            <div style={{
+              display: "inline-flex", flexDirection: "column", gap: 10,
+              background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)",
+              borderRadius: 16, padding: "20px 30px", marginBottom: 36, textAlign: "left"
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#F1F5F9", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
                 <CheckCircle size={16} style={{ color: "#10B981" }} />
@@ -521,30 +521,30 @@ export default function SellProductPage() {
             </div>
 
             <div style={{ display: "flex", gap: 16, justifyContent: "center" }}>
-              <a href="/marketplace/listings" style={{ 
-                height: 48, padding: "0 28px", borderRadius: 9999, 
-                background: "linear-gradient(90deg, #10B981, #059669)", border: "none", 
-                fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", 
+              <a href="/marketplace/listings" style={{
+                height: 48, padding: "0 28px", borderRadius: 9999,
+                background: "linear-gradient(90deg, #10B981, #059669)", border: "none",
+                fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff",
                 cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none",
                 boxShadow: "0 4px 20px rgba(16, 185, 129, 0.3)"
               }}>
                 <ShoppingBag size={18} /> Manage My Listings
               </a>
-              
-              <button onClick={() => { setSubmitted(false); handleCancel(); }} style={{ 
-                height: 48, padding: "0 28px", borderRadius: 9999, 
-                background: "transparent", border: "1.5px solid #334155", 
-                fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#94A3B8", 
-                cursor: "pointer", fontWeight: 700, transition: "all 0.2s" 
+
+              <button onClick={() => { setSubmitted(false); handleCancel(); }} style={{
+                height: 48, padding: "0 28px", borderRadius: 9999,
+                background: "transparent", border: "1.5px solid #334155",
+                fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#94A3B8",
+                cursor: "pointer", fontWeight: 700, transition: "all 0.2s"
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = "#F1F5F9";
-                e.currentTarget.style.color = "#F1F5F9";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = "#334155";
-                e.currentTarget.style.color = "#94A3B8";
-              }}>
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = "#F1F5F9";
+                  e.currentTarget.style.color = "#F1F5F9";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = "#334155";
+                  e.currentTarget.style.color = "#94A3B8";
+                }}>
                 List Another Product
               </button>
             </div>
@@ -560,10 +560,10 @@ export default function SellProductPage() {
                 return (
                   <div key={s} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ 
-                        width: 32, height: 32, borderRadius: "50%", 
-                        background: done ? "#10B981" : curr ? "#3B82F6" : "#1E293B", 
-                        border: `1.5px solid ${done ? "#10B981" : curr ? "#3B82F6" : "#334155"}`, 
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%",
+                        background: done ? "#10B981" : curr ? "#3B82F6" : "#1E293B",
+                        border: `1.5px solid ${done ? "#10B981" : curr ? "#3B82F6" : "#334155"}`,
                         display: "flex", alignItems: "center", justifyContent: "center",
                         boxShadow: curr ? "0 0 15px rgba(59, 130, 246, 0.4)" : "none",
                         transition: "all 0.3s"
@@ -572,18 +572,18 @@ export default function SellProductPage() {
                           <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 800, color: curr ? "#fff" : "#64748B" }}>{n}</span>
                         )}
                       </div>
-                      <span style={{ 
-                        fontFamily: "'DM Sans', sans-serif", fontSize: 13, 
-                        fontWeight: curr ? 700 : 500, 
-                        color: curr ? "#fff" : done ? "#10B981" : "#64748B", 
-                        whiteSpace: "nowrap" 
+                      <span style={{
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+                        fontWeight: curr ? 700 : 500,
+                        color: curr ? "#fff" : done ? "#10B981" : "#64748B",
+                        whiteSpace: "nowrap"
                       }}>{s}</span>
                     </div>
                     {i < 2 && (
-                      <div style={{ 
+                      <div style={{
                         flex: 1, height: 2, marginLeft: 16, marginRight: 16,
-                        background: done ? "#10B981" : "#1E293B", 
-                        transition: "background 0.4s" 
+                        background: done ? "#10B981" : "#1E293B",
+                        transition: "background 0.4s"
                       }} />
                     )}
                   </div>
@@ -604,33 +604,33 @@ export default function SellProductPage() {
                 {/* Primary Physical / Digital choice cards */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: prodType === "digital" ? 40 : 0 }}>
                   {[
-                    { 
-                      key: "physical" as ProdType, 
-                      icon: "📚", 
-                      label: "Physical Assets", 
-                      desc: "Textbooks, lab kits, drawing equipment, calculators, electronics, or dorm gear.", 
-                      fee: feePhysical, 
-                      color: "#3B82F6", 
+                    {
+                      key: "physical" as ProdType,
+                      icon: "📚",
+                      label: "Physical Assets",
+                      desc: "Textbooks, lab kits, drawing equipment, calculators, electronics, or dorm gear.",
+                      fee: feePhysical,
+                      color: "#3B82F6",
                       glow: "rgba(59,130,246,0.15)",
                       bullets: ["Cash in-person transaction", "Instant on-campus meetup", "Upload detailed pictures"]
                     },
-                    { 
-                      key: "digital" as ProdType, 
-                      icon: "⚡", 
-                      label: "Digital Publications", 
-                      desc: "Handwritten notes, complete courses, test series, or comprehensive exam bundles.", 
-                      fee: feeDigital, 
-                      color: "#8B5CF6", 
+                    {
+                      key: "digital" as ProdType,
+                      icon: "⚡",
+                      label: "Digital Publications",
+                      desc: "Handwritten notes, complete courses, test series, or comprehensive exam bundles.",
+                      fee: feeDigital,
+                      color: "#8B5CF6",
                       glow: "rgba(139,92,246,0.15)",
                       bullets: ["Hosted secure downloads", "Immediate access for buyers", "Automated distribution system"]
                     },
                   ].map(t => (
                     <div
                       key={t.key!}
-                      onClick={() => { 
-                        setProdType(t.key); 
-                        setDigSub(null); 
-                        if (t.key === "physical") setStep(2); 
+                      onClick={() => {
+                        setProdType(t.key);
+                        setDigSub(null);
+                        if (t.key === "physical") setStep(2);
                       }}
                       style={{
                         background: "#0F172A",
@@ -656,18 +656,18 @@ export default function SellProductPage() {
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                         <span style={{ fontSize: 36 }}>{t.icon}</span>
-                        <span style={{ 
-                          background: `${t.color}15`, color: t.color, 
-                          borderRadius: 8, padding: "4px 12px", 
-                          fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700 
+                        <span style={{
+                          background: `${t.color}15`, color: t.color,
+                          borderRadius: 8, padding: "4px 12px",
+                          fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700
                         }}>
                           ₹{t.fee} listing fee
                         </span>
                       </div>
-                      
+
                       <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8 }}>{t.label}</h3>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", lineHeight: 1.6, marginBottom: 20 }}>{t.desc}</p>
-                      
+
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {t.bullets.map(b => (
                           <div key={b} style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B" }}>
@@ -710,10 +710,10 @@ export default function SellProductPage() {
                             if (digSub !== d.key) e.currentTarget.style.borderColor = "#1E293B";
                           }}
                         >
-                          <div style={{ 
-                            color: digSub === d.key ? d.color : "#64748B", 
-                            background: "rgba(30, 41, 59, 0.5)", borderRadius: 12, 
-                            padding: 10, flexShrink: 0 
+                          <div style={{
+                            color: digSub === d.key ? d.color : "#64748B",
+                            background: "rgba(30, 41, 59, 0.5)", borderRadius: 12,
+                            padding: 10, flexShrink: 0
                           }}>{d.icon}</div>
                           <div>
                             <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: digSub === d.key ? d.color : "#fff", marginBottom: 4 }}>{d.label}</p>
@@ -749,20 +749,20 @@ export default function SellProductPage() {
             {/* STEP 2: Structured Form & Calculator Grid */}
             {step === 2 && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 32, alignItems: "start", animation: "fadeIn 0.3s ease" }}>
-                
+
                 {/* Left Side: Structured Form Panels */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                  
+
                   {/* General Header */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(15, 23, 42, 0.4)", border: "1px solid #1E293B", padding: "16px 20px", borderRadius: 16 }}>
                     <div>
                       <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 2 }}>Define Specifications</h2>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#64748B" }}>Input correct academic metadata for visibility.</p>
                     </div>
-                    <span style={{ 
-                      background: `${activeColor}15`, color: activeColor, 
-                      borderRadius: 8, padding: "4px 12px", 
-                      fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700 
+                    <span style={{
+                      background: `${activeColor}15`, color: activeColor,
+                      borderRadius: 8, padding: "4px 12px",
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700
                     }}>
                       {prodType === "physical" ? "🔧 Physical" : `⚡ ${DIG_SUBS.find(d => d.key === digSub)?.label}`}
                     </span>
@@ -771,23 +771,23 @@ export default function SellProductPage() {
                   {/* Panel A: Basic Product Identity */}
                   <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                     <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Product Identity</h3>
-                    
+
                     <div style={{ marginBottom: 18 }}>
                       <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>
                         Product Title <span style={{ color: "#EF4444" }}>*</span>
                       </label>
-                      <input 
-                        value={title} 
+                      <input
+                        value={title}
                         onChange={e => setTitle(e.target.value)}
                         maxLength={60}
                         placeholder={
-                          prodType === "physical" 
-                            ? "e.g., Apple iPad Pro (11-inch, M2 Chip, 128GB) — Space Grey" 
-                            : digSub === "notes" 
-                            ? "e.g., Digital Signal Processing Exam Cheat-sheets & Formula Guide" 
-                            : digSub === "video" 
-                            ? "e.g., Master Data Structures and Algorithms in C++ Lectures" 
-                            : "e.g., Semester 4 Complete Electrical Engineering Bundle"
+                          prodType === "physical"
+                            ? "e.g., Apple iPad Pro (11-inch, M2 Chip, 128GB) — Space Grey"
+                            : digSub === "notes"
+                              ? "e.g., Digital Signal Processing Exam Cheat-sheets & Formula Guide"
+                              : digSub === "video"
+                                ? "e.g., Master Data Structures and Algorithms in C++ Lectures"
+                                : "e.g., Semester 4 Complete Electrical Engineering Bundle"
                         }
                         style={{
                           width: "100%", height: 44, padding: "0 16px",
@@ -807,8 +807,8 @@ export default function SellProductPage() {
                       <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>
                         Product Description <span style={{ color: "#EF4444" }}>*</span>
                       </label>
-                      <textarea 
-                        value={desc} 
+                      <textarea
+                        value={desc}
                         onChange={e => setDesc(e.target.value)}
                         rows={5}
                         placeholder={
@@ -835,12 +835,12 @@ export default function SellProductPage() {
                   {prodType === "physical" && (
                     <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                       <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Classification</h3>
-                      
+
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                         <div>
                           <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Category</label>
-                          <select 
-                            value={category} 
+                          <select
+                            value={category}
                             onChange={e => setCategory(e.target.value)}
                             style={{
                               width: "100%", height: 44, padding: "0 12px",
@@ -857,8 +857,8 @@ export default function SellProductPage() {
 
                         <div>
                           <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Condition Grade</label>
-                          <select 
-                            value={condition} 
+                          <select
+                            value={condition}
                             onChange={e => setCondition(e.target.value)}
                             style={{
                               width: "100%", height: 44, padding: "0 12px",
@@ -962,20 +962,20 @@ export default function SellProductPage() {
 
                           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             {bundleItems.map((item, idx) => (
-                              <div 
-                                key={item.id} 
-                                style={{ 
-                                  background: "rgba(30, 41, 59, 0.4)", border: "1px solid #1E293B", 
-                                  borderRadius: 16, padding: 18, position: "relative" 
+                              <div
+                                key={item.id}
+                                style={{
+                                  background: "rgba(30, 41, 59, 0.4)", border: "1px solid #1E293B",
+                                  borderRadius: 16, padding: 18, position: "relative"
                                 }}
                               >
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                                   <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 700, color: "#3B82F6" }}>
                                     📦 Bundle Resource #{idx + 1}
                                   </span>
-                                  
+
                                   {bundleItems.length > 1 && (
-                                    <button 
+                                    <button
                                       onClick={() => removeBundleItem(item.id)}
                                       style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", alignItems: "center" }}
                                     >
@@ -985,8 +985,8 @@ export default function SellProductPage() {
                                 </div>
 
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 12, marginBottom: 12 }}>
-                                  <input 
-                                    value={item.title} 
+                                  <input
+                                    value={item.title}
                                     onChange={e => updateBundleItem(item.id, "title", e.target.value)}
                                     placeholder="Resource Name (e.g. Unit 1 Revision Slide)"
                                     style={{ height: 38, padding: "0 12px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 8, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9" }}
@@ -1003,7 +1003,7 @@ export default function SellProductPage() {
                                 </div>
 
                                 <div style={{ marginBottom: 12 }}>
-                                  <input 
+                                  <input
                                     value={item.description}
                                     onChange={e => updateBundleItem(item.id, "description", e.target.value)}
                                     placeholder="Short description of covered topics (optional)"
@@ -1012,16 +1012,16 @@ export default function SellProductPage() {
                                 </div>
 
                                 {/* Bundle Item File Attachment */}
-                                <div style={{ 
-                                  border: "1.5px dashed #334155", borderRadius: 10, 
+                                <div style={{
+                                  border: "1.5px dashed #334155", borderRadius: 10,
                                   padding: 10, display: "flex", alignItems: "center", gap: 10,
                                   background: "#0F172A", cursor: "pointer", position: "relative"
                                 }}>
-                                  <input 
+                                  <input
                                     type="file"
                                     accept={
                                       item.type === "notes" ? ".pdf,.doc,.docx,.ppt,.pptx,.txt" :
-                                      item.type === "video" ? "video/*" : "*"
+                                        item.type === "video" ? "video/*" : "*"
                                     }
                                     onChange={e => handleBundleFileChange(item.id, e.target.files, item.type)}
                                     style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}
@@ -1043,9 +1043,9 @@ export default function SellProductPage() {
                             ))}
                           </div>
 
-                          <button 
+                          <button
                             onClick={addBundleItem}
-                            style={{ 
+                            style={{
                               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                               height: 38, borderRadius: 10, background: "transparent", border: "1.5px dashed #334155",
                               color: "#3B82F6", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700,
@@ -1070,15 +1070,15 @@ export default function SellProductPage() {
                   {/* Panel D: Pricing Setup */}
                   <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                     <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Pricing Strategy</h3>
-                    
+
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                       {prodType === "physical" && (
                         <div>
                           <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Original Price (Retail ₹)</label>
-                          <input 
-                            value={origPrice} 
-                            onChange={e => setOrigPrice(e.target.value.replace(/\D/g, ""))} 
-                            placeholder="e.g., 25000" 
+                          <input
+                            value={origPrice}
+                            onChange={e => setOrigPrice(e.target.value.replace(/\D/g, ""))}
+                            placeholder="e.g., 25000"
                             style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }}
                           />
                         </div>
@@ -1086,15 +1086,15 @@ export default function SellProductPage() {
 
                       <div style={prodType === "digital" ? { gridColumn: "span 2" } : {}}>
                         <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Selling Price (₹) <span style={{ color: "#EF4444" }}>*</span></label>
-                        <input 
-                          value={sellPrice} 
-                          onChange={e => setSellPrice(e.target.value.replace(/\D/g, ""))} 
-                          placeholder={prodType === "digital" ? "e.g., 199" : "e.g., 14999"} 
-                          style={{ 
-                            width: "100%", height: 44, padding: "0 14px", 
-                            background: "#1E293B", 
-                            border: `1.5px solid ${sellPrice ? activeColor : "#334155"}`, 
-                            borderRadius: 10, outline: "none", 
+                        <input
+                          value={sellPrice}
+                          onChange={e => setSellPrice(e.target.value.replace(/\D/g, ""))}
+                          placeholder={prodType === "digital" ? "e.g., 199" : "e.g., 14999"}
+                          style={{
+                            width: "100%", height: 44, padding: "0 14px",
+                            background: "#1E293B",
+                            border: `1.5px solid ${sellPrice ? activeColor : "#334155"}`,
+                            borderRadius: 10, outline: "none",
                             fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9",
                             boxShadow: sellPrice ? `0 0 10px ${activeGlow}` : "none"
                           }}
@@ -1123,7 +1123,7 @@ export default function SellProductPage() {
                       {prodType === "physical" && (
                         <div>
                           <input ref={physicalImgRef} type="file" multiple accept="image/*" onChange={handlePhysicalImages} style={{ display: "none" }} />
-                          <div 
+                          <div
                             onClick={() => physicalImgRef.current?.click()}
                             style={{ border: "2px dashed #334155", borderRadius: 16, minHeight: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(30, 41, 59, 0.2)", padding: 20, transition: "all 0.2s" }}
                             onMouseEnter={e => e.currentTarget.style.borderColor = activeColor}
@@ -1139,7 +1139,7 @@ export default function SellProductPage() {
                               {physicalImages.map((img, idx) => (
                                 <div key={idx} style={{ position: "relative", width: 72, height: 72, borderRadius: 10, overflow: "hidden", border: "1.5px solid #334155" }}>
                                   <img src={URL.createObjectURL(img)} alt="upload preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                  <button 
+                                  <button
                                     onClick={() => setPhysicalImages(prev => prev.filter((_, i) => i !== idx))}
                                     style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(239,68,68,0.9)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                                   >
@@ -1156,7 +1156,7 @@ export default function SellProductPage() {
                       {prodType === "digital" && digSub === "notes" && (
                         <div>
                           <input ref={notesDocRef} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" onChange={handleNotesDocs} style={{ display: "none" }} />
-                          <div 
+                          <div
                             onClick={() => notesDocRef.current?.click()}
                             style={{ border: "2px dashed #334155", borderRadius: 16, minHeight: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(30, 41, 59, 0.2)", padding: 20, transition: "all 0.2s" }}
                             onMouseEnter={e => e.currentTarget.style.borderColor = activeColor}
@@ -1173,7 +1173,7 @@ export default function SellProductPage() {
                                 <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(30, 41, 59, 0.3)", border: "1px solid #1E293B", borderRadius: 10, padding: "8px 12px" }}>
                                   <File size={16} style={{ color: activeColor }} />
                                   <span style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{doc.name}</span>
-                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>({(doc.size / (1024*1024)).toFixed(2)} MB)</span>
+                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>({(doc.size / (1024 * 1024)).toFixed(2)} MB)</span>
                                   <button onClick={() => setNotesDocs(prev => prev.filter((_, i) => i !== idx))} style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer" }}><X size={14} /></button>
                                 </div>
                               ))}
@@ -1186,7 +1186,7 @@ export default function SellProductPage() {
                       {prodType === "digital" && digSub === "video" && (
                         <div>
                           <input ref={courseVideoRef} type="file" multiple accept="video/*" onChange={handleCourseVideos} style={{ display: "none" }} />
-                          <div 
+                          <div
                             onClick={() => courseVideoRef.current?.click()}
                             style={{ border: "2px dashed #334155", borderRadius: 16, minHeight: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(30, 41, 59, 0.2)", padding: 20, transition: "all 0.2s" }}
                             onMouseEnter={e => e.currentTarget.style.borderColor = activeColor}
@@ -1203,7 +1203,7 @@ export default function SellProductPage() {
                                 <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(30, 41, 59, 0.3)", border: "1px solid #1E293B", borderRadius: 10, padding: "8px 12px" }}>
                                   <Video size={16} style={{ color: activeColor }} />
                                   <span style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#F1F5F9", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{vid.name}</span>
-                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>({(vid.size / (1024*1024)).toFixed(2)} MB)</span>
+                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#64748B" }}>({(vid.size / (1024 * 1024)).toFixed(2)} MB)</span>
                                   <button onClick={() => setCourseVideos(prev => prev.filter((_, i) => i !== idx))} style={{ background: "transparent", border: "none", color: "#EF4444", cursor: "pointer" }}><X size={14} /></button>
                                 </div>
                               ))}
@@ -1219,7 +1219,7 @@ export default function SellProductPage() {
                           <div>
                             <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Academic Materials (PDFs/Slides)</label>
                             <input ref={bothDocRef} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" onChange={handleBothDocs} style={{ display: "none" }} />
-                            <div 
+                            <div
                               onClick={() => bothDocRef.current?.click()}
                               style={{ border: "1.5px dashed #334155", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: "rgba(30, 41, 59, 0.15)" }}
                             >
@@ -1247,7 +1247,7 @@ export default function SellProductPage() {
                           <div>
                             <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Video Explainer Lectures</label>
                             <input ref={bothVideoRef} type="file" multiple accept="video/*" onChange={handleBothVideos} style={{ display: "none" }} />
-                            <div 
+                            <div
                               onClick={() => bothVideoRef.current?.click()}
                               style={{ border: "1.5px dashed #334155", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: "rgba(30, 41, 59, 0.15)" }}
                             >
@@ -1278,10 +1278,10 @@ export default function SellProductPage() {
 
                 {/* Right Side: Sticky live calculations panel */}
                 <div style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-                  
+
                   {/* Fee Calculator Card */}
-                  <div style={{ 
-                    background: "#0F172A", border: "1.5px solid #1E293B", borderRadius: 24, 
+                  <div style={{
+                    background: "#0F172A", border: "1.5px solid #1E293B", borderRadius: 24,
                     padding: "22px", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3)",
                     backgroundImage: "linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)"
                   }}>
@@ -1307,14 +1307,14 @@ export default function SellProductPage() {
                     {/* Section 2: Buyer percentage fee */}
                     <div>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#10B981", textTransform: "uppercase", marginBottom: 8 }}>Buyer Fee ({platformFeePercent}% per transaction)</p>
-                      
+
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                         <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Base Product Price:</span>
                         <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>
                           {calculatedSellPrice ? `₹${calculatedSellPrice.toLocaleString("en-IN")}` : "₹0"}
                         </span>
                       </div>
-                      
+
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                         <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Platform Share ({platformFeePercent}%):</span>
                         <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>
@@ -1328,7 +1328,7 @@ export default function SellProductPage() {
                           {buyerTotal ? `₹${buyerTotal.toLocaleString("en-IN")}` : "₹0"}
                         </span>
                       </div>
-                      
+
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", marginTop: 8, lineHeight: 1.4 }}>
                         * Paid directly by the student customer upon purchase on campus. Platform fee helps keep hosting active.
                       </p>
@@ -1355,12 +1355,12 @@ export default function SellProductPage() {
                     Proceed to Verification <ArrowRight size={16} />
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => setStep(1)}
-                    style={{ 
-                      width: "100%", height: 40, borderRadius: 12, 
-                      background: "transparent", border: "1.5px solid #1E293B", 
-                      fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8", 
+                    style={{
+                      width: "100%", height: 40, borderRadius: 12,
+                      background: "transparent", border: "1.5px solid #1E293B",
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8",
                       cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6
                     }}
                   >
@@ -1381,17 +1381,17 @@ export default function SellProductPage() {
                 </div>
 
                 {/* Mock Card Preview Container */}
-                <div style={{ 
-                  background: "#0F172A", border: "2px solid #1E293B", borderRadius: 28, 
+                <div style={{
+                  background: "#0F172A", border: "2px solid #1E293B", borderRadius: 28,
                   padding: 24, marginBottom: 28, boxShadow: "0 20px 40px rgba(0,0,0,0.3)"
                 }}>
                   <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-                    
+
                     {/* Visual Media Placeholder/Thumb */}
-                    <div style={{ 
-                      width: 110, height: 110, borderRadius: 16, background: "rgba(30, 41, 59, 0.6)", 
+                    <div style={{
+                      width: 110, height: 110, borderRadius: 16, background: "rgba(30, 41, 59, 0.6)",
                       border: "1.5px solid #334155", display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 36, flexShrink: 0, overflow: "hidden" 
+                      fontSize: 36, flexShrink: 0, overflow: "hidden"
                     }}>
                       {prodType === "physical" && physicalImages.length > 0 ? (
                         <img src={URL.createObjectURL(physicalImages[0])} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -1413,14 +1413,14 @@ export default function SellProductPage() {
                       </div>
 
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                        <span style={{ 
+                        <span style={{
                           background: "rgba(30, 41, 59, 0.6)", border: "1px solid #1E293B",
                           color: "#94A3B8", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontFamily: "'DM Sans', sans-serif"
                         }}>
                           {prodType === "physical" ? category : `${DIG_SUBS.find(d => d.key === digSub)?.label}`}
                         </span>
                         {prodType === "physical" && (
-                          <span style={{ 
+                          <span style={{
                             background: "rgba(30, 41, 59, 0.6)", border: "1px solid #1E293B",
                             color: "#94A3B8", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontFamily: "'DM Sans', sans-serif"
                           }}>
@@ -1428,18 +1428,18 @@ export default function SellProductPage() {
                           </span>
                         )}
                         {prodType === "digital" && digSub === "bundle" && (
-                          <span style={{ 
+                          <span style={{
                             background: "rgba(59, 130, 246, 0.1)", color: "#3B82F6",
-                            borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 
+                            borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700
                           }}>
                             {bundleItems.length} Bundled Items
                           </span>
                         )}
                       </div>
 
-                      <p style={{ 
-                        fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#64748B", 
-                        lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, 
+                      <p style={{
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#64748B",
+                        lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2,
                         WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0
                       }}>
                         {desc}
@@ -1489,28 +1489,28 @@ export default function SellProductPage() {
                 </div>
 
                 {/* Submit Panel */}
-                <div style={{ 
-                  background: "#0F172A", border: "1px solid #1E293B", borderRadius: 24, 
-                  padding: "24px 28px", display: "flex", flexDirection: "column", gap: 16 
+                <div style={{
+                  background: "#0F172A", border: "1px solid #1E293B", borderRadius: 24,
+                  padding: "24px 28px", display: "flex", flexDirection: "column", gap: 16
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <h4 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 800, color: "#fff", margin: "0 0 2px 0" }}>Final Listing Submission</h4>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>Review all attachments and prices before confirming.</p>
                     </div>
-                    
+
                     <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFee}</span>
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => {
                       setPayStep("choose");
                       setPayModal(true);
-                    }} 
-                    style={{ 
-                      width: "100%", height: 50, borderRadius: 14, 
-                      background: "linear-gradient(90deg, #3B82F6, #1D4ED8)", border: "none", 
-                      cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", 
+                    }}
+                    style={{
+                      width: "100%", height: 50, borderRadius: 14,
+                      background: "linear-gradient(90deg, #3B82F6, #1D4ED8)", border: "none",
+                      cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                       boxShadow: "0 10px 20px rgba(59, 130, 246, 0.3)"
                     }}
@@ -1519,11 +1519,11 @@ export default function SellProductPage() {
                   </button>
                 </div>
 
-                <button 
-                  onClick={() => setStep(2)} 
-                  style={{ 
-                    marginTop: 20, background: "transparent", border: "1.5px solid #1E293B", 
-                    height: 40, width: "100%", borderRadius: 12, fontFamily: "'DM Sans', sans-serif", 
+                <button
+                  onClick={() => setStep(2)}
+                  style={{
+                    marginTop: 20, background: "transparent", border: "1.5px solid #1E293B",
+                    height: 40, width: "100%", borderRadius: 12, fontFamily: "'DM Sans', sans-serif",
                     fontSize: 12, color: "#94A3B8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6
                   }}
                 >

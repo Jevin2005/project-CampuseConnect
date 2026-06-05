@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
-import { Send, Search, Check, CheckCheck, Package, Smile, RefreshCw, MessageSquare } from "lucide-react";
+import { Send, Search, Check, CheckCheck, Package, Smile, RefreshCw, MessageSquare, Power, Lock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -72,7 +72,27 @@ export default function InboxPage() {
   const [sending, setSending] = useState(false);
   const [noToken, setNoToken] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevMsgCountRef = useRef(0);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const myId = useRef("");
+
+  const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior,
+      });
+    }
+  };
+
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    // Show button if scrolled up by more than 200px
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+    setShowScrollBtn(!isNearBottom);
+  };
 
   const fetchThreads = useCallback(async () => {
     const uid = getCurrentUserId();
@@ -99,7 +119,7 @@ export default function InboxPage() {
       });
       setThreads(mapped);
       if (!activeId && mapped.length > 0) setActiveId(mapped[0].id);
-    } catch {}
+    } catch { }
     setLoading(false);
   }, [activeId]);
 
@@ -109,7 +129,7 @@ export default function InboxPage() {
     try {
       const r = await api.get(`/api/marketplace/threads/${tid}/messages`);
       setMsgs(r.data.map((m: any) => ({ id: m.id, from: m.senderId === uid ? "me" : "them", text: m.text, time: fmtTime(m.createdAt) })));
-    } catch {}
+    } catch { }
     setMsgLoading(false);
   }, []);
 
@@ -131,7 +151,30 @@ export default function InboxPage() {
     return () => clearInterval(iv);
   }, [activeId, fetchMsgs]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+  useEffect(() => {
+    prevMsgCountRef.current = 0;
+  }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+
+    const isFirstLoad = prevMsgCountRef.current === 0;
+    const hasNewMessages = msgs.length > prevMsgCountRef.current;
+    
+    prevMsgCountRef.current = msgs.length;
+
+    let isNearBottom = true;
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+    }
+
+    if (isFirstLoad) {
+      scrollToBottom("auto");
+    } else if (hasNewMessages && isNearBottom) {
+      scrollToBottom("smooth");
+    }
+  }, [msgs, activeId]);
 
   async function sendMsg(text?: string) {
     const msg = (text ?? input).trim();
@@ -141,18 +184,32 @@ export default function InboxPage() {
       await api.post(`/api/marketplace/threads/${activeId}/messages`, { text: msg });
       await fetchMsgs(activeId);
       setThreads(ts => ts.map(t => t.id === activeId ? { ...t, lastMsg: msg, lastTime: "now" } : t));
-    } catch {}
+      setTimeout(() => scrollToBottom("smooth"), 50);
+    } catch { }
     setSending(false);
   }
 
   async function markDeal() {
     if (!activeId) return;
+    if (!confirm("Mark this deal as completed? This will mark the product as sold, create the order logs, and close all other conversations for this product.")) return;
     try {
       await api.patch(`/api/marketplace/threads/${activeId}/complete`);
       setThreads(ts => ts.map(t => t.id === activeId ? { ...t, status: "deal_done" } : t));
-      await sendMsg("✅ Deal done! We agreed to meet on campus for the handover.");
+      await fetchMsgs(activeId);
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to mark deal as done.");
+    }
+  }
+
+  async function closeConversation() {
+    if (!activeId) return;
+    if (!confirm("Are you sure you want to end this conversation? This will reject the buy request and close the chat thread.")) return;
+    try {
+      await api.patch(`/api/marketplace/threads/${activeId}/close`);
+      setThreads(ts => ts.map(t => t.id === activeId ? { ...t, status: "closed" } : t));
+      await fetchMsgs(activeId);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to close conversation.");
     }
   }
 
@@ -170,7 +227,7 @@ export default function InboxPage() {
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#1e2d45;border-radius:4px}
       `}</style>
 
-      <div style={{ display: "flex", height: "calc(100vh - 0px)", overflow: "hidden" }}>
+      <div style={{ display: "flex", height: "calc(100vh - 102px)", overflow: "hidden" }}>
 
         {/* Thread List */}
         <div style={{ width: 300, flexShrink: 0, borderRight: "1px solid #1e2d45", display: "flex", flexDirection: "column", background: "#0d1120" }}>
@@ -222,7 +279,13 @@ export default function InboxPage() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
                       <span style={{ fontSize: 11 }}>{t.productIcon}</span>
-                      <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.product}</span>
+                      <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{t.product}</span>
+                      {t.status === "deal_done" && (
+                        <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4, background: "rgba(16,185,129,0.15)", color: "#10B981", fontWeight: 700, fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>SOLD</span>
+                      )}
+                      {t.status === "closed" && (
+                        <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4, background: "rgba(239,68,68,0.15)", color: "#EF4444", fontWeight: 700, fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>ENDED</span>
+                      )}
                     </div>
                     <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.lastMsg}</p>
                   </div>
@@ -244,6 +307,7 @@ export default function InboxPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: "#F0F4FF" }}>{active.name}</p>
                   {active.status === "deal_done" && <span style={{ background: "rgba(16,185,129,0.12)", color: "#10B981", borderRadius: 9999, padding: "1px 10px", fontSize: 10, fontWeight: 700, fontFamily: "'DM Sans',sans-serif" }}>✅ Deal Done</span>}
+                  {active.status === "closed" && <span style={{ background: "rgba(239,68,68,0.12)", color: "#EF4444", borderRadius: 9999, padding: "1px 10px", fontSize: 10, fontWeight: 700, fontFamily: "'DM Sans',sans-serif" }}>🔌 Closed</span>}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                   <span style={{ fontSize: 13 }}>{active.productIcon}</span>
@@ -252,10 +316,19 @@ export default function InboxPage() {
                   <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#374151" }}>· {active.role === "seller" ? "You are selling" : "You are buying"}</span>
                 </div>
               </div>
-              {active.status === "active" && (
-                <button onClick={markDeal} style={{ height: 36, padding: "0 14px", borderRadius: 9999, background: "rgba(16,185,129,0.1)", border: "1.5px solid rgba(16,185,129,0.3)", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color: "#10B981", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                  🤝 Mark Deal Done
-                </button>
+              {active.role === "seller" && active.status === "active" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <button onClick={markDeal} style={{ height: 36, padding: "0 14px", borderRadius: 9999, background: "rgba(16,185,129,0.1)", border: "1.5px solid rgba(16,185,129,0.3)", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color: "#10B981", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#10B981"; e.currentTarget.style.color = "#fff"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(16,185,129,0.1)"; e.currentTarget.style.color = "#10B981"; }}>
+                    🤝 Mark Deal Done
+                  </button>
+                  <button onClick={closeConversation} title="Close / End Conversation" style={{ height: 36, width: 36, borderRadius: "50%", background: "rgba(239,68,68,0.1)", border: "1.5px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#EF4444", cursor: "pointer", transition: "all 0.2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#EF4444"; e.currentTarget.style.color = "#fff"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(239,68,68,0.1)"; e.currentTarget.style.color = "#EF4444"; }}>
+                    <Power size={15} />
+                  </button>
+                </div>
               )}
             </div>
 
@@ -267,58 +340,138 @@ export default function InboxPage() {
               </span>
             </div>
 
-            {/* Messages */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
-              {msgLoading && msgs.length === 0 && (
-                <div style={{ textAlign: "center", padding: 40 }}>
-                  <div style={{ width: 24, height: 24, border: "3px solid #1e2d45", borderTopColor: "#4F8EF7", borderRadius: "50%", margin: "0 auto", animation: "spin 0.8s linear infinite" }} />
-                </div>
-              )}
-              {!msgLoading && msgs.length === 0 && (
-                <div style={{ textAlign: "center", padding: 40 }}>
-                  <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#374151" }}>No messages yet — say hello! 👋</p>
-                </div>
-              )}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
-                <div style={{ flex: 1, height: 1, background: "#1e2d45" }} />
-                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#374151", whiteSpace: "nowrap" }}>Chat</span>
-                <div style={{ flex: 1, height: 1, background: "#1e2d45" }} />
+            {/* Status banners */}
+            {active.status === "deal_done" && (
+              <div style={{ padding: "12px 24px", background: "rgba(16,185,129,0.06)", borderBottom: "1px solid rgba(16,185,129,0.2)", display: "flex", alignItems: "center", gap: 10 }}>
+                <CheckCircle size={15} style={{ color: "#10B981", flexShrink: 0 }} />
+                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#A7F3D0" }}>
+                  This deal has been completed successfully! The listing has been marked as <strong>Sold</strong>.
+                </span>
               </div>
-              {msgs.map(msg => (
-                <div key={msg.id} className="msg-in" style={{ display: "flex", flexDirection: msg.from === "me" ? "row-reverse" : "row", gap: 10, alignItems: "flex-end" }}>
-                  {msg.from === "them" && (
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                      {active.inits}
-                    </div>
-                  )}
-                  <div style={{ maxWidth: "68%" }}>
-                    <div style={{ background: msg.from === "me" ? "linear-gradient(135deg,#4F8EF7,#3b6fd4)" : "#1a2235", borderRadius: msg.from === "me" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "10px 14px", boxShadow: msg.from === "me" ? "0 2px 12px rgba(79,142,247,0.25)" : "none" }}>
-                      <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: msg.from === "me" ? "#fff" : "#F0F4FF", lineHeight: 1.5, margin: 0 }}>{msg.text}</p>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, justifyContent: msg.from === "me" ? "flex-end" : "flex-start" }}>
-                      <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#374151" }}>{msg.time}</span>
-                      {msg.from === "me" && <CheckCheck size={11} style={{ color: "#4F8EF7" }} />}
-                    </div>
+            )}
+            {active.status === "closed" && (
+              <div style={{ padding: "12px 24px", background: "rgba(239,68,68,0.06)", borderBottom: "1px solid rgba(239,68,68,0.2)", display: "flex", alignItems: "center", gap: 10 }}>
+                <XCircle size={15} style={{ color: "#EF4444", flexShrink: 0 }} />
+                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#FCA5A5" }}>
+                  This conversation has ended. The product is sold or the conversation was ended.
+                </span>
+              </div>
+            )}
+
+            {/* Messages Container with Floating Scroll Button */}
+            <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+              <div 
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}
+              >
+                {msgLoading && msgs.length === 0 && (
+                  <div style={{ textAlign: "center", padding: 40 }}>
+                    <div style={{ width: 24, height: 24, border: "3px solid #1e2d45", borderTopColor: "#4F8EF7", borderRadius: "50%", margin: "0 auto", animation: "spin 0.8s linear infinite" }} />
                   </div>
+                )}
+                {!msgLoading && msgs.length === 0 && (
+                  <div style={{ textAlign: "center", padding: 40 }}>
+                    <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#374151" }}>No messages yet — say hello! 👋</p>
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "#1e2d45" }} />
+                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#374151", whiteSpace: "nowrap" }}>Chat</span>
+                  <div style={{ flex: 1, height: 1, background: "#1e2d45" }} />
                 </div>
-              ))}
-              <div ref={bottomRef} />
+                {msgs.map(msg => {
+                  const isSoldOut = msg.text === "This product is sold out. Sorry!";
+                  const isCloseMsg = msg.text === "The seller has ended this conversation.";
+                  const isSystem = isSoldOut || isCloseMsg;
+
+                  if (isSystem) {
+                    return (
+                      <div key={msg.id} className="msg-in" style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
+                        <div style={{ background: "rgba(30,41,59,0.5)", border: "1px solid #1e2d45", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, maxWidth: "80%", backdropFilter: "blur(4px)" }}>
+                          {isSoldOut ? (
+                            <XCircle size={15} style={{ color: "#EF4444", flexShrink: 0 }} />
+                          ) : (
+                            <Power size={15} style={{ color: "#EF4444", flexShrink: 0 }} />
+                          )}
+                          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0, fontStyle: "italic", textAlign: "center" }}>
+                            {msg.text}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={msg.id} className="msg-in" style={{ display: "flex", flexDirection: msg.from === "me" ? "row-reverse" : "row", gap: 10, alignItems: "flex-end" }}>
+                      {msg.from === "them" && (
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                          {active.inits}
+                        </div>
+                      )}
+                      <div style={{ maxWidth: "68%" }}>
+                        <div style={{ background: msg.from === "me" ? "linear-gradient(135deg,#4F8EF7,#3b6fd4)" : "#1a2235", borderRadius: msg.from === "me" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "10px 14px", boxShadow: msg.from === "me" ? "0 2px 12px rgba(79,142,247,0.25)" : "none" }}>
+                          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: msg.from === "me" ? "#fff" : "#F0F4FF", lineHeight: 1.5, margin: 0 }}>{msg.text}</p>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, justifyContent: msg.from === "me" ? "flex-end" : "flex-start" }}>
+                          <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#374151" }}>{msg.time}</span>
+                          {msg.from === "me" && <CheckCheck size={11} style={{ color: "#4F8EF7" }} />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={bottomRef} />
+              </div>
+
+              {showScrollBtn && (
+                <button 
+                  onClick={() => scrollToBottom("smooth")}
+                  style={{
+                    position: "absolute",
+                    bottom: 16,
+                    right: 24,
+                    background: "linear-gradient(135deg, #4F8EF7, #3b6fd4)",
+                    border: "none",
+                    borderRadius: "9999px",
+                    padding: "8px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    color: "#fff",
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 16px rgba(79,142,247,0.35)",
+                    animation: "fadeUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both",
+                    zIndex: 10,
+                    transition: "transform 0.15s ease",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px) scale(1.05)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "translateY(0) scale(1)"}
+                >
+                  <span>⬇️ Scroll to Bottom</span>
+                </button>
+              )}
             </div>
 
             {/* Quick replies */}
-            <div style={{ padding: "8px 24px 0", display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {QUICK.map(qr => (
-                <button key={qr} onClick={() => sendMsg(qr)}
-                  style={{ height: 28, padding: "0 10px", borderRadius: 9999, background: "transparent", border: "1px solid #1e2d45", fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#4F8EF7"; e.currentTarget.style.color = "#4F8EF7"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2d45"; e.currentTarget.style.color = "#6B7280"; }}>
-                  {qr}
-                </button>
-              ))}
-            </div>
+            {active.status === "active" && (
+              <div style={{ padding: "8px 24px 0", display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {QUICK.map(qr => (
+                  <button key={qr} onClick={() => sendMsg(qr)}
+                    style={{ height: 28, padding: "0 10px", borderRadius: 9999, background: "transparent", border: "1px solid #1e2d45", fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#4F8EF7"; e.currentTarget.style.color = "#4F8EF7"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2d45"; e.currentTarget.style.color = "#6B7280"; }}>
+                    {qr}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Emoji picker */}
-            {showEmoji && (
+            {active.status === "active" && showEmoji && (
               <div style={{ padding: "8px 24px", display: "flex", gap: 6, flexWrap: "wrap", background: "#0d1120", borderTop: "1px solid #1e2d45" }}>
                 {EMOJIS.map(e => (
                   <button key={e} onClick={() => setInput(i => i + e)} style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", padding: "2px 4px", borderRadius: 6 }}
@@ -328,24 +481,33 @@ export default function InboxPage() {
               </div>
             )}
 
-            {/* Input */}
-            <div style={{ padding: "12px 24px", borderTop: "1px solid #1e2d45", background: "#0d1120", display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => setShowEmoji(s => !s)} style={{ width: 36, height: 36, borderRadius: 9999, background: "transparent", border: "1.5px solid #1e2d45", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showEmoji ? "#4F8EF7" : "#6B7280", transition: "all 0.15s" }}>
-                <Smile size={16} />
-              </button>
-              <input value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
-                placeholder={`Message ${active.name}…`}
-                style={{ flex: 1, height: 44, padding: "0 16px", background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 12, color: "#F0F4FF", fontFamily: "'DM Sans',sans-serif", fontSize: 14, outline: "none", transition: "border-color 0.2s" }}
-                onFocus={e => e.target.style.borderColor = "#4F8EF7"}
-                onBlur={e => e.target.style.borderColor = "#1e2d45"}
-              />
-              <button className="sb" onClick={() => sendMsg()} disabled={!input.trim() || sending}
-                style={{ width: 44, height: 44, borderRadius: 9999, background: input.trim() && !sending ? "#4F8EF7" : "#1a2235", border: "none", cursor: input.trim() && !sending ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s", boxShadow: input.trim() ? "0 4px 14px rgba(79,142,247,0.3)" : "none" }}>
-                {sending ? <div style={{ width: 16, height: 16, border: "2px solid #374151", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                  : <Send size={16} style={{ color: input.trim() ? "#fff" : "#374151" }} />}
-              </button>
-            </div>
+            {/* Input / Lock Box */}
+            {active.status === "active" ? (
+              <div style={{ padding: "12px 24px", borderTop: "1px solid #1e2d45", background: "#0d1120", display: "flex", alignItems: "center", gap: 10 }}>
+                <button onClick={() => setShowEmoji(s => !s)} style={{ width: 36, height: 36, borderRadius: 9999, background: "transparent", border: "1.5px solid #1e2d45", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showEmoji ? "#4F8EF7" : "#6B7280", transition: "all 0.15s" }}>
+                  <Smile size={16} />
+                </button>
+                <input value={input} onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
+                  placeholder={`Message ${active.name}…`}
+                  style={{ flex: 1, height: 44, padding: "0 16px", background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 12, color: "#F0F4FF", fontFamily: "'DM Sans',sans-serif", fontSize: 14, outline: "none", transition: "border-color 0.2s" }}
+                  onFocus={e => e.target.style.borderColor = "#4F8EF7"}
+                  onBlur={e => e.target.style.borderColor = "#1e2d45"}
+                />
+                <button className="sb" onClick={() => sendMsg()} disabled={!input.trim() || sending}
+                  style={{ width: 44, height: 44, borderRadius: 9999, background: input.trim() && !sending ? "#4F8EF7" : "#1a2235", border: "none", cursor: input.trim() && !sending ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s", boxShadow: input.trim() ? "0 4px 14px rgba(79,142,247,0.3)" : "none" }}>
+                  {sending ? <div style={{ width: 16, height: 16, border: "2px solid #374151", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                    : <Send size={16} style={{ color: input.trim() ? "#fff" : "#374151" }} />}
+                </button>
+              </div>
+            ) : (
+              <div style={{ padding: "16px 24px", borderTop: "1px solid #1e2d45", background: "#090d16", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                <Lock size={15} style={{ color: "#4B5563" }} />
+                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#4B5563", fontWeight: 500 }}>
+                  This conversation has ended. You cannot send messages here.
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           /* No thread selected / empty state */

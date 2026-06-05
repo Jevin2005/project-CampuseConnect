@@ -1,27 +1,29 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
 import { AdCard, AdBannerHorizontal, AdStrip } from "@/components/AdBanner";
 import { INLINE_ADS, OWN_COLLEGE_ADS, HOSTEL_ADS } from "@/lib/adsData";
-import { Search, SlidersHorizontal, TrendingUp, Zap, X } from "lucide-react";
+import { Search, SlidersHorizontal, TrendingUp, Zap, X, Heart, Eye, ChevronLeft, ChevronRight, Play, FileText, Sparkles, Layers } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
 type Category = "All" | "Notes PDF" | "Video Course" | "Physical" | "Ads";
 
 const CATEGORIES: { key: Category; icon: string; color: string; glow: string }[] = [
-  { key: "All",          icon: "🏪", color: "#4F8EF7", glow: "rgba(79,142,247,0.2)" },
-  { key: "Notes PDF",    icon: "📄", color: "#A78BFA", glow: "rgba(167,139,250,0.2)" },
+  { key: "All", icon: "🏪", color: "#4F8EF7", glow: "rgba(79,142,247,0.2)" },
+  { key: "Notes PDF", icon: "📄", color: "#A78BFA", glow: "rgba(167,139,250,0.2)" },
   { key: "Video Course", icon: "🎥", color: "#10B981", glow: "rgba(16,185,129,0.2)" },
-  { key: "Physical",     icon: "🔧", color: "#F59E0B", glow: "rgba(245,158,11,0.2)" },
-  { key: "Ads",          icon: "📢", color: "#F7C948", glow: "rgba(247,201,72,0.2)" },
+  { key: "Physical", icon: "🔧", color: "#F59E0B", glow: "rgba(245,158,11,0.2)" },
+  { key: "Ads", icon: "📢", color: "#F7C948", glow: "rgba(247,201,72,0.2)" },
 ];
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 function mediaUrl(p: string) { return p?.startsWith("http") ? p : `${API}${p}`; }
-function isVideo(p: string)  { return /\.(mp4|webm|ogg|mov)$/i.test(p); }
+function isVideo(p: string) { return /\.(mp4|webm|ogg|mov|mkv|avi)$/i.test((p || "").split("?")[0].toLowerCase()); }
+function isPdf(p: string) { return /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i.test((p || "").split("?")[0].toLowerCase()); }
+function isImage(p: string) { return !isVideo(p) && !isPdf(p); }
 
 interface Product {
   id: string;
@@ -29,6 +31,7 @@ interface Product {
   images: string[];
   title: string;
   price: number;
+  originalPrice?: number;
   category: string;
   seller: { name: string };
   views?: number;
@@ -36,46 +39,175 @@ interface Product {
   badge?: string;
   badgeC?: string;
   hot?: boolean;
+  createdAt?: string;
 }
 
 function getBadge(p: Product): { badge: string; badgeC: string } {
   const cat = (p.category || "").toLowerCase();
   if (p.productType === "physical") return { badge: "Physical", badgeC: "#4F8EF7" };
-  if (cat.includes("video"))        return { badge: "Video",    badgeC: "#10B981" };
+  if (cat.includes("video")) return { badge: "Video", badgeC: "#10B981" };
   return { badge: "Notes PDF", badgeC: "#A78BFA" };
 }
 
 const BADGE_BG: Record<string, string> = {
   "Notes PDF": "rgba(167,139,250,0.15)",
-  "Video":     "rgba(16,185,129,0.15)",
-  "Physical":  "rgba(79,142,247,0.15)",
+  "Video": "rgba(16,185,129,0.15)",
+  "Physical": "rgba(79,142,247,0.15)",
 };
 
 function fallbackIcon(badge: string, cat: string) {
-  if (badge === "Video")    return "🎥";
+  if (badge === "Video") return "🎥";
   if (badge === "Notes PDF") return "📄";
   const c = cat.toLowerCase();
   if (c.includes("electron") || c.includes("laptop")) return "💻";
-  if (c.includes("book") || c.includes("note"))       return "📚";
+  if (c.includes("book") || c.includes("note")) return "📚";
   return "🛍️";
 }
 function fallbackBg(badge: string) {
-  if (badge === "Video")     return "linear-gradient(135deg,#0a1f20,#1b3040)";
+  if (badge === "Video") return "linear-gradient(135deg,#0a1f20,#1b3040)";
   if (badge === "Notes PDF") return "linear-gradient(135deg,#1a0d30,#2d1b4e)";
   return "linear-gradient(135deg,#0d2040,#1e3a5f)";
 }
 
-function ProductCard({ p }: { p: Product }) {
+interface ProductCardProps {
+  p: Product;
+  isSaved?: boolean;
+  onToggleWishlist?: (productId: string) => void;
+}
+
+function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps) {
   const [hov, setHov] = useState(false);
+  const [activeMediaIdx, setActiveMediaIdx] = useState(0);
   const { badge, badgeC } = getBadge(p);
   const href = p.productType === "physical"
     ? `/marketplace/product/${p.id}`
     : `/marketplace/digital/${p.id}`;
 
-  const realImages = (p.images || []).filter(f => !isVideo(f));
-  const realVideos = (p.images || []).filter(f => isVideo(f));
-  const thumb      = realImages[0] ? mediaUrl(realImages[0]) : null;
-  const vidSrc     = realVideos[0] ? mediaUrl(realVideos[0]) : null;
+  const allMedia = p.images || [];
+  const images = allMedia.filter(isImage);
+  const videos = allMedia.filter(isVideo);
+  const pdfs = allMedia.filter(isPdf);
+
+  const carouselMedia = [...images, ...videos, ...pdfs];
+  const totalMedia = carouselMedia.length;
+  const currentMediaUrl = carouselMedia[activeMediaIdx];
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (hov) {
+      video.currentTime = 0; // Reset play pointer to beginning on hover like YouTube
+      video.play().catch(() => { });
+    } else {
+      video.pause();
+      video.currentTime = 0; // Return to starting poster frame when not hovered
+    }
+  }, [hov, currentMediaUrl]);
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setActiveMediaIdx(prev => (prev - 1 + totalMedia) % totalMedia);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setActiveMediaIdx(prev => (prev + 1) % totalMedia);
+  };
+
+  const hasDiscount = typeof p.originalPrice === "number" && p.originalPrice > p.price;
+  const discountPercent = hasDiscount ? Math.round(((p.originalPrice! - p.price) / p.originalPrice!) * 100) : 0;
+
+  let mediaNode = null;
+  if (totalMedia === 0) {
+    mediaNode = (
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 52, filter: hov ? "drop-shadow(0 0 16px rgba(255,255,255,0.25))" : "none", transition: "filter 0.25s" }}>
+          {fallbackIcon(badge, p.category || "")}
+        </span>
+      </div>
+    );
+  } else if (isVideo(currentMediaUrl)) {
+    mediaNode = (
+      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        <video
+          ref={videoRef}
+          muted
+          loop
+          playsInline
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        >
+          <source src={mediaUrl(currentMediaUrl)} />
+        </video>
+
+        {/* Play overlay overlayed over static video image when not hovered */}
+        {!hov && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(0, 0, 0, 0.2)",
+            transition: "background 0.2s",
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: "50%",
+              background: "rgba(17, 24, 39, 0.8)", border: "1px solid rgba(255, 255, 255, 0.15)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", transition: "all 0.25s",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            }}>
+              <Play size={18} style={{ transform: "translateX(2px)", fill: "#fff" }} />
+            </div>
+          </div>
+        )}
+
+        <span style={{ position: "absolute", bottom: 8, right: 8, background: hov ? "rgba(16,185,129,0.9)" : "rgba(17, 24, 39, 0.85)", border: `1px solid ${hov ? "rgba(16,185,129,0.3)" : "rgba(255, 255, 255, 0.1)"}`, borderRadius: 6, padding: "2px 8px", color: hov ? "#fff" : "#9CA3AF", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", gap: 3, transition: "all 0.2s" }}>
+          {hov ? (
+            <>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", animation: "pulse 1.5s ease-in-out infinite" }} />
+              PREVIEWING
+            </>
+          ) : (
+            <>▶ VIDEO</>
+          )}
+        </span>
+      </div>
+    );
+  } else if (isPdf(currentMediaUrl)) {
+    mediaNode = (
+      <div style={{
+        width: "100%", height: "100%",
+        background: "linear-gradient(135deg, #1e1035 0%, #0c081e 100%)",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        padding: "16px", boxSizing: "border-box", position: "relative",
+      }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 12,
+          background: "rgba(167, 139, 250, 0.15)", border: "1px solid rgba(167, 139, 250, 0.3)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#A78BFA", marginBottom: 8, boxShadow: "0 0 12px rgba(167,139,250,0.2)",
+        }}>
+          <FileText size={22} />
+        </div>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700, color: "#F0F4FF", textAlign: "center", width: "90%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>
+          {currentMediaUrl.split("/").pop() || "Document.pdf"}
+        </p>
+        <span style={{ fontSize: 9, color: "#A78BFA", background: "rgba(167, 139, 250, 0.12)", border: "1px solid rgba(167, 139, 250, 0.25)", padding: "2px 7px", borderRadius: 4, marginTop: 6, fontWeight: 700 }}>
+          🔒 SECURE NOTES / PDF
+        </span>
+      </div>
+    );
+  } else {
+    mediaNode = (
+      <img
+        src={mediaUrl(currentMediaUrl)}
+        alt={p.title}
+        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+      />
+    );
+  }
 
   return (
     <Link href={href} style={{ textDecoration: "none" }}>
@@ -83,80 +215,200 @@ function ProductCard({ p }: { p: Product }) {
         onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
         style={{
           borderRadius: 18, overflow: "hidden", cursor: "pointer",
-          border: `1.5px solid ${hov ? "#2a3a5a" : "#1e2d45"}`,
+          border: `1.5px solid ${hov ? "#4F8EF7" : "#1e2d45"}`,
           background: "#111827",
-          boxShadow: hov ? "0 12px 40px rgba(0,0,0,0.4)" : "none",
+          boxShadow: hov ? "0 20px 40px rgba(0,0,0,0.55), 0 0 20px rgba(79, 142, 247, 0.15)" : "none",
           transform: hov ? "translateY(-4px)" : "none",
-          transition: "all 0.25s", display: "flex", flexDirection: "column",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", display: "flex", flexDirection: "column",
+          position: "relative",
         }}
       >
-        <div style={{ height: 170, position: "relative", overflow: "hidden", background: fallbackBg(badge) }}>
-          {thumb && !hov && (
-            <img src={thumb} alt={p.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        {/* Media Container Viewport */}
+        <div style={{ height: 180, position: "relative", overflow: "hidden", background: fallbackBg(badge) }}>
+
+          {/* Active Media Node */}
+          {mediaNode}
+
+          {/* Left/Right Slide Arrows */}
+          {totalMedia > 1 && hov && (
+            <>
+              <button
+                onClick={handlePrev}
+                style={{
+                  position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
+                  width: 28, height: 28, borderRadius: "50%",
+                  background: "rgba(17, 24, 39, 0.75)", border: "1px solid rgba(255, 255, 255, 0.15)",
+                  color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", zIndex: 12, transition: "background 0.2s, transform 0.1s",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = "rgba(17, 24, 39, 0.95)"}
+                onMouseOut={(e) => e.currentTarget.style.background = "rgba(17, 24, 39, 0.75)"}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={handleNext}
+                style={{
+                  position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                  width: 28, height: 28, borderRadius: "50%",
+                  background: "rgba(17, 24, 39, 0.75)", border: "1px solid rgba(255, 255, 255, 0.15)",
+                  color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", zIndex: 12, transition: "background 0.2s, transform 0.1s",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = "rgba(17, 24, 39, 0.95)"}
+                onMouseOut={(e) => e.currentTarget.style.background = "rgba(17, 24, 39, 0.75)"}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </>
           )}
-          {!vidSrc && realImages[1] && hov && (
-            <img src={mediaUrl(realImages[1])} alt={p.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-          )}
-          {!vidSrc && !realImages[1] && thumb && hov && (
-            <img src={thumb} alt={p.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-          )}
-          {vidSrc && hov && (
-            <video autoPlay muted loop playsInline
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}>
-              <source src={vidSrc} />
-            </video>
-          )}
-          {!thumb && !(vidSrc && hov) && (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 52, filter: hov ? "drop-shadow(0 0 16px rgba(255,255,255,0.25))" : "none", transition: "filter 0.25s" }}>
-                {fallbackIcon(badge, p.category)}
-              </span>
+
+          {/* Slide bullets */}
+          {totalMedia > 1 && (
+            <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5, zIndex: 11, background: "rgba(0,0,0,0.4)", padding: "3px 8px", borderRadius: 9999, backdropFilter: "blur(4px)" }}>
+              {carouselMedia.map((_, idx) => (
+                <div
+                  key={idx}
+                  onMouseEnter={(e) => { e.stopPropagation(); e.preventDefault(); setActiveMediaIdx(idx); }}
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); setActiveMediaIdx(idx); }}
+                  style={{
+                    width: activeMediaIdx === idx ? 12 : 5,
+                    height: 5,
+                    borderRadius: 3,
+                    background: activeMediaIdx === idx ? "#4F8EF7" : "rgba(255, 255, 255, 0.4)",
+                    transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                    cursor: "pointer",
+                  }}
+                />
+              ))}
             </div>
           )}
-          {vidSrc && !hov && (
-            <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.75)", borderRadius: 6, padding: "3px 8px", color: "#10B981", fontSize: 10, fontWeight: 700 }}>
-              ▶ Video
-            </div>
-          )}
-          {vidSrc && hov && (
-            <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(16,185,129,0.2)", border: "1px solid #10B981", borderRadius: 6, padding: "3px 8px", color: "#10B981", fontSize: 10, fontWeight: 700 }}>
-              🔴 Live Preview
-            </div>
-          )}
-          <span style={{ position: "absolute", top: 10, left: 10, background: BADGE_BG[badge] || "rgba(79,142,247,0.15)", color: badgeC, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 6 }}>
-            {badge}
-          </span>
-          {p.hot && (
-            <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(239,68,68,0.15)", color: "#EF4444", fontSize: 9, fontWeight: 800, letterSpacing: "1px", padding: "3px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 3 }}>
-              <Zap size={9} />HOT
+
+          {/* Overlay Badges: Left (Category & Hot) */}
+          <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6, zIndex: 10 }}>
+            <span style={{ background: BADGE_BG[badge] || "rgba(79,142,247,0.15)", color: badgeC, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 6, backdropFilter: "blur(6px)", border: `1px solid ${badgeC}30` }}>
+              {badge}
             </span>
+            {p.hot && (
+              <span style={{ background: "rgba(239,68,68,0.15)", color: "#EF4444", fontSize: 9, fontWeight: 800, letterSpacing: "1px", padding: "3px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 3, backdropFilter: "blur(6px)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                <Zap size={9} />HOT
+              </span>
+            )}
+          </div>
+
+          {/* Wishlist Heart overlay on the top right */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (onToggleWishlist) onToggleWishlist(p.id);
+            }}
+            style={{
+              position: "absolute", top: 10, right: 10, zIndex: 11,
+              width: 32, height: 32, borderRadius: "50%",
+              background: isSaved ? "rgba(239, 68, 68, 0.18)" : "rgba(17, 24, 39, 0.6)",
+              border: `1px solid ${isSaved ? "rgba(239, 68, 68, 0.45)" : "rgba(255, 255, 255, 0.25)"}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", transition: "all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+              backdropFilter: "blur(4px)",
+              boxShadow: isSaved ? "0 0 10px rgba(239, 68, 68, 0.25)" : "none",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)";
+              if (!isSaved) e.currentTarget.style.background = "rgba(17, 24, 39, 0.85)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              if (!isSaved) e.currentTarget.style.background = "rgba(17, 24, 39, 0.6)";
+            }}
+          >
+            <Heart size={14} style={{ color: isSaved ? "#EF4444" : "#fff", fill: isSaved ? "#EF4444" : "none" }} />
+          </button>
+
+          {/* Attachment Type and Counts (e.g. 🖼️ 2, 🎥 1, 📄 1 capsule overlay) */}
+          {totalMedia > 0 && (
+            <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4, zIndex: 10 }}>
+              {images.length > 0 && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(17, 24, 39, 0.75)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", color: "#E0E7FF", fontSize: 9, fontWeight: 700, backdropFilter: "blur(4px)" }}>
+                  🖼️ {images.length}
+                </span>
+              )}
+              {videos.length > 0 && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(17, 24, 39, 0.75)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", color: "#E0E7FF", fontSize: 9, fontWeight: 700, backdropFilter: "blur(4px)" }}>
+                  🎥 {videos.length}
+                </span>
+              )}
+              {pdfs.length > 0 && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(17, 24, 39, 0.75)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", color: "#E0E7FF", fontSize: 9, fontWeight: 700, backdropFilter: "blur(4px)" }}>
+                  📄 {pdfs.length}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
+        {/* Content Details area */}
         <div style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-              {(p.seller?.name || "U").split(" ").map((w: string) => w[0]).join("")}
+
+          {/* Seller profile and views count row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                {(p.seller?.name || "U").split(" ").filter(Boolean).map((w: string) => w[0]).join("")}
+              </div>
+              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#9CA3AF" }}>{p.seller?.name || "Anonymous"}</span>
             </div>
-            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280" }}>{p.seller?.name || "Anonymous"}</span>
+            {typeof p.views === "number" && p.views > 0 && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#6B7280" }}>
+                <Eye size={11} /> {p.views}
+              </span>
+            )}
           </div>
-          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+
+          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, minHeight: 40 }}>
             {p.title}
           </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-            <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#10B981" }}>
-              ₹{p.price.toLocaleString("en-IN")}
-            </span>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 4 }}>
+
+            {/* Price with Original Price Strikethrough & savings percentage */}
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#10B981" }}>
+                  ₹{p.price.toLocaleString("en-IN")}
+                </span>
+                {hasDiscount && (
+                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", textDecoration: "line-through" }}>
+                    ₹{p.originalPrice!.toLocaleString("en-IN")}
+                  </span>
+                )}
+              </div>
+              {hasDiscount && (
+                <span style={{ fontSize: 9, fontWeight: 800, color: "#EF4444", background: "rgba(239,68,68,0.1)", padding: "1px 6px", borderRadius: 4, width: "fit-content", marginTop: 2 }}>
+                  {discountPercent}% OFF
+                </span>
+              )}
+            </div>
+
             <button style={{
               height: 32, padding: "0 14px", borderRadius: 9999,
               background: badge === "Video" ? "rgba(16,185,129,0.12)" : badge === "Notes PDF" ? "rgba(167,139,250,0.12)" : "rgba(79,142,247,0.12)",
               border: `1px solid ${badge === "Video" ? "rgba(16,185,129,0.3)" : badge === "Notes PDF" ? "rgba(167,139,250,0.3)" : "rgba(79,142,247,0.3)"}`,
               color: badge === "Video" ? "#10B981" : badge === "Notes PDF" ? "#A78BFA" : "#4F8EF7",
               fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer",
-            }}>
+              transition: "all 0.2s",
+            }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = badge === "Video" ? "#10B981" : badge === "Notes PDF" ? "#7C3AED" : "#4F8EF7";
+                e.currentTarget.style.color = "#fff";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = badge === "Video" ? "rgba(16,185,129,0.12)" : badge === "Notes PDF" ? "rgba(167,139,250,0.12)" : "rgba(79,142,247,0.12)";
+                e.currentTarget.style.color = badge === "Video" ? "#10B981" : badge === "Notes PDF" ? "#A78BFA" : "#4F8EF7";
+              }}
+            >
               {p.productType === "physical" ? "View →" : badge === "Notes PDF" ? "Buy PDF" : "Enroll"}
             </button>
           </div>
@@ -180,14 +432,14 @@ function normProduct(p: any): Product {
 
 // Demo products as fallback (shown while API loads)
 const DEMO: Product[] = [
-  { id:"1", productType:"physical", images:[], badge:"Physical", badgeC:"#4F8EF7", seller:{name:"Rahul S."}, title:"Dell Latitude i5 Laptop", price:18000, views:450, category:"Electronics", hot:true },
-  { id:"2", productType:"digital", images:[], badge:"Notes PDF", badgeC:"#A78BFA", seller:{name:"Arjun M."}, title:"GATE 2024 ECE Notes", price:299, views:120, category:"Notes PDF", hot:true },
-  { id:"3", productType:"digital", images:[], badge:"Video", badgeC:"#10B981", seller:{name:"Priya K."}, title:"Advanced DSP Full Course", price:499, views:230, category:"Video Course", hot:false },
-  { id:"4", productType:"physical", images:[], badge:"Physical", badgeC:"#4F8EF7", seller:{name:"Sneha P."}, title:"Engineering Drawing Kit", price:450, views:88, category:"Equipment", hot:false },
-  { id:"5", productType:"digital", images:[], badge:"Notes PDF", badgeC:"#A78BFA", seller:{name:"Vijay R."}, title:"Thermodynamics Notes", price:149, views:67, category:"Notes PDF", hot:false },
-  { id:"6", productType:"digital", images:[], badge:"Video", badgeC:"#10B981", seller:{name:"Dev G."}, title:"Python ML Bootcamp 2024", price:799, views:340, category:"Video Course", hot:true },
-  { id:"7", productType:"physical", images:[], badge:"Physical", badgeC:"#4F8EF7", seller:{name:"Meera T."}, title:"Sony WH-1000XM4", price:14000, views:55, category:"Electronics", hot:false },
-  { id:"8", productType:"digital", images:[], badge:"Notes PDF", badgeC:"#A78BFA", seller:{name:"Raj K."}, title:"Engg Maths Handwritten", price:199, views:99, category:"Notes PDF", hot:true },
+  { id: "1", productType: "physical", images: [], badge: "Physical", badgeC: "#4F8EF7", seller: { name: "Rahul S." }, title: "Dell Latitude i5 Laptop", price: 18000, views: 450, category: "Electronics", hot: true },
+  { id: "2", productType: "digital", images: [], badge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Arjun M." }, title: "GATE 2024 ECE Notes", price: 299, views: 120, category: "Notes PDF", hot: true },
+  { id: "3", productType: "digital", images: [], badge: "Video", badgeC: "#10B981", seller: { name: "Priya K." }, title: "Advanced DSP Full Course", price: 499, views: 230, category: "Video Course", hot: false },
+  { id: "4", productType: "physical", images: [], badge: "Physical", badgeC: "#4F8EF7", seller: { name: "Sneha P." }, title: "Engineering Drawing Kit", price: 450, views: 88, category: "Equipment", hot: false },
+  { id: "5", productType: "digital", images: [], badge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Vijay R." }, title: "Thermodynamics Notes", price: 149, views: 67, category: "Notes PDF", hot: false },
+  { id: "6", productType: "digital", images: [], badge: "Video", badgeC: "#10B981", seller: { name: "Dev G." }, title: "Python ML Bootcamp 2024", price: 799, views: 340, category: "Video Course", hot: true },
+  { id: "7", productType: "physical", images: [], badge: "Physical", badgeC: "#4F8EF7", seller: { name: "Meera T." }, title: "Sony WH-1000XM4", price: 14000, views: 55, category: "Electronics", hot: false },
+  { id: "8", productType: "digital", images: [], badge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Raj K." }, title: "Engg Maths Handwritten", price: 199, views: 99, category: "Notes PDF", hot: true },
 ] as any;
 
 export default function MarketplacePage() {
@@ -202,6 +454,7 @@ export default function MarketplacePage() {
   const [allProducts, setAllProducts] = useState<Product[]>(DEMO as any);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [wishlistIds, setWishlistIds] = useState<string[]>([]);
 
   useEffect(() => {
     api.get("/api/marketplace/products?limit=100")
@@ -212,8 +465,15 @@ export default function MarketplacePage() {
         }
         if (typeof data?.total === 'number') setTotalCount(data.total);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
+
+    api.get("/api/marketplace/wishlist")
+      .then(res => {
+        const ids = (res.data || []).map((item: any) => item.product?.id || item.productId);
+        setWishlistIds(ids.filter(Boolean));
+      })
+      .catch(() => { });
   }, []);
 
   const filtered = allProducts.filter(p => {
@@ -230,7 +490,11 @@ export default function MarketplacePage() {
     if (sort === "Price: Low to High") return a.price - b.price;
     if (sort === "Price: High to Low") return b.price - a.price;
     if (sort === "Most Popular") return (b.views || 0) - (a.views || 0);
-    return 0;
+
+    // Sort by newest listing by default
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
@@ -475,7 +739,24 @@ export default function MarketplacePage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 22, marginBottom: 40 }}>
               {gridItems.map((item, idx) =>
                 item.kind === "product"
-                  ? <ProductCard key={`p-${item.data.id}`} p={item.data} />
+                  ? <ProductCard
+                    key={`p-${item.data.id}`}
+                    p={item.data}
+                    isSaved={wishlistIds.includes(item.data.id)}
+                    onToggleWishlist={async (productId) => {
+                      if (wishlistIds.includes(productId)) {
+                        try {
+                          await api.delete(`/api/marketplace/wishlist/${productId}`);
+                          setWishlistIds(ids => ids.filter(id => id !== productId));
+                        } catch (e) { }
+                      } else {
+                        try {
+                          await api.post(`/api/marketplace/wishlist`, { productId });
+                          setWishlistIds(ids => [...ids, productId]);
+                        } catch (e) { }
+                      }
+                    }}
+                  />
                   : <AdCard key={`ad-${item.data.id}-${idx}`} ad={item.data} />
               )}
               {filtered.length === 0 && (

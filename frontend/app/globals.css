@@ -74,9 +74,11 @@ body {
 .font-display {
   font-family: var(--font-display);
 }
+
 .font-body {
   font-family: var(--font-body);
 }
+
 .font-mono {
   font-family: var(--font-mono);
 }
@@ -403,23 +405,47 @@ body {
    ANIMATIONS
 ══════════════════════════════════════════════ */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes bounce-slow {
-  0%, 100% { transform: translateX(-50%) translateY(0);   }
-  50%       { transform: translateX(-50%) translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(-8px);
+  }
 }
 
 @keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-fadeInUp {
@@ -439,14 +465,37 @@ body {
 }
 
 /* Staggered animation delays */
-.delay-100 { animation-delay: 0.1s; }
-.delay-200 { animation-delay: 0.2s; }
-.delay-300 { animation-delay: 0.3s; }
-.delay-400 { animation-delay: 0.4s; }
-.delay-500 { animation-delay: 0.5s; }
-.delay-600 { animation-delay: 0.6s; }
-.delay-700 { animation-delay: 0.7s; }
-.delay-800 { animation-delay: 0.8s; }
+.delay-100 {
+  animation-delay: 0.1s;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-300 {
+  animation-delay: 0.3s;
+}
+
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+.delay-500 {
+  animation-delay: 0.5s;
+}
+
+.delay-600 {
+  animation-delay: 0.6s;
+}
+
+.delay-700 {
+  animation-delay: 0.7s;
+}
+
+.delay-800 {
+  animation-delay: 0.8s;
+}
 
 /* ══════════════════════════════════════════════
    DIVIDERS
@@ -475,11 +524,25 @@ body {
   flex-shrink: 0;
 }
 
-.icon-box-blue { background: rgba(79, 142, 247, 0.15); }
-.icon-box-green { background: rgba(16, 185, 129, 0.15); }
-.icon-box-gold { background: rgba(247, 201, 72, 0.15); }
-.icon-box-purple { background: rgba(124, 58, 237, 0.15); }
-.icon-box-orange { background: rgba(245, 158, 11, 0.15); }
+.icon-box-blue {
+  background: rgba(79, 142, 247, 0.15);
+}
+
+.icon-box-green {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.icon-box-gold {
+  background: rgba(247, 201, 72, 0.15);
+}
+
+.icon-box-purple {
+  background: rgba(124, 58, 237, 0.15);
+}
+
+.icon-box-orange {
+  background: rgba(245, 158, 11, 0.15);
+}
 
 /* ══════════════════════════════════════════════
    LAYOUT HELPERS
@@ -580,19 +643,19 @@ body {
 .gradient-border-blue {
   border: 1px solid transparent;
   background: linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
-              linear-gradient(135deg, rgba(79, 142, 247, 0.5), rgba(79, 142, 247, 0.05)) border-box;
+    linear-gradient(135deg, rgba(79, 142, 247, 0.5), rgba(79, 142, 247, 0.05)) border-box;
 }
 
 .gradient-border-purple {
   border: 1px solid transparent;
   background: linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
-              linear-gradient(135deg, rgba(124, 58, 237, 0.5), rgba(124, 58, 237, 0.05)) border-box;
+    linear-gradient(135deg, rgba(124, 58, 237, 0.5), rgba(124, 58, 237, 0.05)) border-box;
 }
 
 .gradient-border-gold {
   border: 1px solid transparent;
   background: linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
-              linear-gradient(135deg, rgba(247, 201, 72, 0.5), rgba(247, 201, 72, 0.05)) border-box;
+    linear-gradient(135deg, rgba(247, 201, 72, 0.5), rgba(247, 201, 72, 0.05)) border-box;
 }
 
 /* ══════════════════════════════════════════════
@@ -618,3 +681,398 @@ body {
   background: var(--bg-card);
   border-top: 1px solid var(--border);
 }
+
+/* ══════════════════════════════════════════════
+   MOBILE LANDING PAGE RESPONSIVE STYLES
+   ⚠️ ALL RULES INSIDE max-width:768px — desktop untouched
+══════════════════════════════════════════════ */
+
+/* ── Hero Section ── */
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: auto !important;
+    padding: 80px 20px 60px !important;
+  }
+
+  .hero-badge {
+    font-size: 12px !important;
+    padding: 5px 14px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .hero-h1 {
+    font-size: clamp(30px, 8vw, 42px) !important;
+    letter-spacing: -1.2px !important;
+    max-width: 100% !important;
+    text-align: center !important;
+  }
+
+  .hero-sub {
+    font-size: 14px !important;
+    max-width: 100% !important;
+    margin-top: 14px !important;
+    text-align: center !important;
+  }
+
+  .hero-ctas {
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+    margin-top: 28px !important;
+  }
+
+  .hero-ctas a {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 14px 20px !important;
+    font-size: 15px !important;
+  }
+}
+
+/* ── Stats Row ── */
+@media (max-width: 768px) {
+  .stats-row {
+    gap: 0 !important;
+    margin-top: 32px !important;
+  }
+
+  .stats-row .stat-item {
+    padding: 0 20px !important;
+  }
+
+  .stats-row .stat-number {
+    font-size: 24px !important;
+  }
+}
+
+/* ── Features Section ── */
+@media (max-width: 768px) {
+  .features-section {
+    padding: 60px 20px !important;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .features-heading {
+    margin-bottom: 36px !important;
+  }
+}
+
+/* ── How It Works ── */
+@media (max-width: 768px) {
+  .hiw-section {
+    padding: 60px 20px !important;
+  }
+
+  .hiw-connector {
+    display: none !important;
+  }
+
+  .hiw-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .hiw-step {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    gap: 16px !important;
+  }
+
+  .hiw-step-icon {
+    width: 64px !important;
+    height: 64px !important;
+    font-size: 28px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .hiw-step-text {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  .hiw-learn-more {
+    margin-top: 36px !important;
+  }
+}
+
+/* ── Product Types ── */
+@media (max-width: 768px) {
+  .pt-section {
+    padding: 60px 20px !important;
+  }
+
+  .pt-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+/* ── College CTA ── */
+@media (max-width: 768px) {
+  .cta-section {
+    padding: 0 20px 72px !important;
+  }
+
+  .cta-box {
+    padding: 40px 24px !important;
+    border-radius: 16px !important;
+  }
+
+  .cta-box h2 {
+    font-size: clamp(18px, 5vw, 24px) !important;
+  }
+
+  .cta-box a {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── Mobile bottom nav padding (so content isn't hidden) ── */
+@media (max-width: 768px) {
+  .landing-page-wrapper {
+    padding-bottom: 0;
+  }
+}
+
+/* ── Feature card mobile ── */
+@media (max-width: 768px) {
+  .feature-card-mobile {
+    padding: 20px !important;
+  }
+}
+
+/* ── Section heading mobile ── */
+@media (max-width: 768px) {
+  .section-heading-center {
+    margin-bottom: 36px !important;
+  }
+
+  .section-label {
+    font-size: 10px !important;
+  }
+
+  .section-title {
+    font-size: clamp(20px, 5.5vw, 26px) !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOGIN PAGE — MOBILE VIEW
+   ⚠️ ALL RULES ARE INSIDE @media (max-width: 768px)
+   ⚠️ Desktop view is 100% untouched
+══════════════════════════════════════════════════════════════ */
+
+/* ── These elements are hidden on desktop, shown on mobile ── */
+.sl-mobile-top     { display: none; }
+
+@media (max-width: 768px) {
+
+  /* ── 1. Page grid: kill the 2-col, go full single column ── */
+  .sl-page-grid {
+    grid-template-columns: 1fr !important;
+    min-height: 100vh !important;
+    background: #0A0E1A !important;
+    position: relative !important;
+  }
+
+  /* ── 2. Hide the left decorative illustration panel ── */
+  .sl-left-panel {
+    display: none !important;
+  }
+
+  /* ── 3. Right form panel becomes full viewport ── */
+  .sl-right-panel {
+    padding: 0 !important;
+    justify-content: flex-start !important;
+    min-height: 100vh !important;
+    background: #0A0E1A !important;
+    overflow-y: auto !important;
+    padding-bottom: 20px !important;
+  }
+
+  /* ── 4. Mobile top header (logo + welcome) ── */
+  .sl-mobile-top {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 48px 24px 28px !important;
+    text-align: center !important;
+  }
+
+  .sl-mobile-logo {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    text-decoration: none !important;
+    margin-bottom: 22px !important;
+  }
+
+  .sl-mobile-logo-icon {
+    width: 30px !important;
+    height: 30px !important;
+    background: rgba(79,142,247,0.15) !important;
+    border: 1px solid rgba(79,142,247,0.35) !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 15px !important;
+  }
+
+  .sl-mobile-logo-text {
+    font-family: 'Sora', sans-serif !important;
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+  }
+
+  .sl-mobile-logo-campus  { color: #F0F4FF !important; }
+  .sl-mobile-logo-connect { color: #4F8EF7 !important; }
+
+  .sl-mobile-heading {
+    font-family: 'Sora', sans-serif !important;
+    font-size: 26px !important;
+    font-weight: 800 !important;
+    color: #F0F4FF !important;
+    margin-bottom: 8px !important;
+    letter-spacing: -0.5px !important;
+  }
+
+  .sl-mobile-sub {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 14px !important;
+    color: #9CA3AF !important;
+    line-height: 1.55 !important;
+  }
+
+  /* ── 5. Hide desktop logo inside right panel ── */
+  .sl-desktop-logo {
+    display: none !important;
+  }
+
+  /* ── 6. Hide desktop heading (shown in mobile header instead) ── */
+  .sl-desktop-heading {
+    display: none !important;
+  }
+  .sl-desktop-sub {
+    display: none !important;
+  }
+
+  /* ── 7. Form body: scroll area with padding ── */
+  .sl-form-body {
+    padding: 0 20px 24px !important;
+  }
+
+  /* ── 8. Login form card ── */
+  .sl-form-card {
+    background: #111827 !important;
+    border: 1px solid #1e2d45 !important;
+    border-radius: 18px !important;
+    padding: 22px 20px 26px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* ── 9. Tab switcher: underline style (not filled pill) ── */
+  .sl-tabs-wrap {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid #1e2d45 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin-bottom: 22px !important;
+    gap: 0 !important;
+  }
+
+  .sl-tab-btn {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    height: auto !important;
+    padding: 10px 0 12px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #6B7280 !important;
+    cursor: pointer !important;
+    margin-bottom: -1px !important;
+    transition: all 0.2s !important;
+    flex: 1 !important;
+  }
+
+  .sl-tab-btn.sl-tab-active {
+    color: #F0F4FF !important;
+    border-bottom-color: #F0F4FF !important;
+    font-weight: 700 !important;
+  }
+
+  /* ── 10. Sign In button: bigger, brighter ── */
+  .sl-submit-btn {
+    height: 54px !important;
+    font-size: 16px !important;
+    border-radius: 9999px !important;
+    background: #4F8EF7 !important;
+    box-shadow: 0 4px 20px rgba(79,142,247,0.4) !important;
+    color: #fff !important;
+    border: none !important;
+    cursor: pointer !important;
+    width: 100% !important;
+  }
+
+  .sl-submit-btn:disabled {
+    background: #1a2235 !important;
+    box-shadow: none !important;
+    color: #6B7280 !important;
+    cursor: not-allowed !important;
+  }
+
+  /* ── 11. OR divider: hide on mobile ── */
+  .sl-divider {
+    display: none !important;
+  }
+
+  /* ── 12. Register + Admin links: plain centered, no box ── */
+  .sl-register-box {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+    margin-top: 20px !important;
+  }
+
+  .sl-register-box p {
+    display: none !important;
+  }
+
+  .sl-register-link {
+    display: block !important;
+    text-align: center !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #4F8EF7 !important;
+    text-decoration: none !important;
+    padding: 10px 0 !important;
+  }
+
+  .sl-admin-link-wrap {
+    text-align: center !important;
+    margin-top: 12px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .sl-admin-link {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #9CA3AF !important;
+    text-decoration: none !important;
+  }
+}

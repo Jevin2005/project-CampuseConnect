@@ -16,14 +16,14 @@ const NAV = [
   {
     group: "Marketplace",
     items: [
-      { href: "/marketplace",           icon: <LayoutDashboard size={16} />, label: "Browse",         badge: null },
-      { href: "/marketplace/listings",  icon: <Package size={16} />,         label: "My Listings",    badge: null },
-      { href: "/marketplace/requests",  icon: <Bell size={16} />,            label: "Requests",       badge: "🔔" },
-      { href: "/marketplace/inbox",     icon: <MessageCircle size={16} />,   label: "Inbox",          badge: null },
-      { href: "/marketplace/purchases", icon: <ShoppingBag size={16} />,     label: "My Purchases",   badge: null },
-      { href: "/marketplace/wishlist",  icon: <Heart size={16} />,           label: "Wishlist",       badge: null },
-      { href: "/marketplace/profile",   icon: <User size={16} />,            label: "My Profile",     badge: null },
-      { href: "/marketplace/ads",       icon: <Megaphone size={16} />,       label: "Advertisements", badge: "📢" },
+      { href: "/marketplace", icon: <LayoutDashboard size={16} />, label: "Browse", badge: null },
+      { href: "/marketplace/listings", icon: <Package size={16} />, label: "My Listings", badge: null },
+      { href: "/marketplace/requests", icon: <Bell size={16} />, label: "Requests", badge: "🔔" },
+      { href: "/marketplace/inbox", icon: <MessageCircle size={16} />, label: "Inbox", badge: null },
+      { href: "/marketplace/purchases", icon: <ShoppingBag size={16} />, label: "My Purchases", badge: null },
+      { href: "/marketplace/wishlist", icon: <Heart size={16} />, label: "Wishlist", badge: null },
+      { href: "/marketplace/profile", icon: <User size={16} />, label: "My Profile", badge: null },
+      { href: "/marketplace/ads", icon: <Megaphone size={16} />, label: "Advertisements", badge: "📢" },
     ],
   },
 ];
@@ -59,15 +59,15 @@ function NavItem({ href, icon, label, badge, active }: {
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 function gToken() { return typeof window !== "undefined" ? localStorage.getItem("token") || "" : ""; }
-function inits(n: string) { return (n||"?").split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
+function inits(n: string) { return (n || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase(); }
 
 export function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router   = useRouter();
+  const router = useRouter();
   const clearAuth = useAuthStore((s) => s.clearAuth);
-  const user      = useAuthStore((s) => s.user);
-  const [searchVal,   setSearchVal]   = useState("");
-  const [notifOpen,   setNotifOpen]   = useState(false);
+  const user = useAuthStore((s) => s.user);
+  const [searchVal, setSearchVal] = useState("");
+  const [notifOpen, setNotifOpen] = useState(false);
   const [stats, setStats] = useState<{ listed: number; sold: number; revenue: number } | null>(null);
 
   useEffect(() => {
@@ -76,13 +76,13 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
         const d = res.data;
         if (d?.stats) setStats({ listed: d.stats.listed, sold: d.stats.sold, revenue: d.stats.revenue });
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const NOTIFS = [
-    { text: "Your GATE Notes listing got 12 new views", time: "2m ago",  dot: "#4F8EF7" },
-    { text: "Arjun M. sent you a message about Laptop",  time: "18m ago", dot: "#10B981" },
-    { text: "Admin approved your DSP Video Course",       time: "1h ago",  dot: "#A78BFA" },
+    { text: "Your GATE Notes listing got 12 new views", time: "2m ago", dot: "#4F8EF7" },
+    { text: "Arjun M. sent you a message about Laptop", time: "18m ago", dot: "#10B981" },
+    { text: "Admin approved your DSP Video Course", time: "1h ago", dot: "#A78BFA" },
   ];
 
   const handleLogout = async () => {
@@ -222,9 +222,9 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
           }}>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "1.2px", color: "#374151", textTransform: "uppercase", marginBottom: 10 }}>Your Activity</p>
             {[
-              { label: "Active Listings", value: stats ? String(stats.listed)                          : "–", color: "#4F8EF7" },
-              { label: "Total Sales",      value: stats ? String(stats.sold)                            : "–", color: "#10B981" },
-              { label: "Revenue Earned",   value: stats ? `₹${stats.revenue.toLocaleString("en-IN")}` : "–", color: "#F7C948" },
+              { label: "Active Listings", value: stats ? String(stats.listed) : "–", color: "#4F8EF7" },
+              { label: "Total Sales", value: stats ? String(stats.sold) : "–", color: "#10B981" },
+              { label: "Revenue Earned", value: stats ? `₹${stats.revenue.toLocaleString("en-IN")}` : "–", color: "#F7C948" },
             ].map(s => (
               <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280" }}>{s.label}</span>
@@ -306,12 +306,12 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
             <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: "#9CA3AF" }}>
               {pathname === "/marketplace" ? "Marketplace"
                 : pathname.includes("/listings") ? "My Listings"
-                : pathname.includes("/purchases") ? "My Purchases"
-                : pathname.includes("/profile") ? "My Profile"
-                : pathname.includes("/sell") ? "Sell Product"
-                : pathname.includes("/product") ? "Product Details"
-                : pathname.includes("/digital") ? "Digital Content"
-                : "Marketplace"}
+                  : pathname.includes("/purchases") ? "My Purchases"
+                    : pathname.includes("/profile") ? "My Profile"
+                      : pathname.includes("/sell") ? "Sell Product"
+                        : pathname.includes("/product") ? "Product Details"
+                          : pathname.includes("/digital") ? "Digital Content"
+                            : "Marketplace"}
             </span>
           </div>
 

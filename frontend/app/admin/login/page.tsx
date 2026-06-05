@@ -40,9 +40,13 @@ export default function AdminLoginPage() {
 
       router.push('/admin/dashboard');
     } catch (err: unknown) {
-      const resp = (err as { response?: { status?: number; data?: { message?: string } } })?.response;
+      const resp = (err as { response?: { status?: number; data?: { message?: string; status?: string } } })?.response;
       if (resp?.status === 403) {
-        setIsPending(true);
+        if (resp?.data?.status === 'EMAIL_UNVERIFIED') {
+          setError('Your email is not verified yet. Please complete registration and verify your email address.');
+        } else {
+          setIsPending(true);
+        }
       } else {
         setError(resp?.data?.message ?? 'Invalid credentials. Please check your email, college code, and password.');
       }

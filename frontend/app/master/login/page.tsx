@@ -8,11 +8,11 @@ import { useAuthStore } from '@/store/authStore';
 export default function MasterLoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
