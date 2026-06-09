@@ -9,6 +9,7 @@ import {
   LayoutDashboard, Package, ShoppingBag, User,
   Plus, LogOut, Bell, Search,
   ChevronRight, Megaphone, HelpCircle, Heart, MessageCircle,
+  Menu, X, BookOpen,
 } from "lucide-react";
 
 /* ─── Nav groups ──────────────────────────────────────────── */
@@ -69,6 +70,8 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
   const [searchVal, setSearchVal] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
   const [stats, setStats] = useState<{ listed: number; sold: number; revenue: number } | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   useEffect(() => {
     api.get("/api/marketplace/me")
@@ -96,13 +99,127 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
       ? pathname === "/marketplace"
       : pathname.startsWith(href.split("?")[0]);
 
+  // Safe checks for URL params on client-side
+  const query = typeof window !== "undefined" ? window.location.search : "";
+  const isHomeActive = pathname === "/marketplace" && !query.includes("category=");
+  const isMarketActive = pathname === "/marketplace" && query.includes("category=Physical");
+  const isStudyActive = pathname === "/marketplace" && (query.includes("category=Notes") || query.includes("category=Video"));
+  const isAccountActive = pathname.startsWith("/marketplace/profile");
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0A0E1A", fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="sl-layout-container" style={{ display: "flex", minHeight: "100vh", background: "#0A0E1A", fontFamily: "'DM Sans', sans-serif" }}>
+
+      {/* ── Mobile styles for layout responsive design ── */}
+      <style>{`
+        .sl-mobile-header { display: none; }
+        .sl-bottom-nav { display: none; }
+        .sl-mobile-drawer-overlay { display: none; }
+
+        @media (max-width: 768px) {
+          .sl-sidebar-desktop {
+            display: none !important;
+          }
+          .sl-header-desktop {
+            display: none !important;
+          }
+          .sl-layout-container {
+            flex-direction: column !important;
+          }
+          .sl-main-content {
+            padding-bottom: 70px !important; /* space for fixed bottom nav */
+          }
+          .sl-mobile-header {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            height: 56px !important;
+            background: #0d1120 !important;
+            border-bottom: 1px solid #1e2d45 !important;
+            padding: 0 16px !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 40 !important;
+          }
+          
+          /* Bottom Navigation */
+          .sl-bottom-nav {
+            display: flex !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 60px !important;
+            background: rgba(13, 17, 32, 0.96) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-top: 1px solid #1e2d45 !important;
+            z-index: 40 !important;
+            justify-content: space-around !important;
+            align-items: center !important;
+            padding-bottom: env(safe-area-inset-bottom) !important;
+          }
+          .sl-main-content footer {
+            flex-direction: column !important;
+            gap: 10px !important;
+            text-align: center !important;
+            padding: 20px 20px 80px !important; /* spacing for bottom nav bar */
+          }
+          .sl-main-content footer div {
+            justify-content: center !important;
+          }
+          .sl-bnav-item {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 3px !important;
+            color: #6B7280 !important;
+            text-decoration: none !important;
+            font-size: 10px !important;
+            font-weight: 500 !important;
+            flex: 1 !important;
+            transition: color 0.2s !important;
+          }
+          .sl-bnav-item.active {
+            color: #4F8EF7 !important;
+          }
+          .sl-bnav-icon {
+            font-size: 18px !important;
+          }
+          
+          /* Mobile Drawer */
+          .sl-mobile-drawer-overlay {
+            display: flex !important;
+            position: fixed !important;
+            inset: 0 !important;
+            background: rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(4px) !important;
+            z-index: 9999 !important;
+            justify-content: flex-end !important;
+          }
+          .sl-mobile-drawer {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 290px !important;
+            height: 100% !important;
+            background: #0d1120 !important;
+            border-left: 1px solid #1e2d45 !important;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5) !important;
+            padding: 20px !important;
+            box-sizing: border-box !important;
+            overflow-y: auto !important;
+            animation: slSlideIn 0.25s ease-out !important;
+          }
+          @keyframes slSlideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+          }
+        }
+      `}</style>
 
       {/* ════════════════════════════════════════════════════
           SIDEBAR
       ════════════════════════════════════════════════════ */}
-      <aside style={{
+      <aside className="sl-sidebar-desktop" style={{
         width: 248, flexShrink: 0,
         background: "#0d1120",
         borderRight: "1px solid #1e2d45",
@@ -285,13 +402,214 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
+      {/* ── MOBILE Header ── */}
+      <div className="sl-mobile-header">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Link href="/marketplace/profile" style={{ textDecoration: "none", display: "flex" }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: "50%",
+              overflow: "hidden",
+              border: "1.5px solid rgba(255, 255, 255, 0.15)",
+              background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+            }}>
+              <img
+                src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=100"
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </div>
+          </Link>
+          <Link href="/marketplace" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
+            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
+            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 800, color: "#4F8EF7", letterSpacing: "-0.5px" }}>Connect</span>
+          </Link>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={() => setMobileSearchOpen(v => !v)}
+            style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
+          >
+            <Search size={20} />
+          </button>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
+          >
+            <Menu size={20} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── MOBILE Search Dropdown ── */}
+      {mobileSearchOpen && (
+        <div style={{
+          position: "fixed", top: 56, left: 0, right: 0,
+          background: "#0d1120", borderBottom: "1px solid #1e2d45",
+          padding: "10px 16px", zIndex: 35, display: "flex", alignItems: "center", gap: 8,
+          boxShadow: "0 8px 20px rgba(0,0,0,0.4)"
+        }}>
+          <div style={{
+            flex: 1, display: "flex", alignItems: "center", gap: 8,
+            background: "#111827", border: "1.5px solid #1e2d45",
+            borderRadius: 10, padding: "6px 12px",
+          }}>
+            <Search size={14} style={{ color: "#6B7280" }} />
+            <input
+              value={searchVal}
+              onChange={e => setSearchVal(e.target.value)}
+              placeholder="Search marketplace…"
+              onKeyDown={e => {
+                if (e.key === "Enter" && searchVal) {
+                  router.push(`/marketplace?search=${searchVal}`);
+                  setMobileSearchOpen(false);
+                }
+              }}
+              style={{
+                background: "transparent", border: "none", outline: "none",
+                fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F0F4FF",
+                width: "100%",
+              }}
+            />
+          </div>
+          <button
+            onClick={() => setMobileSearchOpen(false)}
+            style={{ background: "none", border: "none", color: "#4F8EF7", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* ── MOBILE Drawer Menu ── */}
+      {drawerOpen && (
+        <div className="sl-mobile-drawer-overlay" onClick={() => setDrawerOpen(false)}>
+          <div className="sl-mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#F0F4FF" }}>Campus</span>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#4F8EF7" }}>Connect</span>
+              </div>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{
+              background: "rgba(79,142,247,0.05)", border: "1px solid #1e2d45",
+              borderRadius: 12, padding: "14px", marginBottom: 20
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 800, color: "#fff"
+                }}>{inits(user?.name || "")}</div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "#F0F4FF", margin: 0 }}>{user?.name || "Student"}</p>
+                  <p style={{ fontSize: 10, color: "#10B981", fontWeight: 700, margin: "2px 0 0" }}>✓ VERIFIED STUDENT</p>
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "#6B7280", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                🏛 {user?.collegeName || "Your College"}
+              </p>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              {NAV.map(group => (
+                <div key={group.group} style={{ marginBottom: 14 }}>
+                  <p style={{
+                    fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 700,
+                    letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase",
+                    padding: "4px 8px", margin: "0 0 6px"
+                  }}>{group.group}</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {group.items.map(item => {
+                      const active = isActive(item.href);
+                      return (
+                        <Link key={item.href} href={item.href} onClick={() => setDrawerOpen(false)} style={{ textDecoration: "none" }}>
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "10px 12px", borderRadius: 10,
+                            background: active ? "rgba(79,142,247,0.12)" : "transparent",
+                            borderLeft: `3px solid ${active ? "#4F8EF7" : "transparent"}`,
+                            color: active ? "#4F8EF7" : "#C4CFDF",
+                            transition: "all 0.15s", cursor: "pointer",
+                          }}>
+                            <span>{item.icon}</span>
+                            <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, flex: 1 }}>{item.label}</span>
+                            {item.badge && <span style={{ fontSize: 11 }}>{item.badge}</span>}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <div style={{ height: 1, background: "#1e2d45", margin: "14px 0" }} />
+              <Link href="/marketplace/sell" onClick={() => setDrawerOpen(false)} style={{ textDecoration: "none" }}>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "12px", borderRadius: 12,
+                  background: "linear-gradient(135deg, rgba(16,185,129,0.14), rgba(16,185,129,0.06))",
+                  border: "1px solid rgba(16,185,129,0.3)",
+                  color: "#10B981", cursor: "pointer", transition: "all 0.18s",
+                  textAlign: "center"
+                }}>
+                  <Plus size={15} />
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>Sell a Product</span>
+                </div>
+              </Link>
+            </div>
+
+            <div style={{ paddingTop: 14, borderTop: "1px solid #1e2d45", marginTop: 20 }}>
+              <button
+                onClick={() => { setDrawerOpen(false); handleLogout(); }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "10px", borderRadius: 10, cursor: "pointer",
+                  background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)",
+                  color: "#EF4444", fontSize: 12, fontFamily: "'DM Sans', sans-serif", fontWeight: 600
+                }}
+              >
+                <LogOut size={14} />Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MOBILE Bottom navigation bar ── */}
+      <nav className="sl-bottom-nav">
+        <Link href="/marketplace" className={`sl-bnav-item${isHomeActive ? " active" : ""}`}>
+          <span className="sl-bnav-icon">🏠</span>
+          <span>Home</span>
+        </Link>
+        <Link href="/marketplace?category=Physical" className={`sl-bnav-item${isMarketActive ? " active" : ""}`}>
+          <span className="sl-bnav-icon">🏪</span>
+          <span>Market</span>
+        </Link>
+        <Link href="/marketplace?category=Notes PDF" className={`sl-bnav-item${isStudyActive ? " active" : ""}`}>
+          <span className="sl-bnav-icon">📄</span>
+          <span>Study</span>
+        </Link>
+        <Link href="/marketplace/profile" className={`sl-bnav-item${isAccountActive ? " active" : ""}`}>
+          <span className="sl-bnav-icon">👤</span>
+          <span>Account</span>
+        </Link>
+      </nav>
+
       {/* ════════════════════════════════════════════════════
           MAIN AREA
       ════════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div className="sl-main-content" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
         {/* ── Top Bar ── */}
-        <header style={{
+        <header className="sl-header-desktop" style={{
           height: 56, background: "rgba(13,17,32,0.95)",
           backdropFilter: "blur(14px)",
           borderBottom: "1px solid #1e2d45",
@@ -376,8 +694,8 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
                 background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 800, color: "#fff",
-              }}>RS</div>
-              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600, color: "#C4CFDF" }}>Rahul</span>
+              }}>{inits(user?.name || "")}</div>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600, color: "#C4CFDF" }}>{user?.name?.split(" ")[0] || "Rahul"}</span>
             </div>
           </Link>
         </header>

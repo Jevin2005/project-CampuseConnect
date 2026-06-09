@@ -89,6 +89,50 @@ export default function MyPurchasesPage() {
         .order-card:hover{border-color:rgba(79,142,247,0.4)!important;transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3)!important}
         .dig-card{transition:all 0.25s}
         .dig-card:hover{border-color:rgba(167,139,250,0.4)!important;transform:translateY(-3px);box-shadow:0 10px 32px rgba(0,0,0,0.35)!important}
+
+        @media (max-width: 768px) {
+          .pp-page {
+            padding: 16px 14px 28px !important;
+          }
+          .pp-page > div:first-of-type {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .purchases-stats-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .purchases-order-card {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            padding: 16px !important;
+            gap: 12px !important;
+          }
+          .purchases-order-card-right {
+            width: 100% !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            border-top: 1px solid #1e2d45 !important;
+            padding-top: 10px !important;
+            margin-top: 4px !important;
+          }
+          .purchases-digital-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+          }
+          .purchases-dig-card-title {
+            font-size: 12px !important;
+            min-height: 32px !important;
+            margin-bottom: 2px !important;
+          }
+          .dig-card button {
+            font-size: 11px !important;
+            height: 32px !important;
+            padding: 0 10px !important;
+          }
+        }
       `}</style>
 
       <div className="pp-page" style={{ padding: "28px 32px", maxWidth: 1200 }}>
@@ -131,7 +175,7 @@ export default function MyPurchasesPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
+        <div className="purchases-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
           {[
             { icon: "💰", label: "Total Spent",   value: `₹${totalSpent.toLocaleString("en-IN")}`, color: "#10B981" },
             { icon: "📦", label: "Physical Orders", value: String(physical.length),  color: "#4F8EF7" },
@@ -169,7 +213,7 @@ export default function MyPurchasesPage() {
               const st  = ST[o.status] || ST.PENDING;
               const img = o.product.images?.[0];
               return (
-                <div key={o.id} className="order-card" style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", gap: 18 }}>
+                <div key={o.id} className="order-card purchases-order-card" style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", gap: 18 }}>
                   {/* Thumbnail */}
                   <div style={{ width: 56, height: 56, borderRadius: 12, background: "#1a2235", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {img
@@ -186,7 +230,7 @@ export default function MyPurchasesPage() {
                       <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#374151" }}>📅 {fmt(o.createdAt)}</span>
                     </div>
                   </div>
-                  <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                  <div className="purchases-order-card-right" style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                     <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 800, color: "#F0F4FF" }}>₹{o.amount.toLocaleString("en-IN")}</p>
                     <button onClick={() => { downloadReceipt(o); showToast("Receipt downloaded!"); }} style={{ height: 30, padding: "0 14px", borderRadius: 9999, background: "transparent", border: "1px solid #1e2d45", fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#4F8EF7", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                       <Download size={11} /> Receipt
@@ -212,7 +256,7 @@ export default function MyPurchasesPage() {
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280" }}>Buy notes and video courses from the marketplace</p>
               </div>
             )}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 18 }}>
+            <div className="purchases-digital-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 18 }}>
               {digital.map(o => {
                 const isVideo = o.product.digitalSubType === "video_course" || o.product.productType === "video";
                 const img     = o.product.images?.[0];
@@ -229,7 +273,7 @@ export default function MyPurchasesPage() {
                       </span>
                     </div>
                     <div style={{ padding: "14px 16px" }}>
-                      <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", marginBottom: 3, lineHeight: 1.3 }}>{o.product.title}</p>
+                      <p className="purchases-dig-card-title" style={{ fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", marginBottom: 3, lineHeight: 1.3 }}>{o.product.title}</p>
                       <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", marginBottom: 12 }}>by {o.seller.name}</p>
                       <Link href={`/marketplace/digital/${o.product.id}`} style={{ textDecoration: "none" }}>
                         <button style={{

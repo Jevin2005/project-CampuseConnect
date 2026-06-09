@@ -377,7 +377,100 @@ export default function SellProductPage() {
 
   return (
     <StudentLayout>
-      <div style={{ padding: "36px 40px", maxWidth: 1040, margin: "0 auto", minHeight: "85vh", color: "#F0F4FF" }}>
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        @media (max-width: 768px) {
+          .sell-page-container {
+            padding: 16px 14px 80px !important;
+          }
+          .sell-main-title {
+            font-size: 22px !important;
+          }
+          .sell-steps-header {
+            padding: 12px 14px !important;
+            margin-bottom: 24px !important;
+            justify-content: space-between !important;
+            gap: 6px !important;
+          }
+          .sell-steps-header > div {
+            flex: 1 !important;
+          }
+          .sell-step-label {
+            display: none !important;
+          }
+          .sell-step-line {
+            margin-left: 8px !important;
+            margin-right: 8px !important;
+          }
+          .sell-type-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .sell-type-grid > div {
+            padding: 20px 16px !important;
+          }
+          .sell-subtype-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .sell-subtype-grid > div {
+            padding: 16px 14px !important;
+          }
+          .sell-form-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .sell-form-panel {
+            padding: 16px !important;
+          }
+          .sell-bundle-row {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .sell-preview-card {
+            padding: 16px !important;
+          }
+          .sell-submit-panel {
+            padding: 16px 18px !important;
+          }
+          .sell-sidebar-container {
+            position: static !important;
+          }
+          .sell-form-row, .sell-specs-grid, .sell-summary-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .sell-specs-grid > div {
+            grid-column: span 1 !important;
+          }
+          .sell-preview-flex {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 16px !important;
+            text-align: center !important;
+          }
+          .sell-preview-flex > div {
+            width: 100% !important;
+            align-items: center !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          .sell-preview-flex h3 {
+            text-align: center !important;
+          }
+          .sell-preview-flex div[style*="justify-content: space-between"] {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 8px !important;
+          }
+          .sell-preview-flex div[style*="display: flex; gap: 8px"] {
+            justify-content: center !important;
+          }
+        }
+      `}</style>
+      <div className="sell-page-container" style={{ padding: "36px 40px", maxWidth: 1040, margin: "0 auto", minHeight: "85vh", color: "#F0F4FF" }}>
 
         {/* Error/Warning Notification Toast */}
         {errorToast && (
@@ -496,7 +589,7 @@ export default function SellProductPage() {
             boxShadow: "0 20px 40px rgba(0,0,0,0.3)"
           }}>
             <div style={{ fontSize: 80, marginBottom: 20 }}>🚀</div>
-            <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 12 }}>Product Listing Published!</h1>
+            <h1 className="sell-main-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 12 }}>Product Listing Published!</h1>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "#94A3B8", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 30px" }}>
               Your item is now undergoing quick security &amp; accuracy review by administrative moderators. It will go live inside the campus feed within 24 hours.
             </p>
@@ -552,7 +645,7 @@ export default function SellProductPage() {
         ) : (
           <>
             {/* Steps Visual Header */}
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 44, background: "rgba(15, 23, 42, 0.3)", border: "1px solid #1E293B", borderRadius: 20, padding: "20px 24px", backdropFilter: "blur(6px)" }}>
+            <div className="sell-steps-header" style={{ display: "flex", alignItems: "center", marginBottom: 44, background: "rgba(15, 23, 42, 0.3)", border: "1px solid #1E293B", borderRadius: 20, padding: "20px 24px", backdropFilter: "blur(6px)" }}>
               {STEPS.map((s, i) => {
                 const n = i + 1;
                 const done = n < step;
@@ -572,7 +665,7 @@ export default function SellProductPage() {
                           <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 12, fontWeight: 800, color: curr ? "#fff" : "#64748B" }}>{n}</span>
                         )}
                       </div>
-                      <span style={{
+                      <span className="sell-step-label" style={{
                         fontFamily: "'DM Sans', sans-serif", fontSize: 13,
                         fontWeight: curr ? 700 : 500,
                         color: curr ? "#fff" : done ? "#10B981" : "#64748B",
@@ -580,7 +673,7 @@ export default function SellProductPage() {
                       }}>{s}</span>
                     </div>
                     {i < 2 && (
-                      <div style={{
+                      <div className="sell-step-line" style={{
                         flex: 1, height: 2, marginLeft: 16, marginRight: 16,
                         background: done ? "#10B981" : "#1E293B",
                         transition: "background 0.4s"
@@ -595,14 +688,14 @@ export default function SellProductPage() {
             {step === 1 && (
               <div style={{ maxWidth: 840, margin: "0 auto", animation: "fadeIn 0.3s ease" }}>
                 <div style={{ textAlign: "center", marginBottom: 40 }}>
-                  <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: "-0.5px" }}>Choose Product Medium</h1>
+                  <h1 className="sell-main-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: "-0.5px" }}>Choose Product Medium</h1>
                   <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#94A3B8", maxWidth: 500, margin: "0 auto" }}>
                     Select how you want to list your study aids, hardware, or campus assets.
                   </p>
                 </div>
 
                 {/* Primary Physical / Digital choice cards */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: prodType === "digital" ? 40 : 0 }}>
+                <div className="sell-type-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: prodType === "digital" ? 40 : 0 }}>
                   {[
                     {
                       key: "physical" as ProdType,
@@ -690,7 +783,7 @@ export default function SellProductPage() {
                       <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, color: "#fff" }}>Select Content Format</h3>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 32 }}>
+                    <div className="sell-subtype-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 32 }}>
                       {DIG_SUBS.map(d => (
                         <div
                           key={d.key!}
@@ -748,7 +841,7 @@ export default function SellProductPage() {
 
             {/* STEP 2: Structured Form & Calculator Grid */}
             {step === 2 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 32, alignItems: "start", animation: "fadeIn 0.3s ease" }}>
+              <div className="sell-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 32, alignItems: "start", animation: "fadeIn 0.3s ease" }}>
 
                 {/* Left Side: Structured Form Panels */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -769,7 +862,7 @@ export default function SellProductPage() {
                   </div>
 
                   {/* Panel A: Basic Product Identity */}
-                  <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                  <div className="sell-form-panel" style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                     <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Product Identity</h3>
 
                     <div style={{ marginBottom: 18 }}>
@@ -833,10 +926,10 @@ export default function SellProductPage() {
 
                   {/* Panel B: Physical Classification & Condition */}
                   {prodType === "physical" && (
-                    <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                    <div className="sell-form-panel" style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                       <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Classification</h3>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                      <div className="sell-form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                         <div>
                           <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Category</label>
                           <select
@@ -878,14 +971,14 @@ export default function SellProductPage() {
 
                   {/* Panel C: Digital Structured Specifications Panel */}
                   {prodType === "digital" && (
-                    <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                    <div className="sell-form-panel" style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                       <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>
                         {digSub === "notes" ? "PDF & Document Specs" : digSub === "video" ? "Course Lectures Specs" : digSub === "both" ? "Lectures & Material Specs" : "Custom Bundle Configuration"}
                       </h3>
 
                       {/* 1. Notes Subtype Fields */}
                       {digSub === "notes" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+                        <div className="sell-specs-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
                           <div>
                             <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Subject / Topic Name <span style={{ color: "#EF4444" }}>*</span></label>
                             <input value={notesSubject} onChange={e => setNotesSubject(e.target.value)} placeholder="e.g., Computer Networks" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
@@ -907,7 +1000,7 @@ export default function SellProductPage() {
 
                       {/* 2. Video Subtype Fields */}
                       {digSub === "video" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+                        <div className="sell-specs-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
                           <div>
                             <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Course Instructor / Author <span style={{ color: "#EF4444" }}>*</span></label>
                             <input value={vidInstructor} onChange={e => setVidInstructor(e.target.value)} placeholder="e.g., Prof. Harish Sen" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
@@ -933,7 +1026,7 @@ export default function SellProductPage() {
 
                       {/* 3. Notes + Video Subtype Fields */}
                       {digSub === "both" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+                        <div className="sell-specs-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
                           <div>
                             <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Subject Name <span style={{ color: "#EF4444" }}>*</span></label>
                             <input value={notesSubject} onChange={e => setNotesSubject(e.target.value)} placeholder="e.g., Signals and Systems" style={{ width: "100%", height: 44, padding: "0 14px", background: "#1E293B", border: "1.5px solid #334155", borderRadius: 10, outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F1F5F9" }} />
@@ -984,7 +1077,7 @@ export default function SellProductPage() {
                                   )}
                                 </div>
 
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 12, marginBottom: 12 }}>
+                                <div className="sell-bundle-row" style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 12, marginBottom: 12 }}>
                                   <input
                                     value={item.title}
                                     onChange={e => updateBundleItem(item.id, "title", e.target.value)}
@@ -1068,10 +1161,10 @@ export default function SellProductPage() {
                   )}
 
                   {/* Panel D: Pricing Setup */}
-                  <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                  <div className="sell-form-panel" style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                     <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>Pricing Strategy</h3>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div className="sell-form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                       {prodType === "physical" && (
                         <div>
                           <label style={{ display: "block", marginBottom: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>Original Price (Retail ₹)</label>
@@ -1114,7 +1207,7 @@ export default function SellProductPage() {
 
                   {/* Panel E: File Vault / Dropzone (Except for Bundle) */}
                   {digSub !== "bundle" && (
-                    <div style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
+                    <div className="sell-form-panel" style={{ background: "#0F172A", border: "1px solid #1E293B", borderRadius: 20, padding: 24 }}>
                       <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 16, borderLeft: `3px solid ${activeColor}`, paddingLeft: 10 }}>
                         {prodType === "physical" ? "Asset Gallery Photos" : "Secure Publication Uploads"}
                       </h3>
@@ -1277,7 +1370,7 @@ export default function SellProductPage() {
                 </div>
 
                 {/* Right Side: Sticky live calculations panel */}
-                <div style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+                <div className="sell-sidebar-container" style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 20 }}>
 
                   {/* Fee Calculator Card */}
                   <div style={{
@@ -1374,18 +1467,18 @@ export default function SellProductPage() {
             {step === 3 && (
               <div style={{ maxWidth: 720, margin: "0 auto", animation: "fadeIn 0.3s ease" }}>
                 <div style={{ textAlign: "center", marginBottom: 36 }}>
-                  <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Review Publication Card</h2>
+                  <h2 className="sell-main-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Review Publication Card</h2>
                   <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#94A3B8" }}>
                     This is how your listed publication card will present itself to buyers in feeds.
                   </p>
                 </div>
 
                 {/* Mock Card Preview Container */}
-                <div style={{
+                <div className="sell-preview-card" style={{
                   background: "#0F172A", border: "2px solid #1E293B", borderRadius: 28,
                   padding: 24, marginBottom: 28, boxShadow: "0 20px 40px rgba(0,0,0,0.3)"
                 }}>
-                  <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+                  <div className="sell-preview-flex" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
                     {/* Visual Media Placeholder/Thumb */}
                     <div style={{
@@ -1469,7 +1562,7 @@ export default function SellProductPage() {
                   <div style={{ height: 1, background: "#1E293B", margin: "20px 0" }} />
 
                   {/* Pricing Breakdown Summary */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  <div className="sell-summary-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                     <div>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 6 }}>Publication Cost</p>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1489,7 +1582,7 @@ export default function SellProductPage() {
                 </div>
 
                 {/* Submit Panel */}
-                <div style={{
+                <div className="sell-submit-panel" style={{
                   background: "#0F172A", border: "1px solid #1E293B", borderRadius: 24,
                   padding: "24px 28px", display: "flex", flexDirection: "column", gap: 16
                 }}>

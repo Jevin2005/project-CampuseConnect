@@ -68,14 +68,66 @@ export default function ProfilePage() {
         @keyframes toast{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
         .pp{animation:fadeUp .4s ease}
         .preview-row:hover{background:#1e2d45!important}
+
+        @media (max-width: 768px) {
+          .pp {
+            padding: 16px 14px 28px !important;
+          }
+          .profile-hero-card {
+            padding: 20px 16px !important;
+            margin-bottom: 16px !important;
+          }
+          .profile-hero-inner {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            gap: 16px !important;
+          }
+          .profile-hero-inner > div:nth-of-type(2) {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+          }
+          .profile-hero-actions {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .profile-stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+            margin-bottom: 16px !important;
+          }
+          .profile-stats-grid > div {
+            padding: 12px 14px !important;
+            gap: 10px !important;
+            border-radius: 12px !important;
+          }
+          .profile-stats-grid > div > div:first-of-type {
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 8px !important;
+          }
+          .profile-stats-grid p {
+            font-size: 16px !important;
+          }
+          .profile-two-col-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+            margin-bottom: 16px !important;
+          }
+          .profile-settings-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+        }
       `}</style>
 
       <div className="pp" style={{ padding: "28px 32px", maxWidth: 1100 }}>
 
         {/* Profile Hero */}
-        <div style={{ background: "linear-gradient(135deg,#0d1829,#111827,#0a1f15)", border: "1px solid #1e2d45", borderRadius: 20, padding: "28px 32px", marginBottom: 24, position: "relative", overflow: "hidden" }}>
+        <div className="profile-hero-card" style={{ background: "linear-gradient(135deg,#0d1829,#111827,#0a1f15)", border: "1px solid #1e2d45", borderRadius: 20, padding: "28px 32px", marginBottom: 24, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -60, right: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(79,142,247,0.06)", pointerEvents: "none" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap" }}>
+          <div className="profile-hero-inner" style={{ display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap" }}>
             <div style={{ width: 76, height: 76, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora',sans-serif", fontSize: 24, fontWeight: 800, color: "#fff", boxShadow: "0 0 0 4px rgba(79,142,247,0.2)", flexShrink: 0 }}>
               {displayInits}
             </div>
@@ -93,7 +145,7 @@ export default function ProfilePage() {
                 </span>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="profile-hero-actions" style={{ display: "flex", gap: 8 }}>
               <button onClick={fetchProfile} title="Refresh stats" style={{ width: 36, height: 36, borderRadius: 9999, background: "transparent", border: "1px solid #1e2d45", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}>
                 <RefreshCw size={14} />
               </button>
@@ -105,7 +157,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Stats row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
+        <div className="profile-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
           {[
             { icon: <Package size={18} />,     label: "Listed",       value: String(profile?.stats.listed ?? "–"),     color: "#4F8EF7" },
             { icon: <TrendingUp size={18} />,  label: "Sold",         value: String(profile?.stats.sold ?? "–"),       color: "#10B981" },
@@ -123,7 +175,7 @@ export default function ProfilePage() {
         </div>
 
         {/* 2-col section */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+        <div className="profile-two-col-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
           {/* Active Listings */}
           <div style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, padding: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -191,7 +243,7 @@ export default function ProfilePage() {
         {/* Account Settings */}
         <div style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, padding: "24px" }}>
           <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 700, color: "#F0F4FF", marginBottom: 22 }}>⚙️ Account Settings</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+          <div className="profile-settings-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
             <div>
               <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", marginBottom: 8, textTransform: "uppercase" }}>Display Name</p>
               <input

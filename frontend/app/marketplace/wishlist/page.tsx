@@ -29,12 +29,14 @@ export default function WishlistPage() {
   async function remove(productId: string) {
     try {
       await removeFromWishlist(productId);
-      setItems(is => is.filter(i => i.product.id !== productId));
+      setItems(is => is.filter(i => i.product && i.product.id !== productId));
       showToast("Removed from wishlist");
     } catch { showToast("Could not remove"); }
   }
 
-  const filtered = items.filter(i =>
+  const validItems = items.filter(i => i && i.product);
+
+  const filtered = validItems.filter(i =>
     !search || i.product.title.toLowerCase().includes(search.toLowerCase())
   );
   const totalVal = filtered.reduce((s, i) => s + i.product.price, 0);
@@ -56,6 +58,49 @@ export default function WishlistPage() {
         .wl-card:hover{border-color:rgba(239,68,68,0.3)!important;transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.3)!important}
         .rm-btn:hover{background:rgba(239,68,68,0.12)!important;border-color:rgba(239,68,68,0.4)!important;color:#EF4444!important}
         .buy-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,142,247,0.4)!important}
+
+        @media (max-width: 768px) {
+          .wl-page {
+            padding: 16px 14px 28px !important;
+          }
+          .wl-page > div:first-of-type {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .wishlist-stats-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .wishlist-cards-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+          }
+          .wl-card-image {
+            height: 110px !important;
+          }
+          .wl-card-tags {
+            display: none !important;
+          }
+          .wl-card-title {
+            font-size: 12px !important;
+            min-height: 34px !important;
+            margin-bottom: 4px !important;
+          }
+          .wl-card-info-row {
+            margin-bottom: 10px !important;
+          }
+          .wl-card-info-row span:last-child {
+            display: none !important;
+          }
+          .wl-card-info-row span:first-child {
+            font-size: 14px !important;
+          }
+          .wl-card-actions button {
+            font-size: 11px !important;
+            height: 32px !important;
+          }
+        }
       `}</style>
 
       {toast && (
@@ -82,7 +127,7 @@ export default function WishlistPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 22 }}>
+        <div className="wishlist-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 22 }}>
           {[
             { icon: "❤️",  label: "Saved Items",    value: filtered.length,             color: "#EF4444" },
             { icon: "📦",  label: "Physical",        value: physCount,                   color: "#4F8EF7" },
@@ -134,7 +179,7 @@ export default function WishlistPage() {
 
         {/* Cards */}
         {!loading && filtered.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 18 }}>
+          <div className="wishlist-cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 18 }}>
             {filtered.map(item => {
               const { product } = item;
               const img  = product.images?.[0];
@@ -143,7 +188,7 @@ export default function WishlistPage() {
               return (
                 <div key={item.id} className="wl-card" style={{ background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 16, overflow: "hidden" }}>
                   {/* Image / Preview */}
-                  <div style={{ height: 140, background: product.productType === "digital" ? "linear-gradient(135deg,#1a0d30,#2d1b4e)" : "#1a2235", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                  <div className="wl-card-image" style={{ height: 140, background: product.productType === "digital" ? "linear-gradient(135deg,#1a0d30,#2d1b4e)" : "#1a2235", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
                     {img
                       ? <img src={img} alt={product.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => (e.currentTarget.style.display = "none")} />
                       : <span style={{ fontSize: 48 }}>{product.productType === "digital" ? "📄" : "📦"}</span>
@@ -154,18 +199,18 @@ export default function WishlistPage() {
                   </div>
 
                   <div style={{ padding: "14px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div className="wl-card-tags" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                       <span style={{ background: tag.bg, color: tag.color, borderRadius: 9999, padding: "2px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700 }}>{tag.label}</span>
                       {product.originalPrice && product.originalPrice > product.price && (
                         <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#374151", textDecoration: "line-through" }}>₹{product.originalPrice.toLocaleString("en-IN")}</span>
                       )}
                     </div>
-                    <h3 style={{ fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", marginBottom: 6, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{product.title}</h3>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <h3 className="wl-card-title" style={{ fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", marginBottom: 6, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{product.title}</h3>
+                    <div className="wl-card-info-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                       <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#10B981" }}>₹{product.price.toLocaleString("en-IN")}</span>
                       <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280" }}>by {product.seller?.name || "–"}</span>
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div className="wl-card-actions" style={{ display: "flex", gap: 8 }}>
                       <Link href={href} style={{ textDecoration: "none", flex: 1 }}>
                         <button className="buy-btn" style={{ width: "100%", height: 36, borderRadius: 9999, background: "#4F8EF7", border: "none", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 3px 12px rgba(79,142,247,0.3)", transition: "all 0.15s" }}>
                           <ShoppingBag size={12} /> View Item

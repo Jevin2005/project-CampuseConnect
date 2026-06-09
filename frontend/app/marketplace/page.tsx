@@ -5,7 +5,7 @@ import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
 import { AdCard, AdBannerHorizontal, AdStrip } from "@/components/AdBanner";
 import { INLINE_ADS, OWN_COLLEGE_ADS, HOSTEL_ADS } from "@/lib/adsData";
-import { Search, SlidersHorizontal, TrendingUp, Zap, X, Heart, Eye, ChevronLeft, ChevronRight, Play, FileText, Sparkles, Layers } from "lucide-react";
+import { Search, SlidersHorizontal, TrendingUp, Zap, X, Heart, Eye, ChevronLeft, ChevronRight, Play, FileText, Sparkles, Layers, Plus, MessageSquare, ShoppingBag } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
 type Category = "All" | "Notes PDF" | "Video Course" | "Physical" | "Ads";
@@ -212,6 +212,7 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
   return (
     <Link href={href} style={{ textDecoration: "none" }}>
       <div
+        className="mkt-card-container"
         onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
         style={{
           borderRadius: 18, overflow: "hidden", cursor: "pointer",
@@ -224,7 +225,7 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
         }}
       >
         {/* Media Container Viewport */}
-        <div style={{ height: 180, position: "relative", overflow: "hidden", background: fallbackBg(badge) }}>
+        <div className="mkt-card-media" style={{ height: 180, position: "relative", overflow: "hidden", background: fallbackBg(badge) }}>
 
           {/* Active Media Node */}
           {mediaNode}
@@ -350,15 +351,15 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
         </div>
 
         {/* Content Details area */}
-        <div style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+        <div className="mkt-card-details" style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
 
           {/* Seller profile and views count row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="mkt-card-seller-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+              <div className="mkt-card-seller-avatar" style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
                 {(p.seller?.name || "U").split(" ").filter(Boolean).map((w: string) => w[0]).join("")}
               </div>
-              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#9CA3AF" }}>{p.seller?.name || "Anonymous"}</span>
+              <span className="mkt-card-seller-name" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#9CA3AF" }}>{p.seller?.name || "Anonymous"}</span>
             </div>
             {typeof p.views === "number" && p.views > 0 && (
               <span style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#6B7280" }}>
@@ -367,7 +368,7 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
             )}
           </div>
 
-          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, minHeight: 40 }}>
+          <p className="mkt-card-title" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, minHeight: 40 }}>
             {p.title}
           </p>
 
@@ -376,23 +377,23 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
             {/* Price with Original Price Strikethrough & savings percentage */}
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#10B981" }}>
+                <span className="mkt-card-price" style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 800, color: "#10B981" }}>
                   ₹{p.price.toLocaleString("en-IN")}
                 </span>
                 {hasDiscount && (
-                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", textDecoration: "line-through" }}>
+                  <span className="mkt-card-orig-price" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280", textDecoration: "line-through" }}>
                     ₹{p.originalPrice!.toLocaleString("en-IN")}
                   </span>
                 )}
               </div>
               {hasDiscount && (
-                <span style={{ fontSize: 9, fontWeight: 800, color: "#EF4444", background: "rgba(239,68,68,0.1)", padding: "1px 6px", borderRadius: 4, width: "fit-content", marginTop: 2 }}>
+                <span className="mkt-card-discount-tag" style={{ fontSize: 9, fontWeight: 800, color: "#EF4444", background: "rgba(239,68,68,0.1)", padding: "1px 6px", borderRadius: 4, width: "fit-content", marginTop: 2 }}>
                   {discountPercent}% OFF
                 </span>
               )}
             </div>
 
-            <button style={{
+            <button className="mkt-card-btn mkt-desktop-only" style={{
               height: 32, padding: "0 14px", borderRadius: 9999,
               background: badge === "Video" ? "rgba(16,185,129,0.12)" : badge === "Notes PDF" ? "rgba(167,139,250,0.12)" : "rgba(79,142,247,0.12)",
               border: `1px solid ${badge === "Video" ? "rgba(16,185,129,0.3)" : badge === "Notes PDF" ? "rgba(167,139,250,0.3)" : "rgba(79,142,247,0.3)"}`,
@@ -411,6 +412,10 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
             >
               {p.productType === "physical" ? "View →" : badge === "Notes PDF" ? "Buy PDF" : "Enroll"}
             </button>
+
+            <div className="mkt-mobile-only mkt-mobile-icon-btn">
+              {p.productType === "physical" ? <MessageSquare size={15} /> : <ShoppingBag size={15} />}
+            </div>
           </div>
         </div>
       </div>
@@ -455,6 +460,23 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
+
+  // Listen to search and category changes in URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const catParam = params.get("category");
+      if (catParam) {
+        if (["Notes PDF", "Video Course", "Physical", "Ads", "All"].includes(catParam)) {
+          setCat(catParam as Category);
+        }
+      }
+      const searchParam = params.get("search");
+      if (searchParam !== null) {
+        setSearch(searchParam);
+      }
+    }
+  }, [typeof window !== "undefined" ? window.location.search : ""]);
 
   useEffect(() => {
     api.get("/api/marketplace/products?limit=100")
@@ -526,12 +548,201 @@ export default function MarketplacePage() {
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
         .mkt-page { animation: fadeUp .4s ease; }
+
+        .mkt-mobile-only {
+          display: none !important;
+        }
+
+        .mkt-sell-banner {
+          display: none !important; /* hide on desktop to safeguard original layout */
+          background: linear-gradient(135deg, rgba(79, 142, 247, 0.15) 0%, rgba(13, 24, 41, 0.95) 100%) !important;
+          border: 1px solid rgba(79, 142, 247, 0.25) !important;
+          border-radius: 16px !important;
+          padding: 24px !important;
+          text-align: center !important;
+          margin: 28px 0 20px !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 10px !important;
+        }
+        .mkt-sell-banner-title {
+          font-family: 'Sora', sans-serif !important;
+          font-size: 20px !important;
+          font-weight: 800 !important;
+          color: #fff !important;
+          margin: 0 !important;
+        }
+        .mkt-sell-banner-desc {
+          font-family: 'DM Sans', sans-serif !important;
+          font-size: 13px !important;
+          color: #9CA3AF !important;
+          margin: 0 !important;
+          max-width: 450px !important;
+          line-height: 1.5 !important;
+        }
+        .mkt-sell-banner-btn {
+          background: #F7C948 !important;
+          color: #1a0d00 !important;
+          font-family: 'DM Sans', sans-serif !important;
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          padding: 10px 24px !important;
+          border-radius: 9999px !important;
+          border: none !important;
+          cursor: pointer !important;
+          box-shadow: 0 4px 14px rgba(247, 201, 72, 0.3) !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          transition: all 0.2s !important;
+        }
+        .mkt-sell-banner-btn:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 18px rgba(247, 201, 72, 0.4) !important;
+        }
+
+        @media (max-width: 768px) {
+          .mkt-page {
+            padding: 12px 14px !important;
+          }
+          .mkt-desktop-only {
+            display: none !important;
+          }
+          .mkt-mobile-only {
+            display: flex !important;
+          }
+          .mkt-hero-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: #F7C948 !important;
+            color: #1a0d00 !important;
+            font-family: 'DM Sans', sans-serif !important;
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            padding: 10px 24px !important;
+            border-radius: 9999px !important;
+            margin-top: 14px !important;
+            text-decoration: none !important;
+            box-shadow: 0 4px 14px rgba(247, 201, 72, 0.3) !important;
+            width: fit-content !important;
+            transition: all 0.2s !important;
+          }
+          .mkt-hero-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 18px rgba(247, 201, 72, 0.4) !important;
+          }
+          .mkt-card-seller-row {
+            display: none !important;
+          }
+          .mkt-card-orig-price, .mkt-card-discount-tag {
+            display: none !important;
+          }
+          .mkt-mobile-icon-btn {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 8px !important;
+            background: rgba(30, 45, 69, 0.8) !important;
+            border: 1px solid rgba(30, 45, 69, 0.3) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: #4F8EF7 !important;
+            cursor: pointer !important;
+            flex-shrink: 0 !important;
+            transition: all 0.2s !important;
+          }
+          .mkt-mobile-icon-btn:hover {
+            background: rgba(79, 142, 247, 0.15) !important;
+            color: #fff !important;
+          }
+          .mkt-hero-banner {
+            padding: 24px 20px !important;
+            background: linear-gradient(rgba(13, 17, 32, 0.72), rgba(13, 17, 32, 0.82)), url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=800&auto=format&fit=crop') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            margin-bottom: 20px !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+          }
+          .mkt-hero-title {
+            font-size: 22px !important;
+          }
+          .mkt-hero-desc {
+            font-size: 13px !important;
+            max-width: 100% !important;
+            margin-bottom: 0 !important;
+            color: #C4CFDF !important;
+          }
+          .mkt-hero-stats {
+            display: none !important;
+          }
+          .mkt-categories-row {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            gap: 8px !important;
+            margin-bottom: 18px !important;
+            padding-bottom: 4px !important;
+            -webkit-overflow-scrolling: touch !important;
+          }
+          .mkt-categories-row::-webkit-scrollbar {
+            display: none !important;
+          }
+          .mkt-categories-row button {
+            flex-shrink: 0 !important;
+            height: 36px !important;
+            padding: 0 14px !important;
+            font-size: 12px !important;
+          }
+          .mkt-products-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+            margin-bottom: 24px !important;
+          }
+          .mkt-card-media {
+            height: 125px !important;
+          }
+          .mkt-card-title {
+            font-size: 12px !important;
+            min-height: 34px !important;
+            margin-bottom: 2px !important;
+          }
+          .mkt-card-price {
+            font-size: 14px !important;
+          }
+          .mkt-card-details {
+            padding: 10px 10px 12px !important;
+            gap: 4px !important;
+          }
+          .mkt-card-seller-name {
+            font-size: 10px !important;
+          }
+          .mkt-card-seller-avatar {
+            width: 18px !important;
+            height: 18px !important;
+            font-size: 8px !important;
+          }
+          .mkt-sell-banner {
+            display: flex !important;
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+            border: none !important;
+            padding: 20px 16px !important;
+            margin: 20px 0 16px !important;
+          }
+          .mkt-sell-banner-title {
+            font-size: 18px !important;
+          }
+          .mkt-sell-banner-desc {
+            font-size: 12px !important;
+          }
+        }
       `}</style>
 
       <div className="mkt-page" style={{ padding: "28px 32px", maxWidth: 1400 }}>
 
         {/* Hero Banner */}
-        <div style={{
+        <div className="mkt-hero-banner" style={{
           background: "linear-gradient(135deg,#0d1829 0%,#111827 40%,#0a1f15 100%)",
           border: "1px solid rgba(79,142,247,0.2)", borderRadius: 20,
           padding: "28px 32px", marginBottom: 28, position: "relative", overflow: "hidden",
@@ -549,14 +760,17 @@ export default function MarketplacePage() {
                   Live Marketplace
                 </span>
               </div>
-              <h1 style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 800, color: "#F0F4FF", marginBottom: 6, lineHeight: 1.2 }}>
+              <h1 className="mkt-hero-title" style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 800, color: "#F0F4FF", marginBottom: 6, lineHeight: 1.2 }}>
                 Campus Marketplace
               </h1>
-              <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", maxWidth: 500 }}>
+              <p className="mkt-hero-desc" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", maxWidth: 500 }}>
                 Buy &amp; sell notes, video courses, gadgets and more — exclusively within {user?.collegeName || "your college"}.
               </p>
+              <Link href="/marketplace/sell" className="mkt-hero-btn mkt-mobile-only">
+                Sell an Item
+              </Link>
             </div>
-            <div style={{ display: "flex", gap: 20 }}>
+            <div className="mkt-hero-stats" style={{ display: "flex", gap: 20 }}>
               {[
                 { label: "Products", value: totalCount !== null ? `${totalCount}+` : "—", color: "#4F8EF7" },
                 { label: "Students", value: "1.2k+", color: "#10B981" },
@@ -579,7 +793,7 @@ export default function MarketplacePage() {
         )}
 
         {/* Category Pills */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 22, flexWrap: "wrap" }}>
+        <div className="mkt-categories-row" style={{ display: "flex", gap: 10, marginBottom: 22, flexWrap: "wrap" }}>
           {CATEGORIES.map(c => (
             <button
               key={c.key}
@@ -736,7 +950,7 @@ export default function MarketplacePage() {
             )}
 
             {/* Mixed Product + Ad Grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 22, marginBottom: 40 }}>
+            <div className="mkt-products-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 22, marginBottom: 40 }}>
               {gridItems.map((item, idx) =>
                 item.kind === "product"
                   ? <ProductCard
@@ -766,6 +980,17 @@ export default function MarketplacePage() {
                   <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", marginTop: 4 }}>Try a different filter or search term</p>
                 </div>
               )}
+            </div>
+
+            {/* Sell banner CTA */}
+            <div className="mkt-sell-banner">
+              <h3 className="mkt-sell-banner-title">Have things to sell?</h3>
+              <p className="mkt-sell-banner-desc">Join thousands of students turning their unused items into cash.</p>
+              <Link href="/marketplace/sell" style={{ textDecoration: "none" }}>
+                <button className="mkt-sell-banner-btn">
+                  List an Item <Plus size={14} />
+                </button>
+              </Link>
             </div>
 
             {/* Pagination */}

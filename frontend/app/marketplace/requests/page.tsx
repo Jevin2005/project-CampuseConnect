@@ -99,6 +99,65 @@ export default function RequestsPage() {
         .rq-card:hover{border-color:rgba(79,142,247,0.35)!important;transform:translateY(-1px)}
         .accept-btn:hover{background:#059669!important}
         .reject-btn:hover{background:rgba(239,68,68,0.15)!important;border-color:#EF4444!important;color:#EF4444!important}
+
+        @media (max-width: 768px) {
+          .rq-page {
+            padding: 16px 14px 28px !important;
+          }
+          .rq-page > div:first-of-type {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .requests-stats-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .requests-tabs-row {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 16px !important;
+            -webkit-overflow-scrolling: touch !important;
+            gap: 8px !important;
+          }
+          .requests-tabs-row::-webkit-scrollbar {
+            display: none !important;
+          }
+          .requests-tabs-row button {
+            flex-shrink: 0 !important;
+            font-size: 11px !important;
+            height: 32px !important;
+            padding: 0 12px !important;
+          }
+          .requests-card-inner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+          }
+          .requests-card-actions {
+            width: 100% !important;
+            flex-direction: row !important;
+            justify-content: stretch !important;
+            gap: 8px !important;
+            border-top: 1px solid #1e2d45 !important;
+            padding-top: 12px !important;
+          }
+          .requests-card-actions button, .requests-card-actions a {
+            flex: 1 !important;
+            width: 100% !important;
+          }
+          .requests-card-actions button {
+            height: 36px !important;
+            font-size: 12px !important;
+            justify-content: center !important;
+          }
+          .requests-card-actions span {
+            width: 100% !important;
+            text-align: center !important;
+          }
+        }
       `}</style>
 
       {/* Toast */}
@@ -135,7 +194,7 @@ export default function RequestsPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>
+        <div className="requests-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>
           {[
             { label: "Total Requests", value: requests.length,                                      color: "#4F8EF7" },
             { label: "Accepted",       value: requests.filter(r => r.status === "accepted").length, color: "#10B981" },
@@ -149,7 +208,7 @@ export default function RequestsPage() {
         </div>
 
         {/* Filter Tabs */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 22 }}>
+        <div className="requests-tabs-row" style={{ display: "flex", gap: 8, marginBottom: 22 }}>
           {(["all", "pending", "accepted", "rejected"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{ height: 36, padding: "0 16px", borderRadius: 9999, cursor: "pointer", background: filter === f ? "#4F8EF7" : "transparent", border: `1.5px solid ${filter === f ? "#4F8EF7" : "#1e2d45"}`, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700, color: filter === f ? "#fff" : "#6B7280", transition: "all 0.15s", textTransform: "capitalize" }}>
               {f === "all" ? `All (${requests.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${requests.filter(r => r.status === f).length})`}
@@ -180,7 +239,7 @@ export default function RequestsPage() {
               const img = req.product.images?.[0];
               return (
                 <div key={req.id} className="rq-card" style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, padding: "20px 24px", transition: "all 0.2s" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                  <div className="requests-card-inner" style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
 
                     {/* Avatar */}
                     <div style={{ width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
@@ -220,7 +279,7 @@ export default function RequestsPage() {
                     </div>
 
                     {/* Actions */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+                    <div className="requests-card-actions" style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
                       {req.status === "pending" ? (
                         <>
                           <button

@@ -140,6 +140,87 @@ export default function MyListingsPage() {
         @keyframes spin{to{transform:rotate(360deg)}}
         .lp{animation:fadeUp .4s ease}
         .row:hover{background:rgba(79,142,247,0.025)!important;border-bottom-color:rgba(79,142,247,0.15)!important}
+
+        @media (max-width: 768px) {
+          .lp {
+            padding: 16px 14px 28px !important;
+          }
+          .lp > div:first-of-type {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .listings-stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+          }
+          .listings-tabs-row {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 16px !important;
+            -webkit-overflow-scrolling: touch !important;
+            gap: 8px !important;
+          }
+          .listings-tabs-row::-webkit-scrollbar {
+            display: none !important;
+          }
+          .listings-tabs-row button {
+            flex-shrink: 0 !important;
+          }
+          .listings-table-header {
+            display: none !important;
+          }
+          .listings-table-container {
+            background: transparent !important;
+            border: none !important;
+          }
+          .listings-table-row {
+            display: grid !important;
+            grid-template-columns: 1fr 1.2fr !important;
+            grid-template-areas:
+              "info info"
+              "type status"
+              "price actions"
+              "views requests" !important;
+            gap: 12px !important;
+            padding: 16px !important;
+            border: 1px solid #1e2d45 !important;
+            border-radius: 14px !important;
+            background: #111827 !important;
+            margin-bottom: 12px !important;
+          }
+          .listings-cell-info { grid-area: info !important; }
+          .listings-cell-type { grid-area: type !important; }
+          .listings-cell-status { grid-area: status !important; justify-self: right !important; }
+          .listings-cell-price { grid-area: price !important; align-self: center !important; font-size: 15px !important; }
+          .listings-cell-actions { grid-area: actions !important; justify-self: right !important; }
+          
+          .listings-cell-views { 
+            grid-area: views !important; 
+            font-size: 11px !important; 
+            color: #6B7280 !important; 
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+          }
+          .listings-cell-views::before {
+            content: "👁 Views: " !important;
+          }
+          .listings-cell-requests { 
+            grid-area: requests !important; 
+            font-size: 11px !important; 
+            color: #6B7280 !important; 
+            justify-self: right !important; 
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+          }
+          .listings-cell-requests::before {
+            content: "💬 Requests: " !important;
+          }
+        }
       `}</style>
 
       <div className="lp" style={{ padding: "28px 32px", maxWidth: 1200 }}>
@@ -185,7 +266,7 @@ export default function MyListingsPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 28 }}>
+        <div className="listings-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 28 }}>
           {[
             { icon: <Eye size={16} />, label: "Active Listings", value: totals.active, color: "#4F8EF7", sub: "live now" },
             { icon: <BarChart3 size={16} />, label: "Total Views", value: totals.views.toLocaleString(), color: "#A78BFA", sub: "all products" },
@@ -202,7 +283,7 @@ export default function MyListingsPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        <div className="listings-tabs-row" style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
           {TABS.map(t => {
             const cnt = t === "All" ? listings.length : listings.filter(l => statusLabel(l) === t).length;
             return (
@@ -222,8 +303,8 @@ export default function MyListingsPage() {
         </div>
 
         {/* Table */}
-        <div style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 70px 110px", background: "#1a2235", padding: "12px 22px", gap: 8 }}>
+        <div className="listings-table-container" style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, overflow: "hidden" }}>
+          <div className="listings-table-header" style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 70px 110px", background: "#1a2235", padding: "12px 22px", gap: 8 }}>
             {["Product", "Type", "Price", "Status", "Views", "Requests", "Actions"].map(h => (
               <span key={h} style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase" }}>{h}</span>
             ))}
@@ -248,23 +329,23 @@ export default function MyListingsPage() {
             const st = ST[sl] || ST["Active"];
             const ts = TYPE_STYLE[l.productType] || TYPE_STYLE["physical"];
             return (
-              <div key={l.id} className="row" style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 70px 110px", padding: "14px 22px", borderBottom: "1px solid #1e2d45", alignItems: "center", gap: 8, transition: "all 0.15s", background: hov === l.id ? "rgba(79,142,247,0.02)" : "transparent" }}
+              <div key={l.id} className="row listings-table-row" style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 70px 110px", padding: "14px 22px", borderBottom: "1px solid #1e2d45", alignItems: "center", gap: 8, transition: "all 0.15s", background: hov === l.id ? "rgba(79,142,247,0.02)" : "transparent" }}
                 onMouseEnter={() => setHov(l.id)} onMouseLeave={() => setHov(null)}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="listings-cell-info" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <ListingThumb images={l.images || []} />
                   <div>
                     <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, color: "#F0F4FF", marginBottom: 2 }}>{l.title}</p>
                     <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#374151" }}>#{l.id.slice(0,8)} · {l.category}</p>
                   </div>
                 </div>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ts.bg, color: ts.color, borderRadius: 9999, padding: "4px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>
+                <span className="listings-cell-type" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ts.bg, color: ts.color, borderRadius: 9999, padding: "4px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>
                   {l.productType === "digital" ? "📄" : "🔧"} {l.productType === "digital" ? "Digital" : "Physical"}
                 </span>
-                <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>₹{l.price.toLocaleString("en-IN")}</span>
-                <span style={{ display: "inline-block", background: st.bg, color: st.color, borderRadius: 9999, padding: "4px 12px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>{sl}</span>
-                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{(l.views || 0).toLocaleString()}</span>
-                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{l._count?.buyRequests || 0}</span>
-                <div style={{ display: "flex", gap: 6 }}>
+                <span className="listings-cell-price" style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>₹{l.price.toLocaleString("en-IN")}</span>
+                <span className="listings-cell-status" style={{ display: "inline-block", background: st.bg, color: st.color, borderRadius: 9999, padding: "4px 12px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>{sl}</span>
+                <span className="listings-cell-views" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{(l.views || 0).toLocaleString()}</span>
+                <span className="listings-cell-requests" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{l._count?.buyRequests || 0}</span>
+                <div className="listings-cell-actions" style={{ display: "flex", gap: 6 }}>
                   {editId === l.id ? (
                     <>
                       <input value={editPrice} onChange={e => setEditPrice(e.target.value)} style={{ width: 70, height: 32, padding: "0 8px", background: "#1a2235", border: "1.5px solid #4F8EF7", borderRadius: 8, color: "#F0F4FF", fontFamily: "'DM Sans',sans-serif", fontSize: 13, outline: "none" }} />
