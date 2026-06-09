@@ -69,6 +69,7 @@ model Student {
   listingPayments  ListingPayment[]
   sentMessages     ChatMessage[]
   wishlistItems    WishlistItem[]
+  notifications    Notification[]
 }
 
 model Product {
@@ -179,4 +180,14 @@ model AuditLog {
   adminId     String?
   createdAt   DateTime     @default(now())
   masterAdmin MasterAdmin? @relation(fields: [adminId], references: [id])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  studentId  String
+  text       String
+  type       String   @default("INFO")
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }

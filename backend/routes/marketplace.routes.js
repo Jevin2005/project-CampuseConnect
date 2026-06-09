@@ -80,6 +80,10 @@ router.post('/threads/:id/messages',   auth, ctrl.sendMessage);
 router.patch('/threads/:id/complete',  auth, ctrl.completeDeal);
 router.patch('/threads/:id/close',     auth, ctrl.closeThread);
 
+// Notifications
+router.get('/notifications',           auth, ctrl.getNotifications);
+router.patch('/notifications/read',    auth, ctrl.markNotificationsRead);
+
 /* ─── Admin ──────────────────────────────────────────────────────────── */
 router.get('/admin/products',               ...requireAdmin, ctrl.getPendingProducts);
 router.patch('/admin/products/:id/approve', ...requireAdmin, ctrl.approveProduct);

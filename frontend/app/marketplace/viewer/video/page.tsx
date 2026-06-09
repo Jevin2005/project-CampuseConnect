@@ -615,6 +615,84 @@ function VideoViewerInner() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#060913", overflow: "hidden", position: "relative" }}>
+      <style>{`
+        .video-watermark-text {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 12px;
+          color: #ffffff;
+        }
+        .drm-long-text {
+          display: inline;
+        }
+        .drm-short-text {
+          display: none;
+        }
+
+        @media (max-width: 900px) {
+          .video-workspace-grid {
+            grid-template-columns: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          .video-sidebar {
+            border-left: none !important;
+            border-top: 1px solid #1b233a !important;
+            height: auto !important;
+            max-height: 450px !important;
+            flex-shrink: 0 !important;
+          }
+          .video-player-pane {
+            padding: 12px 12px 16px !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .video-header {
+            height: auto !important;
+            flex-direction: column !important;
+            padding: 12px 16px !important;
+            gap: 10px !important;
+            align-items: stretch !important;
+          }
+          .video-header-left {
+            justify-content: space-between !important;
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+          .video-header-center {
+            text-align: left !important;
+            width: 100% !important;
+          }
+          .video-header-right {
+            display: none !important;
+          }
+          .video-trace-bar {
+            flex-direction: row !important;
+            height: 46px !important;
+            padding: 0 16px !important;
+            justify-content: center !important;
+            align-items: center !important;
+          }
+          .video-badge-container {
+            display: none !important;
+          }
+          .drm-long-text {
+            display: none !important;
+          }
+          .drm-short-text {
+            display: inline !important;
+            font-size: 11px !important;
+            white-space: nowrap !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .video-volume-slider {
+            display: none !important;
+          }
+        }
+      `}</style>
 
       {/* ─── DRM BLUR BLACKOUT OVERLAY (FOCUS LOST) ─── */}
       {focusLost && (
@@ -656,50 +734,52 @@ function VideoViewerInner() {
       )}
 
       {/* ─── NAVBAR ─── */}
-      <header style={{
+      <header className="video-header" style={{
         height: 60, background: "#0a0d1a", borderBottom: "1.5px solid #1b233a",
         display: "flex", alignItems: "center", padding: "0 24px", gap: 20, flexShrink: 0, zIndex: 100
       }}>
-        {/* Back Link */}
-        <Link href={`/marketplace/digital/${productId}`} style={{
-          display: "flex", alignItems: "center", gap: 6,
-          fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
-          textDecoration: "none",
-        }}>
-          <ChevronLeft size={16} />
-          {isPreview ? "Exit Preview" : "Exit Course"}
-        </Link>
+        <div className="video-header-left" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Back Link */}
+          <Link href={`/marketplace/digital/${productId}`} style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
+            textDecoration: "none",
+          }}>
+            <ChevronLeft size={16} />
+            {isPreview ? "Exit Preview" : "Exit Course"}
+          </Link>
 
-        {/* Status Badges */}
-        {isPreview ? (
-          <div style={{
-            background: "rgba(245,158,11,0.12)", border: "1.5px solid rgba(245,158,11,0.3)",
-            borderRadius: 9999, padding: "4px 14px",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F59E0B",
-            display: "flex", alignItems: "center", gap: 6
-          }}>
-            <Lock size={12} /> DEMO PREVIEW MODE
-          </div>
-        ) : (
-          <div style={{
-            background: "rgba(16,185,129,0.12)", border: "1.5px solid rgba(16,185,129,0.3)",
-            borderRadius: 9999, padding: "4px 14px",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#10B981",
-            display: "flex", alignItems: "center", gap: 6
-          }}>
-            🛡️ SECURED CLASSROOM
-          </div>
-        )}
+          {/* Status Badges */}
+          {isPreview ? (
+            <div style={{
+              background: "rgba(245,158,11,0.12)", border: "1.5px solid rgba(245,158,11,0.3)",
+              borderRadius: 9999, padding: "4px 14px",
+              fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F59E0B",
+              display: "flex", alignItems: "center", gap: 6
+            }}>
+              <Lock size={12} /> DEMO PREVIEW MODE
+            </div>
+          ) : (
+            <div style={{
+              background: "rgba(16,185,129,0.12)", border: "1.5px solid rgba(16,185,129,0.3)",
+              borderRadius: 9999, padding: "4px 14px",
+              fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#10B981",
+              display: "flex", alignItems: "center", gap: 6
+            }}>
+              🛡️ SECURED CLASSROOM
+            </div>
+          )}
+        </div>
 
         {/* Center Details */}
-        <div style={{ flex: 1, textAlign: "center" }}>
-          <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF" }}>
+        <div style={{ flex: 1, textAlign: "center" }} className="video-header-center">
+          <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF" }} className="video-header-title">
             {product.title}
           </p>
         </div>
 
         {/* Security / User profile */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }} className="video-header-right">
           <Bell size={17} style={{ color: "#6B7280", cursor: "pointer" }} />
           <div style={{
             width: 32, height: 32, borderRadius: "50%", background: "#10B981",
@@ -725,10 +805,10 @@ function VideoViewerInner() {
       )}
 
       {/* ─── MAIN WORKSPACE GRID (75/25 Layout) ─── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 310px", flex: 1, minHeight: 0 }}>
+      <div className="video-workspace-grid" style={{ display: "grid", gridTemplateColumns: "1fr 310px", flex: 1, minHeight: 0 }}>
 
         {/* LEFT WORKSPACE — Video player & Active details */}
-        <div style={{ display: "flex", flexDirection: "column", padding: "24px 24px 16px", overflowY: "auto" }}>
+        <div className="video-player-pane" style={{ display: "flex", flexDirection: "column", padding: "24px 24px 16px", overflowY: "auto" }}>
 
           {/* HTML5 SECURE CUSTOM PLAYER FRAME */}
           <div
@@ -832,7 +912,7 @@ function VideoViewerInner() {
                   </button>
 
                   {/* Volume Slider */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="video-volume-slider" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Volume2 size={16} style={{ color: "#d1d5db" }} />
                     <input 
                       type="range" 
@@ -922,7 +1002,7 @@ function VideoViewerInner() {
         </div>
 
         {/* RIGHT OUTLINE DRAWER — Course Syllabus Lessons */}
-        <div style={{
+        <div className="video-sidebar" style={{
           background: "#0a0d1a", borderLeft: "1px solid #1b233a",
           display: "flex", flexDirection: "column", overflowY: "auto",
         }}>
@@ -939,7 +1019,7 @@ function VideoViewerInner() {
           </div>
 
           {/* Clicks list */}
-          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
             {SYLLABUS_LESSONS.map(l => {
               const lockedInPreview = isPreview && l.id > 1;
               const isCurrent = l.id === currentLessonId;
@@ -949,37 +1029,86 @@ function VideoViewerInner() {
                   key={l.id}
                   onClick={() => handleLessonClick(l.id)}
                   style={{
-                    padding: "12px 14px", borderRadius: 8,
-                    background: isCurrent && !lockedInPreview ? "rgba(16,185,129,0.08)" : "transparent",
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    background: isCurrent && !lockedInPreview 
+                      ? "rgba(16,185,129,0.08)" 
+                      : "rgba(255,255,255,0.02)",
                     border: `1.5px solid ${isCurrent && !lockedInPreview ? "rgba(16,185,129,0.25)" : "transparent"}`,
                     cursor: lockedInPreview ? "not-allowed" : "pointer",
-                    display: "flex", alignItems: "center", gap: 10,
-                    opacity: lockedInPreview ? 0.35 : 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    opacity: lockedInPreview ? 0.45 : 1,
                     transition: "all 0.15s ease",
                   }}
                 >
-                  {lockedInPreview ? (
-                    <Lock size={13} style={{ color: "#8E9AA8", flexShrink: 0 }} />
-                  ) : isCurrent ? (
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981", flexShrink: 0 }} />
-                  ) : (
-                    <CheckCircle size={13} style={{ color: "#3b82f6", flexShrink: 0 }} />
-                  )}
+                  {/* YouTube style Video Thumbnail */}
+                  <div style={{
+                    width: 90,
+                    height: 52,
+                    borderRadius: 6,
+                    background: "#0d0f1a",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
+                    flexShrink: 0,
+                    overflow: "hidden",
+                    border: "1.5px solid rgba(255, 255, 255, 0.08)",
+                  }}>
+                    {/* Lesson Index Tag */}
+                    <span style={{
+                      position: "absolute",
+                      top: 4,
+                      left: 4,
+                      background: "rgba(0,0,0,0.6)",
+                      padding: "1px 4px",
+                      borderRadius: 3,
+                      fontSize: 8,
+                      color: "#fff",
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: 700,
+                    }}>L{l.id}</span>
+                    
+                    {lockedInPreview ? (
+                      <Lock size={14} style={{ color: "#9CA3AF" }} />
+                    ) : isCurrent ? (
+                      <Play size={14} style={{ color: "#10B981" }} />
+                    ) : (
+                      <CheckCircle size={14} style={{ color: "#3B82F6" }} />
+                    )}
+
+                    {/* Time duration badge */}
+                    <span style={{
+                      position: "absolute",
+                      bottom: 4,
+                      right: 4,
+                      background: "rgba(0,0,0,0.75)",
+                      padding: "1px 4px",
+                      borderRadius: 3,
+                      fontSize: 8,
+                      color: "#fff",
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: 700,
+                    }}>{l.duration}</span>
+                  </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{
                       fontFamily: "'DM Sans', sans-serif",
-                      fontSize: 12, fontWeight: isCurrent && !lockedInPreview ? 700 : 500,
+                      fontSize: 12,
+                      fontWeight: isCurrent && !lockedInPreview ? 700 : 500,
                       color: isCurrent && !lockedInPreview ? "#F0F4FF" : "#9CA3AF",
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}>
-                      {String(l.id).padStart(2, "0")}: {l.title}
+                      {l.title}
                     </p>
-                    <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center" }}>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280" }}>
-                        ⏱ {l.duration} mins
-                      </span>
-                    </div>
+                    <p style={{ fontSize: 10, color: "#4B5563", marginTop: 2 }}>
+                      {lockedInPreview ? "Premium Lecture" : "Ready to play"}
+                    </p>
                   </div>
                 </div>
               );
@@ -1029,16 +1158,21 @@ function VideoViewerInner() {
 
       {/* ─── BOTTOM TRACEABLE META SECURITY BAR ─── */}
       {!isPreview && (
-        <div style={{
+        <div className="video-trace-bar" style={{
           flexShrink: 0, padding: "12px 28px",
           background: "#10B981",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           zIndex: 90
         }}>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#ffffff", letterSpacing: "0.2px" }}>
-            🛡️ <strong>Traceable DRM Active:</strong> Unauthorized video streams recording is strictly traceable to: <strong>{watermarkEmail} ({watermarkUser})</strong>.
+          <p className="video-watermark-text" style={{ margin: 0, letterSpacing: "0.2px" }}>
+            <span className="drm-long-text">
+              🛡️ <strong>Traceable DRM Active:</strong> Unauthorized video streams recording is strictly traceable to: <strong>{watermarkEmail} ({watermarkUser})</strong>.
+            </span>
+            <span className="drm-short-text">
+              🛡️ Traceable DRM: <strong>{watermarkEmail} ({watermarkUser})</strong>
+            </span>
           </p>
-          <div style={{ display: "flex", gap: 20 }}>
+          <div className="video-badge-container" style={{ display: "flex", gap: 20 }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 700 }}>
               VERIFIED ENROLLMENT ACCESS
             </span>

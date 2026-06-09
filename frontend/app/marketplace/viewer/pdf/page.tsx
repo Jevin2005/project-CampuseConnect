@@ -168,7 +168,7 @@ function PdfPage({ data, watermarkUser, watermarkEmail }: {
   watermarkEmail: string;
 }) {
   return (
-    <div style={{ position: "relative", padding: "48px 56px", minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#ffffff", userSelect: "none" }}>
+    <div className="pdf-page-container" style={{ position: "relative", padding: "48px 56px", minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#ffffff", userSelect: "none" }}>
       <div>
         {/* header row */}
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, borderBottom: "1.5px solid #f0f0f5", paddingBottom: 8 }}>
@@ -214,9 +214,11 @@ function PdfPage({ data, watermarkUser, watermarkEmail }: {
 
       {/* WATERMARK BACKGROUND (DYNAMIC OVERLAY) */}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", userSelect: "none", overflow: "hidden", zIndex: 10 }}>
-        {Array.from({ length: 5 }).map((_, row) =>
-          Array.from({ length: 3 }).map((_, col) => (
-            <div key={`${row}-${col}`} style={{
+        {Array.from({ length: 15 }).map((_, index) => {
+          const row = Math.floor(index / 3);
+          const col = index % 3;
+          return (
+            <div key={index} style={{
               position: "absolute",
               top: `${row * 22 + 6}%`,
               left: `${col * 35 - 5}%`,
@@ -230,8 +232,8 @@ function PdfPage({ data, watermarkUser, watermarkEmail }: {
             }}>
               {watermarkUser} ({watermarkEmail}) • CampusConnect SECURED • DO NOT REPRODUCE
             </div>
-          ))
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -318,6 +320,86 @@ const getFileUrl = (url: string) => {
   return `${baseUrl.replace(/\/$/, "")}${url}`;
 };
 
+/* ─── PDF page renderer canvas component ─── */
+function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEmail }: {
+  pdfDocument: any;
+  pageNum: number;
+  zoom: number;
+  watermarkUser: string;
+  watermarkEmail: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!pdfDocument || !canvasRef.current) return;
+    let active = true;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    pdfDocument.getPage(pageNum).then((pdfPage: any) => {
+      if (!active) return;
+      const viewport = pdfPage.getViewport({ scale: (zoom / 100) * 1.5 });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      const renderContext = {
+        canvasContext: ctx,
+        viewport: viewport,
+      };
+
+      pdfPage.render(renderContext).promise.catch((err: any) => {
+        console.error("Render failed for page " + pageNum, err);
+      });
+    }).catch((err: any) => {
+      console.error("Error loading page " + pageNum, err);
+      setError(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [pdfDocument, pageNum, zoom]);
+
+  if (error) {
+    return (
+      <div style={{ padding: "40px 20px", textAlign: "center", background: "#fef2f2", color: "#991b1b" }}>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>Failed to render page {pageNum}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#ffffff" }}>
+      <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "auto" }} />
+      {/* WATERMARK BACKGROUND (DYNAMIC OVERLAY) ON CANVAS */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", userSelect: "none", overflow: "hidden", zIndex: 10 }}>
+        {Array.from({ length: 15 }).map((_, index) => {
+          const row = Math.floor(index / 3);
+          const col = index % 3;
+          return (
+            <div key={index} style={{
+              position: "absolute",
+              top: `${row * 22 + 6}%`,
+              left: `${col * 35 - 5}%`,
+              transform: "rotate(-25deg)",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10,
+              color: "rgba(79, 70, 229, 0.07)",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+              letterSpacing: "0.5px"
+            }}>
+              {watermarkUser} ({watermarkEmail}) • CampusConnect SECURED • DO NOT REPRODUCE
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ═══ INNER VIEWER ═══════════════════════════════════════ */
 function PdfViewerInner() {
   const router = useRouter();
@@ -334,14 +416,21 @@ function PdfViewerInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(100);
+  const [scrollPercent, setScrollPercent] = useState(0);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const totalHeight = target.scrollHeight - target.clientHeight;
+    if (totalHeight > 0) {
+      setScrollPercent((target.scrollTop / totalHeight) * 100);
+    }
+  };
 
   // Real PDF specific states
   const [pdfjsLoaded, setPdfjsLoaded] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
   const [numPages, setNumPages] = useState<number>(0);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // DRM overlays trigger
   const [focusLost, setFocusLost] = useState(false);
@@ -448,46 +537,6 @@ function PdfViewerInner() {
     };
   }, [pdfjsLoaded, product, purchased, productId, searchParams, user]);
 
-  // Render active page onto secure canvas when loaded
-  useEffect(() => {
-    if (!pdfDocument || !canvasRef.current) return;
-
-    let active = true;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Check locking rules: do not render locked pages!
-    const PREVIEW_LIMIT = 2;
-    const isPreviewRequested = searchParams.get("preview") === "true";
-    const isSeller = product?.sellerId === user?.id;
-    const isPreview = isPreviewRequested || (!purchased && !isSeller);
-    const isLocked = isPreview && page > PREVIEW_LIMIT;
-
-    if (isLocked) return;
-
-    pdfDocument.getPage(page).then((pdfPage: any) => {
-      if (!active) return;
-
-      const viewport = pdfPage.getViewport({ scale: (zoom / 100) * 1.5 });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      const renderContext = {
-        canvasContext: ctx,
-        viewport: viewport,
-      };
-
-      pdfPage.render(renderContext).promise.catch((err: any) => {
-        console.error("Render failed:", err);
-      });
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [pdfDocument, page, zoom, purchased, product, searchParams, user]);
-
   // Determine DRM preview parameters
   const isPreviewRequested = searchParams.get("preview") === "true";
   const isSeller = product?.sellerId === user?.id;
@@ -497,30 +546,6 @@ function PdfViewerInner() {
 
   const PREVIEW_LIMIT = 2;
   const TOTAL_PAGES = pdfDocument ? numPages : 4;
-
-  const isLocked = isPreview && page > PREVIEW_LIMIT;
-
-  // Grab Dynamic Subject Category Notes Mock
-  const noteCategory = product?.category?.toLowerCase() || "";
-  let dataSet = ACADEMIC_NOTES_DATABASE.ece;
-  if (noteCategory.includes("computer") || noteCategory.includes("algorithm") || noteCategory.includes("science") || noteCategory.includes("code")) {
-    dataSet = ACADEMIC_NOTES_DATABASE.cs;
-  } else if (noteCategory.includes("physic") || noteCategory.includes("quantum") || noteCategory.includes("mechanic")) {
-    dataSet = ACADEMIC_NOTES_DATABASE.physics;
-  }
-
-  const pageData = dataSet[Math.min(page - 1, dataSet.length - 1)];
-
-  // Navigation handlers
-  const goNext = () => {
-    if (!isPreview) {
-      setPage(p => Math.min(TOTAL_PAGES, p + 1));
-      return;
-    }
-    // In preview mode, allow navigating to page 3 to trigger the lock screen
-    setPage(p => Math.min(PREVIEW_LIMIT + 1, p + 1));
-  };
-  const goPrev = () => setPage(p => Math.max(1, p - 1));
 
   // 🛡️ DRM Event Listeners: Focus Loss & Keyboard PrintScreen Control
   useEffect(() => {
@@ -597,6 +622,88 @@ function PdfViewerInner() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#060913", overflow: "hidden", position: "relative" }}>
+      <style>{`
+        .pdf-watermark-text {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 12px;
+          color: #ffffff;
+        }
+        .drm-long-text {
+          display: inline;
+        }
+        .drm-short-text {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .pdf-secured-bar {
+            flex-direction: row !important;
+            height: 46px !important;
+            padding: 0 16px !important;
+          }
+          .drm-long-text {
+            display: none !important;
+          }
+          .drm-short-text {
+            display: inline !important;
+            font-size: 11px !important;
+            white-space: nowrap !important;
+          }
+          .pdf-header {
+            height: auto !important;
+            flex-direction: column !important;
+            padding: 12px 16px !important;
+            gap: 10px !important;
+            align-items: stretch !important;
+          }
+          .pdf-header-left {
+            justify-content: space-between !important;
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+          .pdf-header-center {
+            text-align: left !important;
+            width: 100% !important;
+            align-items: flex-start !important;
+            margin: 2px 0 !important;
+          }
+          .pdf-header-controls {
+            width: 100% !important;
+            justify-content: space-between !important;
+            gap: 6px !important;
+          }
+          .pdf-workspace {
+            padding: 12px 8px !important;
+          }
+          .pdf-document-card {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: unset !important;
+            aspect-ratio: 640/860 !important;
+            font-size: clamp(0.48em, 2.2vw, 1em) !important;
+          }
+          .pdf-page-container {
+            padding: 20px 24px !important;
+          }
+          .pdf-bottom-bar {
+            flex-direction: column !important;
+            height: auto !important;
+            padding: 14px 16px !important;
+            gap: 10px !important;
+            text-align: center !important;
+          }
+          .pdf-bottom-bar button {
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 500px) {
+          .pdf-zoom-btn, .pdf-zoom-text, .pdf-controls-divider {
+            display: none !important;
+          }
+        }
+      `}</style>
 
       {/* ─── DRM BLUR BLACKOUT OVERLAY (FOCUS LOST) ─── */}
       {focusLost && (
@@ -639,149 +746,145 @@ function PdfViewerInner() {
       )}
 
       {/* ─── VIEWER NAVBAR ─── */}
-      <header style={{
+      <header className="pdf-header" style={{
         height: 58, background: "#0a0d1a", borderBottom: "1.5px solid #1b233a",
         display: "flex", alignItems: "center", padding: "0 24px", flexShrink: 0, zIndex: 100
       }}>
-        {/* Back Link */}
-        <Link href={`/marketplace/digital/${productId}`} style={{
-          display: "flex", alignItems: "center", gap: 6,
-          fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
-          textDecoration: "none", marginRight: 24,
-        }}>
-          <ChevronLeft size={16} />
-          {isPreview ? "Exit Preview" : "Exit Reader"}
-        </Link>
-
-        {/* Free Preview Badge */}
-        {isPreview && (
-          <div style={{
-            background: "rgba(245,158,11,0.12)", border: "1.5px solid rgba(245,158,11,0.3)",
-            borderRadius: 9999, padding: "4px 14px",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F59E0B",
-            marginRight: 16, display: "flex", alignItems: "center", gap: 6
+        <div className="pdf-header-left" style={{ display: "flex", alignItems: "center" }}>
+          {/* Back Link */}
+          <Link href={`/marketplace/digital/${productId}`} style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
+            textDecoration: "none", marginRight: 24,
           }}>
-            <Lock size={12} /> DEMO PREVIEW (Locked)
-          </div>
-        )}
+            <ChevronLeft size={16} />
+            {isPreview ? "Exit Preview" : "Exit Reader"}
+          </Link>
+
+          {/* Free Preview Badge */}
+          {isPreview && (
+            <div style={{
+              background: "rgba(245,158,11,0.12)", border: "1.5px solid rgba(245,158,11,0.3)",
+              borderRadius: 9999, padding: "4px 14px",
+              fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F59E0B",
+              display: "flex", alignItems: "center", gap: 6
+            }}>
+              <Lock size={12} /> DEMO PREVIEW (Locked)
+            </div>
+          )}
+        </div>
 
         {/* Center Details */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div className="pdf-header-center" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 300 }}>
             {product.title}
           </p>
           <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#8E9AA8", marginTop: 2 }}>
             {isPreview
-              ? `Preview page ${Math.min(page, PREVIEW_LIMIT)} of ${PREVIEW_LIMIT} (Full document: 4 pages)`
-              : `Page ${page} of ${TOTAL_PAGES}`}
+              ? `Preview Limit: 2 pages (Full document: 4 pages)`
+              : `Secure Reader Mode (${TOTAL_PAGES} pages)`}
           </p>
         </div>
 
         {/* Navigation & Zoom controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={goPrev} disabled={page <= 1} style={{ ...ctrlBtnStyle, opacity: page <= 1 ? 0.3 : 1 }}>
-            <ChevronLeft size={16} />
-          </button>
-          
-          <button 
-            onClick={goNext}
-            disabled={isPreview ? page > PREVIEW_LIMIT : page >= TOTAL_PAGES}
-            style={{ ...ctrlBtnStyle, opacity: (isPreview ? page > PREVIEW_LIMIT : page >= TOTAL_PAGES) ? 0.3 : 1 }}
-          >
-            <ChevronRight size={16} />
-          </button>
-
-          <div style={{ width: 1.5, height: 20, background: "#1b233a", margin: "0 6px" }} />
-
-          <button onClick={() => setZoom(z => Math.max(70, z - 10))} style={ctrlBtnStyle} title="Zoom Out">
+        <div className="pdf-header-controls" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => setZoom(z => Math.max(70, z - 10))} style={ctrlBtnStyle} title="Zoom Out" className="pdf-zoom-btn">
             <ZoomOut size={15} />
           </button>
           
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#9CA3AF", minWidth: 38, textAlign: "center" }}>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#9CA3AF", minWidth: 38, textAlign: "center" }} className="pdf-zoom-text">
             {zoom}%
           </span>
 
-          <button onClick={() => setZoom(z => Math.min(160, z + 10))} style={ctrlBtnStyle} title="Zoom In">
+          <button onClick={() => setZoom(z => Math.min(160, z + 10))} style={ctrlBtnStyle} title="Zoom In" className="pdf-zoom-btn">
             <ZoomIn size={15} />
           </button>
         </div>
       </header>
 
-      {/* ─── PREVIEW PROGRESS BAR (preview mode) ─── */}
-      {isPreview && (
-        <div style={{ height: 4, background: "#1b233a", flexShrink: 0, position: "relative" }}>
-          <div style={{
-            height: "100%",
-            width: `${(Math.min(page, PREVIEW_LIMIT) / PREVIEW_LIMIT) * 100}%`,
-            background: "linear-gradient(90deg, #A78BFA, #8B5CF6)",
-            transition: "width 0.3s",
-          }} />
-        </div>
-      )}
+      {/* ─── SCROLL PROGRESS BAR ─── */}
+      <div style={{ height: 4, background: "#1b233a", flexShrink: 0, position: "relative" }}>
+        <div style={{
+          height: "100%",
+          width: `${scrollPercent}%`,
+          background: isPreview ? "linear-gradient(90deg, #A78BFA, #8B5CF6)" : "linear-gradient(90deg, #4f46e5, #7c3aed)",
+          transition: "width 0.1s ease-out",
+        }} />
+      </div>
 
       {/* ─── SECURE VIEWER WORKSPACE AREA ─── */}
-      <div style={{
+      <div className="pdf-workspace" onScroll={handleScroll} style={{
         flex: 1, background: "#080b13",
-        display: "flex", alignItems: "flex-start", justifyContent: "center",
+        display: "flex", flexDirection: "column", alignItems: "center",
         overflowY: "auto", padding: "32px 24px",
       }}>
-        <div style={{
-          background: "#fff",
-          width: `${640 * zoom / 100}px`,
-          minHeight: `${860 * zoom / 100}px`,
-          borderRadius: 8,
-          boxShadow: "0 12px 60px rgba(0, 0, 0, 0.8)",
-          position: "relative", overflow: "hidden",
-          fontSize: `${zoom / 100}em`,
-          transition: "width 0.15s ease-out, min-height 0.15s ease-out",
-        }}>
-          {/* Content rendered under security controls (blurs when locked) */}
-          <div style={{ filter: isLocked ? "blur(8px)" : "none", transition: "filter 0.3s", height: "100%" }}>
-            {pdfDocument ? (
-              <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#ffffff" }}>
-                <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "auto" }} />
-                {/* WATERMARK BACKGROUND (DYNAMIC OVERLAY) ON CANVAS */}
-                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", userSelect: "none", overflow: "hidden", zIndex: 10 }}>
-                  {Array.from({ length: 5 }).map((_, row) =>
-                    Array.from({ length: 3 }).map((_, col) => (
-                      <div key={`${row}-${col}`} style={{
-                        position: "absolute",
-                        top: `${row * 22 + 6}%`,
-                        left: `${col * 35 - 5}%`,
-                        transform: "rotate(-25deg)",
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: 10,
-                        color: "rgba(79, 70, 229, 0.07)",
-                        fontWeight: 700,
-                        whiteSpace: "nowrap",
-                        letterSpacing: "0.5px"
-                      }}>
-                        {watermarkUser} ({watermarkEmail}) • CampusConnect SECURED • DO NOT REPRODUCE
-                      </div>
-                    ))
+        {/* Grab Dynamic Subject Category Notes Mock */}
+        {(() => {
+          const noteCategory = product?.category?.toLowerCase() || "";
+          let dataSet = ACADEMIC_NOTES_DATABASE.ece;
+          if (noteCategory.includes("computer") || noteCategory.includes("algorithm") || noteCategory.includes("science") || noteCategory.includes("code")) {
+            dataSet = ACADEMIC_NOTES_DATABASE.cs;
+          } else if (noteCategory.includes("physic") || noteCategory.includes("quantum") || noteCategory.includes("mechanic")) {
+            dataSet = ACADEMIC_NOTES_DATABASE.physics;
+          }
+
+          return Array.from({ length: TOTAL_PAGES }).map((_, index) => {
+            const pageNum = index + 1;
+            const isPageLocked = isPreview && pageNum > PREVIEW_LIMIT;
+
+            return (
+              <div
+                key={pageNum}
+                className="pdf-document-card"
+                style={{
+                  background: "#fff",
+                  width: `${640 * zoom / 100}px`,
+                  borderRadius: 8,
+                  boxShadow: "0 12px 60px rgba(0, 0, 0, 0.8)",
+                  position: "relative",
+                  overflow: "hidden",
+                  fontSize: `${zoom / 100}em`,
+                  transition: "width 0.15s ease-out",
+                  marginBottom: 20,
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ filter: isPageLocked ? "blur(8px)" : "none", transition: "filter 0.3s", height: "100%" }}>
+                  {pdfDocument ? (
+                    <PdfPageCanvas
+                      pdfDocument={pdfDocument}
+                      pageNum={pageNum}
+                      zoom={zoom}
+                      watermarkUser={watermarkUser}
+                      watermarkEmail={watermarkEmail}
+                    />
+                  ) : (
+                    <PdfPage
+                      data={dataSet[Math.min(pageNum - 1, dataSet.length - 1)]}
+                      watermarkUser={watermarkUser}
+                      watermarkEmail={watermarkEmail}
+                    />
                   )}
                 </div>
-              </div>
-            ) : (
-              <PdfPage data={pageData} watermarkUser={watermarkUser} watermarkEmail={watermarkEmail} />
-            )}
-          </div>
 
-          {/* Paywall Blocker Overlay */}
-          {isLocked && (
-            <PaywallOverlay 
-              productTitle={product.title} 
-              price={product.price} 
-              productId={productId} 
-            />
-          )}
-        </div>
+                {/* Paywall Blocker Overlay */}
+                {isPageLocked && pageNum === PREVIEW_LIMIT + 1 && (
+                  <PaywallOverlay
+                    productTitle={product.title}
+                    price={product.price}
+                    productId={productId}
+                  />
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
 
       {/* ─── BOTTOM SECURITY META BAR ─── */}
       {isPreview ? (
         /* Preview Bottom CTA Bar */
-        <div style={{
+        <div className="pdf-bottom-bar" style={{
           flexShrink: 0, height: 56,
           background: "#0a0d1a", borderTop: "1.5px solid #1b233a",
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -804,14 +907,19 @@ function PdfViewerInner() {
         </div>
       ) : (
         /* Full Secured Mode Information Bar */
-        <div style={{
+        <div className="pdf-secured-bar" style={{
           flexShrink: 0, height: 46,
           background: "linear-gradient(90deg, #4f46e5, #7c3aed)",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: "0 24px", zIndex: 90
         }}>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#ffffff", display: "flex", alignItems: "center", gap: 8, letterSpacing: "0.2px" }}>
-            🛡️ <strong>Platform Protection Active:</strong> This digital notes pack is securely watermarked under license to <strong>{watermarkEmail} ({watermarkUser})</strong>. Sharing is punishable.
+          <p className="pdf-watermark-text" style={{ margin: 0, letterSpacing: "0.2px", textAlign: "center", width: "100%" }}>
+            <span className="drm-long-text">
+              🛡️ <strong>Platform Protection Active:</strong> This digital notes pack is securely watermarked under license to <strong>{watermarkEmail} ({watermarkUser})</strong>. Sharing is punishable.
+            </span>
+            <span className="drm-short-text">
+              🛡️ Licensed to: <strong>{watermarkEmail} ({watermarkUser})</strong>
+            </span>
           </p>
         </div>
       )}

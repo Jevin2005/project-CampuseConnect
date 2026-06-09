@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
+import { useAuthStore } from "@/store/authStore";
 import { Heart, Trash2, ShoppingBag, Search, Check, RefreshCw } from "lucide-react";
 import { fetchWishlist, removeFromWishlist, type WishlistItem } from "@/lib/marketplaceApi";
 
@@ -24,7 +25,17 @@ export default function WishlistPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadWishlist(); }, [loadWishlist]);
+  const user = useAuthStore(s => s.user);
+  const authLoading = useAuthStore(s => s.isLoading);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) {
+      loadWishlist();
+    } else {
+      setLoading(false);
+    }
+  }, [user, authLoading, loadWishlist]);
 
   async function remove(productId: string) {
     try {

@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
-import { Send, Search, Check, CheckCheck, Package, Smile, RefreshCw, MessageSquare, Power, Lock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { Send, Search, Check, CheckCheck, Package, Smile, RefreshCw, MessageSquare, Power, Lock, AlertCircle, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -64,6 +64,7 @@ export default function InboxPage() {
   const [threads, setThreads] = useState<UIThread[]>([]);
   const [msgs, setMsgs] = useState<UIMsg[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
@@ -133,10 +134,19 @@ export default function InboxPage() {
     setMsgLoading(false);
   }, []);
 
+  const user = useAuthStore(s => s.user);
+  const authLoading = useAuthStore(s => s.isLoading);
+
   useEffect(() => {
-    myId.current = getCurrentUserId();
-    fetchThreads();
-  }, []);
+    if (authLoading) return;
+    if (user) {
+      myId.current = user.id;
+      fetchThreads();
+    } else {
+      setLoading(false);
+      setNoToken(true);
+    }
+  }, [user, authLoading, fetchThreads]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -225,12 +235,40 @@ export default function InboxPage() {
         .ti:hover{background:rgba(255,255,255,0.03)!important}
         .sb:hover{background:#3b7de8!important}
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#1e2d45;border-radius:4px}
+        .inbox-back-btn {
+          display: none !important;
+        }
+        @media (max-width: 768px) {
+          .inbox-container {
+            height: calc(100vh - 120px) !important;
+          }
+          .inbox-back-btn {
+            display: flex !important;
+          }
+          .inbox-sidebar {
+            width: 100% !important;
+            display: ${mobileView === "list" ? "flex" : "none"} !important;
+            border-right: none !important;
+          }
+          .inbox-chat-window {
+            width: 100% !important;
+            display: ${mobileView === "chat" ? "flex" : "none"} !important;
+          }
+          .inbox-chat-window > div:first-of-type {
+            padding: 10px 14px !important;
+            gap: 10px !important;
+          }
+          .inbox-chat-window > div[style*="padding: 12px 24px"], .inbox-chat-window > div[style*="padding: 16px 24px"] {
+            padding: 10px 12px !important;
+            gap: 8px !important;
+          }
+        }
       `}</style>
 
-      <div style={{ display: "flex", height: "calc(100vh - 102px)", overflow: "hidden" }}>
+      <div className="inbox-container" style={{ display: "flex", height: "calc(100vh - 102px)", overflow: "hidden" }}>
 
         {/* Thread List */}
-        <div style={{ width: 300, flexShrink: 0, borderRight: "1px solid #1e2d45", display: "flex", flexDirection: "column", background: "#0d1120" }}>
+        <div className="inbox-sidebar" style={{ width: 300, flexShrink: 0, borderRight: "1px solid #1e2d45", display: "flex", flexDirection: "column", background: "#0d1120" }}>
           <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid #1e2d45" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 800, color: "#F0F4FF", flex: 1 }}>Inbox</h2>
@@ -266,7 +304,7 @@ export default function InboxPage() {
               </div>
             )}
             {filtered.map(t => (
-              <div key={t.id} className="ti" onClick={() => setActiveId(t.id)}
+              <div key={t.id} className="ti" onClick={() => { setActiveId(t.id); setMobileView("chat"); }}
                 style={{ padding: "14px 16px", cursor: "pointer", background: t.id === activeId ? "rgba(79,142,247,0.08)" : "transparent", borderLeft: `3px solid ${t.id === activeId ? "#4F8EF7" : "transparent"}`, transition: "all 0.15s", borderBottom: "1px solid rgba(30,45,69,0.4)" }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
@@ -297,9 +335,30 @@ export default function InboxPage() {
 
         {/* Chat Window */}
         {active ? (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#0A0E1A", minWidth: 0 }}>
+          <div className="inbox-chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "#0A0E1A", minWidth: 0 }}>
             {/* Header */}
             <div style={{ padding: "14px 24px", borderBottom: "1px solid #1e2d45", background: "#0d1120", display: "flex", alignItems: "center", gap: 14 }}>
+              <button 
+                onClick={() => setMobileView("list")} 
+                className="inbox-back-btn" 
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#9CA3AF",
+                  padding: "6px",
+                  marginRight: "-4px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.2s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <ArrowLeft size={20} />
+              </button>
               <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 800, color: "#fff" }}>
                 {active.inits}
               </div>
@@ -511,7 +570,7 @@ export default function InboxPage() {
           </div>
         ) : (
           /* No thread selected / empty state */
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#0A0E1A", flexDirection: "column", gap: 12 }}>
+          <div className="inbox-chat-window" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#0A0E1A", flexDirection: "column", gap: 12 }}>
             <MessageSquare size={48} style={{ color: "#1e2d45" }} />
             <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF" }}>
               {loading ? "Loading your inbox…" : "Select a conversation"}

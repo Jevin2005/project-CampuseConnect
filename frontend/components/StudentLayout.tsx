@@ -62,7 +62,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 function gToken() { return typeof window !== "undefined" ? localStorage.getItem("token") || "" : ""; }
 function inits(n: string) { return (n || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase(); }
 
-export function StudentLayout({ children }: { children: React.ReactNode }) {
+export function StudentLayout({ children, showFooter = false }: { children: React.ReactNode; showFooter?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const clearAuth = useAuthStore((s) => s.clearAuth);
@@ -72,21 +72,96 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
   const [stats, setStats] = useState<{ listed: number; sold: number; revenue: number } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Helper to format ISO strings into relative times
+  const timeAgo = (dateStr: string) => {
+    try {
+      const now = new Date();
+      const past = new Date(dateStr);
+      const diffMs = now.getTime() - past.getTime();
+      if (diffMs < 0) return "just now";
+      
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHr / 24);
+
+      if (diffSec < 60) return "just now";
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHr < 24) return `${diffHr}h ago`;
+      return `${diffDays}d ago`;
+    } catch {
+      return "some time ago";
+    }
+  };
+
+  // Helper to get notification type visual dot color
+  const getDotColor = (type: string) => {
+    switch (type) {
+      case "NEW_REQUEST":
+        return "#4F8EF7"; // blue
+      case "CHAT_MESSAGE":
+        return "#10B981"; // green
+      case "PRODUCT_APPROVED":
+      case "REQUEST_ACCEPTED":
+        return "#A78BFA"; // purple
+      case "REQUEST_REJECTED":
+        return "#EF4444"; // red
+      default:
+        return "#6B7280"; // gray
+    }
+  };
+
+  // Open notifications and mark as read
+  const handleToggleNotif = async () => {
+    const nextOpen = !notifOpen;
+    setNotifOpen(nextOpen);
+    if (nextOpen) {
+      try {
+        const res = await api.get("/api/marketplace/notifications");
+        const data = res.data || [];
+        setNotifications(data);
+        const count = data.filter((n: any) => !n.read).length;
+        if (count > 0) {
+          await api.patch("/api/marketplace/notifications/read");
+          setUnreadCount(0); // clear count badge on header bell button
+        }
+      } catch (err) {
+        console.error("Error toggling notifications:", err);
+      }
+    }
+  };
 
   useEffect(() => {
+    setMounted(true);
+    
+    // Fetch profile stats
     api.get("/api/marketplace/me")
       .then(res => {
         const d = res.data;
         if (d?.stats) setStats({ listed: d.stats.listed, sold: d.stats.sold, revenue: d.stats.revenue });
       })
       .catch(() => { });
-  }, []);
 
-  const NOTIFS = [
-    { text: "Your GATE Notes listing got 12 new views", time: "2m ago", dot: "#4F8EF7" },
-    { text: "Arjun M. sent you a message about Laptop", time: "18m ago", dot: "#10B981" },
-    { text: "Admin approved your DSP Video Course", time: "1h ago", dot: "#A78BFA" },
-  ];
+    // Fetch initial and setup interval to pull notifications
+    const fetchNotifs = () => {
+      api.get("/api/marketplace/notifications")
+        .then(res => {
+          const data = res.data || [];
+          setNotifications(data);
+          setUnreadCount(data.filter((n: any) => !n.read).length);
+        })
+        .catch(() => { });
+    };
+
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = async () => {
     try { await api.post("/api/auth/logout"); } catch { /* ignore */ }
@@ -98,6 +173,11 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
     href === "/marketplace"
       ? pathname === "/marketplace"
       : pathname.startsWith(href.split("?")[0]);
+
+  const isBrowseActive = pathname === "/marketplace" || pathname.startsWith("/marketplace/product");
+  const isRequestsActive = pathname.startsWith("/marketplace/requests");
+  const isSellActive = pathname.startsWith("/marketplace/sell");
+  const isInboxActive = pathname.startsWith("/marketplace/inbox");
 
   // Safe checks for URL params on client-side
   const query = typeof window !== "undefined" ? window.location.search : "";
@@ -585,21 +665,50 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
 
       {/* ── MOBILE Bottom navigation bar ── */}
       <nav className="sl-bottom-nav">
-        <Link href="/marketplace" className={`sl-bnav-item${isHomeActive ? " active" : ""}`}>
-          <span className="sl-bnav-icon">🏠</span>
-          <span>Home</span>
+        <Link href="/marketplace" className={`sl-bnav-item${isBrowseActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1 }}>
+          <LayoutDashboard size={19} style={{ color: isBrowseActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }} />
+          <span style={{ fontSize: 10, fontWeight: isBrowseActive ? 700 : 500, color: isBrowseActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }}>Browse</span>
         </Link>
-        <Link href="/marketplace?category=Physical" className={`sl-bnav-item${isMarketActive ? " active" : ""}`}>
-          <span className="sl-bnav-icon">🏪</span>
-          <span>Market</span>
+        
+        <Link href="/marketplace/requests" className={`sl-bnav-item${isRequestsActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1, position: "relative" }}>
+          <Bell size={19} style={{ color: isRequestsActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }} />
+          <span style={{ fontSize: 10, fontWeight: isRequestsActive ? 700 : 500, color: isRequestsActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }}>Requests</span>
+          {unreadCount > 0 && (
+            <span style={{
+              position: "absolute", top: 0, right: "24%",
+              width: 6, height: 6, borderRadius: "50%",
+              background: "#EF4444"
+            }} />
+          )}
         </Link>
-        <Link href="/marketplace?category=Notes PDF" className={`sl-bnav-item${isStudyActive ? " active" : ""}`}>
-          <span className="sl-bnav-icon">📄</span>
-          <span>Study</span>
+
+        {/* Elevated Sell FAB */}
+        <Link href="/marketplace/sell" className={`sl-bnav-item${isSellActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1 }}>
+          <div style={{
+            width: 42, height: 42, borderRadius: "50%",
+            background: isSellActive 
+              ? "linear-gradient(135deg, #10B981, #059669)" 
+              : "linear-gradient(135deg, #1F2937, #111827)",
+            border: isSellActive ? "2.5px solid #0d1120" : "2.5px solid #1e2d45",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            marginTop: -18,
+            boxShadow: isSellActive ? "0 4px 14px rgba(16,185,129,0.4)" : "0 4px 10px rgba(0,0,0,0.3)",
+            transition: "all 0.2s",
+            color: isSellActive ? "#fff" : "#9CA3AF"
+          }}>
+            <Plus size={20} />
+          </div>
+          <span style={{ fontSize: 10, fontWeight: isSellActive ? 700 : 600, color: isSellActive ? "#10B981" : "#6B7280", transition: "color 0.2s" }}>Sell</span>
         </Link>
-        <Link href="/marketplace/profile" className={`sl-bnav-item${isAccountActive ? " active" : ""}`}>
-          <span className="sl-bnav-icon">👤</span>
-          <span>Account</span>
+
+        <Link href="/marketplace/inbox" className={`sl-bnav-item${isInboxActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1 }}>
+          <MessageCircle size={19} style={{ color: isInboxActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }} />
+          <span style={{ fontSize: 10, fontWeight: isInboxActive ? 700 : 500, color: isInboxActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }}>Inbox</span>
+        </Link>
+
+        <Link href="/marketplace/profile" className={`sl-bnav-item${isAccountActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1 }}>
+          <User size={19} style={{ color: isAccountActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }} />
+          <span style={{ fontSize: 10, fontWeight: isAccountActive ? 700 : 500, color: isAccountActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }}>Account</span>
         </Link>
       </nav>
 
@@ -636,7 +745,7 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
           {/* Notification Bell */}
           <div style={{ position: "relative" }}>
             <button
-              onClick={() => setNotifOpen(o => !o)}
+              onClick={handleToggleNotif}
               style={{
                 width: 36, height: 36, borderRadius: 9999,
                 background: notifOpen ? "rgba(79,142,247,0.1)" : "transparent",
@@ -646,11 +755,13 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
               }}
             >
               <Bell size={16} style={{ color: notifOpen ? "#4F8EF7" : "#6B7280" }} />
-              <span style={{
-                position: "absolute", top: 6, right: 6,
-                width: 8, height: 8, borderRadius: "50%",
-                background: "#EF4444", border: "1.5px solid #0d1120",
-              }} />
+              {unreadCount > 0 && (
+                <span style={{
+                  position: "absolute", top: 6, right: 6,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#EF4444", border: "1.5px solid #0d1120",
+                }} />
+              )}
             </button>
 
             {/* Notification dropdown */}
@@ -663,19 +774,31 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
               }}>
                 <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #1e2d45", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF" }}>Notifications</p>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#4F8EF7", background: "rgba(79,142,247,0.12)", padding: "2px 8px", borderRadius: 9999 }}>{NOTIFS.length} New</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#4F8EF7", background: "rgba(79,142,247,0.12)", padding: "2px 8px", borderRadius: 9999 }}>
+                    {notifications.filter(n => !n.read).length} New
+                  </span>
                 </div>
-                {NOTIFS.map((n, i) => (
-                  <div key={i} style={{ padding: "12px 16px", borderBottom: i < NOTIFS.length - 1 ? "1px solid rgba(30,45,69,0.5)" : "none", display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer" }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: n.dot, marginTop: 5, flexShrink: 0 }} />
-                    <div>
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#C4CFDF", lineHeight: 1.5 }}>{n.text}</p>
-                      <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#374151", marginTop: 3 }}>{n.time}</p>
+                <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: "24px 16px", textAlign: "center", color: "#6B7280" }}>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12 }}>No notifications yet</p>
                     </div>
-                  </div>
-                ))}
-                <div style={{ padding: "10px 16px", textAlign: "center" }}>
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#4F8EF7", cursor: "pointer" }}>View all notifications →</span>
+                  ) : (
+                    notifications.map((n, i) => (
+                      <div key={n.id || i} style={{ padding: "12px 16px", borderBottom: i < notifications.length - 1 ? "1px solid rgba(30,45,69,0.5)" : "none", display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: getDotColor(n.type), marginTop: 5, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: n.read ? "#9CA3AF" : "#C4CFDF", fontWeight: n.read ? 400 : 500, lineHeight: 1.5 }}>{n.text}</p>
+                          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#4B5563", marginTop: 3 }}>{timeAgo(n.createdAt)}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div style={{ padding: "10px 16px", textAlign: "center", borderTop: "1px solid #1e2d45" }}>
+                  <Link href="/marketplace/requests" onClick={() => setNotifOpen(false)} style={{ textDecoration: "none" }}>
+                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#4F8EF7", cursor: "pointer", fontWeight: 500 }}>View all notifications →</span>
+                  </Link>
                 </div>
               </div>
             )}
@@ -706,26 +829,18 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* ── Slim Footer ── */}
-        <footer style={{
-          background: "#0d1120", borderTop: "1px solid #1e2d45",
-          padding: "12px 24px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexShrink: 0,
-        }}>
-          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151" }}>
-            © 2024 CampusConnect · Built for students, by students.
-          </span>
-          <div style={{ display: "flex", gap: 16 }}>
-            {[
-              { href: "/how-it-works", label: "How it works" },
-              { href: "/master/login", label: "Master Admin" },
-            ].map(l => (
-              <Link key={l.href} href={l.href} style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151", textDecoration: "none" }}>
-                {l.label}
-              </Link>
-            ))}
-          </div>
-        </footer>
+        {mounted && showFooter && (
+          <footer style={{
+            background: "#0d1120", borderTop: "1px solid #1e2d45",
+            padding: "16px 24px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            flexShrink: 0,
+          }}>
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151" }}>
+              © 2024 CampusConnect
+            </span>
+          </footer>
+        )}
       </div>
     </div>
   );

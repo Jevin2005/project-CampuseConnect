@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
+import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
 import {
   Check, X, MessageCircle, Clock, Package, ChevronRight, RefreshCw,
@@ -68,7 +69,17 @@ export default function RequestsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  const user = useAuthStore(s => s.user);
+  const authLoading = useAuthStore(s => s.isLoading);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) {
+      fetchRequests();
+    } else {
+      setLoading(false);
+    }
+  }, [user, authLoading, fetchRequests]);
 
   async function handleStatus(id: string, status: "accepted" | "rejected") {
     if (acting) return;

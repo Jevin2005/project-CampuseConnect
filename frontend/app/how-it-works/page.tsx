@@ -90,10 +90,10 @@ const TABS = [
 ];
 
 const FEES = [
-  { type: "Physical Listing",  fee: "₹50 one-time", note: "Ensures genuine sellers only",         color: "#4F8EF7" },
-  { type: "Digital Listing",   fee: "₹20 one-time", note: "Covers storage + DRM processing",       color: "#A78BFA" },
-  { type: "Each Sale",         fee: "5% of price",  note: "Platform maintenance cut",               color: "#10B981" },
-  { type: "Cross-College Ad",  fee: "₹500 flat",    note: "Premium visibility across all colleges", color: "#F7C948" },
+  { type: "Physical Listing", fee: "₹50 one-time", note: "Ensures genuine sellers only", color: "#4F8EF7" },
+  { type: "Digital Listing", fee: "₹20 one-time", note: "Covers storage + DRM processing", color: "#A78BFA" },
+  { type: "Each Sale", fee: "5% of price", note: "Platform maintenance cut", color: "#10B981" },
+  { type: "Cross-College Ad", fee: "₹500 flat", note: "Premium visibility across all colleges", color: "#F7C948" },
 ];
 
 const FAQS = [
@@ -120,12 +120,12 @@ const FAQS = [
 ];
 
 const DRM_FEATURES = [
-  { Icon: Lock,         text: "Files stored in private cloud (never public URLs)" },
-  { Icon: Shield,       text: "Buyer's username watermarked on every page" },
-  { Icon: Eye,          text: "Pre-signed URLs expire in 10 minutes" },
-  { Icon: Download,     text: "No download button, no right-click menu" },
-  { Icon: Shield,       text: "Video streams in encrypted HLS chunks" },
-  { Icon: AlertTriangle,text: "Screen recording deterrent overlay active" },
+  { Icon: Lock, text: "Files stored in private cloud (never public URLs)" },
+  { Icon: Shield, text: "Buyer's username watermarked on every page" },
+  { Icon: Eye, text: "Pre-signed URLs expire in 10 minutes" },
+  { Icon: Download, text: "No download button, no right-click menu" },
+  { Icon: Shield, text: "Video streams in encrypted HLS chunks" },
+  { Icon: AlertTriangle, text: "Screen recording deterrent overlay active" },
 ];
 
 /* ═══ PAGE ════════════════════════════════════════════════════════ */
@@ -134,12 +134,12 @@ export default function HowItWorksPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const activeTab = TABS.find(t => t.id === tab)!;
 
-  const { ref: heroRef,     vis: heroVis }    = useInView(0.1);
-  const { ref: tabsRef,     vis: tabsVis }    = useInView(0.1);
-  const { ref: timelineRef, vis: tlVis }      = useInView(0.08);
-  const { ref: drmRef,      vis: drmVis }     = useInView(0.12);
-  const { ref: feesRef,     vis: feesVis }    = useInView(0.12);
-  const { ref: faqRef,      vis: faqVis }     = useInView(0.08);
+  const { ref: heroRef, vis: heroVis } = useInView(0.1);
+  const { ref: tabsRef, vis: tabsVis } = useInView(0.1);
+  const { ref: timelineRef, vis: tlVis } = useInView(0.08);
+  const { ref: drmRef, vis: drmVis } = useInView(0.12);
+  const { ref: feesRef, vis: feesVis } = useInView(0.12);
+  const { ref: faqRef, vis: faqVis } = useInView(0.08);
 
   return (
     <div style={{ position: "relative", zIndex: 1, overflowX: "hidden" }}>
@@ -375,11 +375,11 @@ export default function HowItWorksPage() {
               iconBg="rgba(79,142,247,0.12)" accent="#4F8EF7"
               borderGradient="linear-gradient(135deg, rgba(79,142,247,0.5), rgba(79,142,247,0.04))"
               steps={[
-                { label: "List product",       desc: "Upload photos, title, price, condition" },
-                { label: "Pay listing fee",    desc: "₹50 one-time — filters genuine sellers" },
-                { label: "Admin approves",     desc: "College admin reviews the listing" },
-                { label: "Goes live",          desc: "Visible to all college students" },
-                { label: "Buyer purchases",    desc: "Payment cleared via Razorpay" },
+                { label: "List product", desc: "Upload photos, title, price, condition" },
+                { label: "Pay listing fee", desc: "₹50 one-time — filters genuine sellers" },
+                { label: "Admin approves", desc: "College admin reviews the listing" },
+                { label: "Goes live", desc: "Visible to all college students" },
+                { label: "Buyer purchases", desc: "Payment cleared via Razorpay" },
               ]}
             />
             {/* Digital */}
@@ -389,10 +389,10 @@ export default function HowItWorksPage() {
               borderGradient="linear-gradient(135deg, rgba(124,58,237,0.5), rgba(124,58,237,0.04))"
               steps={[
                 { label: "Upload PDF or Video", desc: "Securely stored in private cloud" },
-                { label: "Pay listing fee",     desc: "₹20 — covers storage + processing" },
-                { label: "DRM applied",         desc: "File locked — never publicly accessible" },
-                { label: "Watermark stamped",   desc: "Username on every page/frame" },
-                { label: "Sold safely",         desc: "Buyer accesses via protected in-browser viewer" },
+                { label: "Pay listing fee", desc: "₹20 — covers storage + processing" },
+                { label: "DRM applied", desc: "File locked — never publicly accessible" },
+                { label: "Watermark stamped", desc: "Username on every page/frame" },
+                { label: "Sold safely", desc: "Buyer accesses via protected in-browser viewer" },
               ]}
             />
           </div>
@@ -637,8 +637,8 @@ export default function HowItWorksPage() {
                 textDecoration: "none", boxShadow: "0 4px 16px rgba(79,142,247,0.35)",
                 transition: "all 0.2s",
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
               >
                 🎓 Enter Student Market
               </Link>
@@ -650,14 +650,14 @@ export default function HowItWorksPage() {
                 fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700,
                 textDecoration: "none", transition: "all 0.2s",
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = "rgba(247,201,72,0.08)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "rgba(247,201,72,0.08)";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
               >
                 🏫 Register College
               </Link>

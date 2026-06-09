@@ -273,6 +273,15 @@ exports.createBuyRequest = async (req, res) => {
         buyer:   { select: { id: true, name: true, email: true } },
       },
     });
+
+    // Notify seller
+    const buyerName = request.buyer?.name || 'A student';
+    await createNotification(
+      product.sellerId,
+      `${buyerName} sent a buy request for your product "${product.title}".`,
+      'NEW_REQUEST'
+    );
+
     res.status(201).json(request);
   } catch (err) {
     console.error('[createBuyRequest]', err);
@@ -344,6 +353,14 @@ exports.updateRequestStatus = async (req, res) => {
         await prisma.chatThread.create({ data: { requestId: request.id } });
       }
     }
+
+    // Notify buyer
+    const statusLabel = status === 'accepted' ? 'accepted' : 'declined';
+    await createNotification(
+      updated.buyerId,
+      `Your buy request for "${updated.product.title}" has been ${statusLabel} by the seller.`,
+      status === 'accepted' ? 'REQUEST_ACCEPTED' : 'REQUEST_REJECTED'
+    );
 
     res.json(updated);
   } catch (err) {
@@ -549,6 +566,15 @@ exports.sendMessage = async (req, res) => {
     });
 
     await prisma.chatThread.update({ where: { id: req.params.id }, data: { updatedAt: new Date() } });
+
+    // Notify recipient
+    const recipientId = thread.request.buyerId === req.user.id ? thread.request.sellerId : thread.request.buyerId;
+    await createNotification(
+      recipientId,
+      `New message from ${message.sender?.name || 'student'} about "${thread.request.product?.title || 'product'}".`,
+      'CHAT_MESSAGE'
+    );
+
     res.status(201).json(message);
   } catch (err) {
     console.error('[sendMessage]', err);
@@ -616,6 +642,23 @@ exports.completeDeal = async (req, res) => {
           buyerId: thread.request.buyerId,
           sellerId: thread.request.sellerId,
           productId: thread.request.productId
+        }
+      });
+
+      // Create notifications for both buyer and seller inside the transaction
+      await tx.notification.create({
+        data: {
+          studentId: thread.request.buyerId,
+          text: `Deal completed! You bought "${thread.request.product.title}" for ₹${thread.request.product.price.toLocaleString('en-IN')}.`,
+          type: 'DEAL_COMPLETED'
+        }
+      });
+
+      await tx.notification.create({
+        data: {
+          studentId: thread.request.sellerId,
+          text: `Deal completed! You sold "${thread.request.product.title}" for ₹${thread.request.product.price.toLocaleString('en-IN')}.`,
+          type: 'DEAL_COMPLETED'
         }
       });
 
@@ -726,6 +769,14 @@ exports.approveProduct = async (req, res) => {
       where: { id: req.params.id },
       data:  { isApproved: true, status: 'active' },
     });
+
+    // Notify seller
+    await createNotification(
+      updated.sellerId,
+      `Your listing "${updated.title}" has been approved by the college admin and is now live!`,
+      'PRODUCT_APPROVED'
+    );
+
     res.json(updated);
   } catch (err) {
     console.error('[approveProduct]', err);
@@ -924,5 +975,49 @@ exports.streamProductFile = async (req, res) => {
   } catch (err) {
     console.error('[streamProductFile]', err);
     res.status(500).json({ message: 'Internal server error while streaming file.' });
+  }
+};
+
+/* ── Helper: create database notification ── */
+async function createNotification(studentId, text, type = 'INFO') {
+  try {
+    await prisma.notification.create({
+      data: {
+        studentId,
+        text,
+        type,
+      },
+    });
+  } catch (err) {
+    console.error('[createNotification] Failed:', err.message);
+  }
+}
+
+/** GET /api/marketplace/notifications */
+exports.getNotifications = async (req, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { studentId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+    res.json(notifications);
+  } catch (err) {
+    console.error('[getNotifications]', err);
+    res.status(500).json({ message: 'Error fetching notifications' });
+  }
+};
+
+/** PATCH /api/marketplace/notifications/read */
+exports.markNotificationsRead = async (req, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { studentId: req.user.id, read: false },
+      data: { read: true }
+    });
+    res.json({ message: 'Notifications marked as read' });
+  } catch (err) {
+    console.error('[markNotificationsRead]', err);
+    res.status(500).json({ message: 'Error marking notifications as read' });
   }
 };

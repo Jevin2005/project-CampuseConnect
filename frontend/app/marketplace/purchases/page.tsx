@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { StudentLayout } from "@/components/StudentLayout";
+import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
 import { ShoppingBag, FileText, Video, Download, RefreshCw, Package, ExternalLink } from "lucide-react";
 
@@ -73,7 +74,17 @@ export default function MyPurchasesPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  const user = useAuthStore(s => s.user);
+  const authLoading = useAuthStore(s => s.isLoading);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) {
+      fetchOrders();
+    } else {
+      setLoading(false);
+    }
+  }, [user, authLoading, fetchOrders]);
 
   const physical = orders.filter(o => o.product.productType === "physical");
   const digital  = orders.filter(o => o.product.productType === "digital");

@@ -2,10 +2,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
+import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
 import { AdStrip } from "@/components/AdBanner";
 import { OWN_COLLEGE_ADS, CROSS_COLLEGE_ADS } from "@/lib/adsData";
-import { Pencil, Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check, X } from "lucide-react";
+import { Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 function mediaUrl(p: string) { return p?.startsWith("http") ? p : `${API}${p}`; }
@@ -71,17 +72,21 @@ export default function MyListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editPrice, setEditPrice] = useState("");
   const [toast, setToast] = useState("");
 
+  const user = useAuthStore(s => s.user);
+  const authLoading = useAuthStore(s => s.isLoading);
+
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+
     setLoading(true);
     api.get("/api/marketplace/my-listings")
       .then(res => setListings(Array.isArray(res.data) ? res.data : []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [user, authLoading]);
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
@@ -93,21 +98,6 @@ export default function MyListingsPage() {
       showToast("Listing removed successfully.");
     } catch (err) {
       console.error("Error deleting listing:", err);
-    }
-  }
-
-  async function saveEdit() {
-    const fd = new FormData(); 
-    fd.append("price", editPrice);
-    try {
-      await api.put(`/api/marketplace/products/${editId}`, fd, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
-      setListings(ls => ls.map(l => l.id === editId ? { ...l, price: parseFloat(editPrice) || l.price } : l));
-      setEditId(null);
-      showToast("Price updated.");
-    } catch (err) {
-      console.error("Error updating price:", err);
     }
   }
 
@@ -346,18 +336,7 @@ export default function MyListingsPage() {
                 <span className="listings-cell-views" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{(l.views || 0).toLocaleString()}</span>
                 <span className="listings-cell-requests" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{l._count?.buyRequests || 0}</span>
                 <div className="listings-cell-actions" style={{ display: "flex", gap: 6 }}>
-                  {editId === l.id ? (
-                    <>
-                      <input value={editPrice} onChange={e => setEditPrice(e.target.value)} style={{ width: 70, height: 32, padding: "0 8px", background: "#1a2235", border: "1.5px solid #4F8EF7", borderRadius: 8, color: "#F0F4FF", fontFamily: "'DM Sans',sans-serif", fontSize: 13, outline: "none" }} />
-                      <button onClick={saveEdit} style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#10B981" }}><Check size={13} /></button>
-                      <button onClick={() => setEditId(null)} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "1px solid #1e2d45", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#6B7280" }}><X size={13} /></button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => { setEditId(l.id); setEditPrice(String(l.price)); }} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "1px solid rgba(79,142,247,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4F8EF7" }}><Pencil size={13} /></button>
-                      <button onClick={() => setDeleteId(l.id)} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#EF4444" }}><Trash2 size={13} /></button>
-                    </>
-                  )}
+                  <button onClick={() => setDeleteId(l.id)} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#EF4444" }}><Trash2 size={13} /></button>
                 </div>
               </div>
             );
