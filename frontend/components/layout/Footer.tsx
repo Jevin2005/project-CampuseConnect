@@ -214,7 +214,7 @@ export default function Footer() {
             color: "#6B7280", margin: 0,
             whiteSpace: "nowrap"
           }}>
-            © 2024 CampusConnect
+            © 2026 CampusConnect
           </p>
           <div className="footer-bottom-links">
             {[
