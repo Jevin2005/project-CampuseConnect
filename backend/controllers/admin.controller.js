@@ -236,18 +236,62 @@ async function getDashboard(req, res) {
       select: { id: true, name: true, email: true, createdAt: true },
     });
 
-    const pendingProductList = await prisma.product.findMany({
-      where: { collegeId: cId, isApproved: false },
+    // ── Recent Transactions (replaces pending product review) ───
+    const recentTransactions = recentOrders.map(o => ({
+      id: o.id,
+      productTitle: o.product?.title || 'Unknown Product',
+      buyer: o.buyer?.name || 'Unknown',
+      seller: o.seller?.name || 'Unknown',
+      amount: `₹${o.amount.toLocaleString('en-IN')}`,
+      platformCut: `₹${(o.amount * 0.05).toFixed(0)}`,
+      date: o.createdAt,
+    }));
+
+    // ── NEW: Product breakdown by status ──────────────────
+    const [activeProducts, removedProducts, soldProducts] = await Promise.all([
+      prisma.product.count({ where: { collegeId: cId, status: 'active' } }),
+      prisma.product.count({ where: { collegeId: cId, status: 'removed' } }),
+      prisma.product.count({ where: { collegeId: cId, status: 'sold' } }),
+    ]);
+
+    // ── NEW: Top sellers by sold count + revenue ──────────
+    const topSellerOrders = await prisma.order.groupBy({
+      by: ['sellerId'],
+      where: { product: { collegeId: cId } },
+      _count: { id: true },
+      _sum: { amount: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+
+    const topSellerIds = topSellerOrders.map(o => o.sellerId);
+    const topSellerStudents = topSellerIds.length > 0
+      ? await prisma.student.findMany({
+          where: { id: { in: topSellerIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+
+    const topSellers = topSellerOrders.map(o => {
+      const student = topSellerStudents.find(s => s.id === o.sellerId);
+      return {
+        id: o.sellerId,
+        name: student?.name || 'Unknown',
+        email: student?.email || '',
+        initials: getInitials(student?.name),
+        color: avatarColor(student?.email || ''),
+        soldCount: o._count.id,
+        revenue: Math.round(o._sum.amount || 0),
+      };
+    });
+
+    // ── Recent Listings: newest products posted by students ──
+    const recentListings = await prisma.product.findMany({
+      where: { collegeId: cId, status: { in: ['active', 'sold'] } },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { seller: true },
     });
-
-    const activity = recentOrders.map(o => ({
-      icon: '🛒',
-      text: `${o.buyer?.name || 'A student'} purchased ${o.product?.title || 'a product'}`,
-      time: o.createdAt,
-    }));
 
     return res.json({
       stats: {
@@ -256,7 +300,16 @@ async function getDashboard(req, res) {
         totalProducts,
         pendingProducts,
         revenue: Math.round(totalRevenue),
+        totalOrders: orders.length,
+        soldProducts,
       },
+      productBreakdown: {
+        active: activeProducts,
+        pending: pendingProducts,
+        sold: soldProducts,
+        removed: removedProducts,
+      },
+      topSellers,
       pendingRequests: pendingList.map(s => ({
         id: s.id,
         name: s.name || 'Unknown',
@@ -265,14 +318,18 @@ async function getDashboard(req, res) {
         color: avatarColor(s.email),
         date: s.createdAt,
       })),
-      pendingProducts: pendingProductList.map(p => ({
+      recentTransactions,
+      recentListings: recentListings.map(p => ({
         id: p.id,
         title: p.title,
-        seller: p.seller?.name || 'Unknown',
-        price: `₹${p.price.toLocaleString('en-IN')}`,
         category: p.category || 'OTHER',
+        price: `₹${p.price.toLocaleString('en-IN')}`,
+        seller: p.seller?.name || 'Unknown',
+        sellerInitials: getInitials(p.seller?.name),
+        sellerColor: avatarColor(p.seller?.email || ''),
+        status: p.status,
+        date: p.createdAt,
       })),
-      activity,
       college: { name: admin.college.name },
       adminName: admin.name,
     });
@@ -305,7 +362,7 @@ async function getProducts(req, res) {
       category: p.category || 'OTHER',
       isApproved: p.isApproved,
       // Use DB status field directly; map pending_review -> pending for the frontend
-      status: p.status === 'active' ? 'active' : p.status === 'removed' ? 'removed' : 'pending',
+      status: p.status === 'active' ? 'active' : p.status === 'removed' ? 'removed' : p.status === 'sold' ? 'sold' : 'pending',
       orders: p._count.orders,
       date: p.createdAt,
       imageUrl: p.imageUrl,
@@ -325,6 +382,8 @@ async function approveProduct(req, res) {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product || product.collegeId !== admin.collegeId)
       return res.status(403).json({ message: 'Unauthorized' });
+    if (product.status === 'sold')
+      return res.status(400).json({ message: 'Cannot approve a sold out product' });
     await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: true, status: 'active' } });
     return res.json({ message: 'Product approved' });
   } catch (err) {
@@ -341,6 +400,8 @@ async function removeProduct(req, res) {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product || product.collegeId !== admin.collegeId)
       return res.status(403).json({ message: 'Unauthorized' });
+    if (product.status === 'sold')
+      return res.status(400).json({ message: 'Cannot remove a sold out product' });
     await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: false, status: 'removed' } });
     return res.json({ message: 'Product removed' });
   } catch (err) {
@@ -357,6 +418,8 @@ async function restoreProduct(req, res) {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product || product.collegeId !== admin.collegeId)
       return res.status(403).json({ message: 'Unauthorized' });
+    if (product.status === 'sold')
+      return res.status(400).json({ message: 'Cannot restore a sold out product' });
     await prisma.product.update({ where: { id: req.params.id }, data: { isApproved: true, status: 'active' } });
     return res.json({ message: 'Product restored' });
   } catch (err) {

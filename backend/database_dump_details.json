@@ -1,0 +1,94 @@
+{
+  "requests": [
+    {
+      "id": "cmpp7ygnx0003g5lorix5fj6x",
+      "message": "Is the price negotiable? ",
+      "status": "rejected",
+      "createdAt": "2026-05-28T08:16:28.125Z",
+      "updatedAt": "2026-05-28T08:48:03.796Z",
+      "buyerId": "cmpp7v7jh0001g5lowhyd8k23",
+      "sellerId": "cmpe9akk00003g5o8ktbzcmjv",
+      "productId": "cmpgv20mx0001g5v08uk8pz2i",
+      "chatThread": {
+        "id": "cmpp81sob0005g5loxxqzonem",
+        "status": "closed",
+        "createdAt": "2026-05-28T08:19:03.658Z",
+        "updatedAt": "2026-05-28T08:48:03.744Z",
+        "requestId": "cmpp7ygnx0003g5lorix5fj6x"
+      }
+    },
+    {
+      "id": "cmpp94ryj0007g59gjzf1trlp",
+      "message": "Is the price negotiable?",
+      "status": "completed",
+      "createdAt": "2026-05-28T08:49:22.315Z",
+      "updatedAt": "2026-05-28T08:51:06.687Z",
+      "buyerId": "cmpp7v7jh0001g5lowhyd8k23",
+      "sellerId": "cmpe9akk00003g5o8ktbzcmjv",
+      "productId": "cmpgv20mx0001g5v08uk8pz2i",
+      "chatThread": {
+        "id": "cmpp94yx20009g59gkt2yeb6p",
+        "status": "deal_done",
+        "createdAt": "2026-05-28T08:49:31.334Z",
+        "updatedAt": "2026-05-28T08:51:06.684Z",
+        "requestId": "cmpp94ryj0007g59gjzf1trlp"
+      }
+    },
+    {
+      "id": "cmpp93xs60003g59gk8ick2f9",
+      "message": "Can we meet on campus tomorrow?",
+      "status": "rejected",
+      "createdAt": "2026-05-28T08:48:43.206Z",
+      "updatedAt": "2026-05-28T08:51:06.714Z",
+      "buyerId": "cmpp7v7jh0001g5lowhyd8k23",
+      "sellerId": "cmpe9akk00003g5o8ktbzcmjv",
+      "productId": "cmpgv20mx0001g5v08uk8pz2i",
+      "chatThread": {
+        "id": "cmpp94edq0005g59gm5y0awt2",
+        "status": "closed",
+        "createdAt": "2026-05-28T08:49:04.719Z",
+        "updatedAt": "2026-05-28T08:51:06.712Z",
+        "requestId": "cmpp93xs60003g59gk8ick2f9"
+      }
+    },
+    {
+      "id": "cmpv8yuei0001g500rluugk93",
+      "message": "Is the price negotiable?",
+      "status": "completed",
+      "createdAt": "2026-06-01T13:31:22.594Z",
+      "updatedAt": "2026-06-01T13:34:00.755Z",
+      "buyerId": "cmpe9akk00003g5o8ktbzcmjv",
+      "sellerId": "cmpp7v7jh0001g5lowhyd8k23",
+      "productId": "cmpp9yuoa0003g5swg78qisvp",
+      "chatThread": {
+        "id": "cmpv8znup0003g500hfsg7njq",
+        "status": "deal_done",
+        "createdAt": "2026-06-01T13:32:00.769Z",
+        "updatedAt": "2026-06-01T13:34:00.745Z",
+        "requestId": "cmpv8yuei0001g500rluugk93"
+      }
+    }
+  ],
+  "orders": [
+    {
+      "id": "cmpp970i0000jg59gmfayzxej",
+      "amount": 150,
+      "status": "COMPLETED",
+      "createdAt": "2026-05-28T08:51:06.696Z",
+      "updatedAt": "2026-05-28T08:51:06.696Z",
+      "buyerId": "cmpp7v7jh0001g5lowhyd8k23",
+      "sellerId": "cmpe9akk00003g5o8ktbzcmjv",
+      "productId": "cmpgv20mx0001g5v08uk8pz2i"
+    },
+    {
+      "id": "cmpv928g1000fg500wmfv3jir",
+      "amount": 150,
+      "status": "COMPLETED",
+      "createdAt": "2026-06-01T13:34:00.769Z",
+      "updatedAt": "2026-06-01T13:34:00.769Z",
+      "buyerId": "cmpe9akk00003g5o8ktbzcmjv",
+      "sellerId": "cmpp7v7jh0001g5lowhyd8k23",
+      "productId": "cmpp9yuoa0003g5swg78qisvp"
+    }
+  ]
+}

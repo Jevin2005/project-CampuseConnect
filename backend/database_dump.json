@@ -1,0 +1,34 @@
+[
+  {
+    "id": "cmpgv20mx0001g5v08uk8pz2i",
+    "title": "pen",
+    "status": "sold",
+    "isApproved": true,
+    "price": 150,
+    "productType": "physical"
+  },
+  {
+    "id": "cmpp9yuoa0003g5swg78qisvp",
+    "title": "cap 500",
+    "status": "sold",
+    "isApproved": true,
+    "price": 150,
+    "productType": "physical"
+  },
+  {
+    "id": "cmpnmrtku000ag5i8944j2rwf",
+    "title": "ped",
+    "status": "sold",
+    "isApproved": true,
+    "price": 80,
+    "productType": "physical"
+  },
+  {
+    "id": "cmpgwalbi0001g5s0xlk8fms6",
+    "title": "cns cse23",
+    "status": "active",
+    "isApproved": true,
+    "price": 200,
+    "productType": "digital"
+  }
+]

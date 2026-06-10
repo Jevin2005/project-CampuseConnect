@@ -120,7 +120,7 @@ export default function WishlistPage() {
         </div>
       )}
 
-      <div className="wl-page" style={{ padding: "28px 32px", maxWidth: 960 }}>
+      <div className="wl-page" style={{ padding: "28px 32px", maxWidth: 960, margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 14 }}>
@@ -211,7 +211,12 @@ export default function WishlistPage() {
 
                   <div style={{ padding: "14px 16px" }}>
                     <div className="wl-card-tags" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ background: tag.bg, color: tag.color, borderRadius: 9999, padding: "2px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700 }}>{tag.label}</span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <span style={{ background: tag.bg, color: tag.color, borderRadius: 9999, padding: "2px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700 }}>{tag.label}</span>
+                        {product.status && product.status.toLowerCase() !== "active" && (
+                          <span style={{ background: "rgba(239,68,68,0.15)", color: "#EF4444", borderRadius: 9999, padding: "2px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, border: "1px solid rgba(239,68,68,0.25)" }}>Sold Out</span>
+                        )}
+                      </div>
                       {product.originalPrice && product.originalPrice > product.price && (
                         <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#374151", textDecoration: "line-through" }}>₹{product.originalPrice.toLocaleString("en-IN")}</span>
                       )}

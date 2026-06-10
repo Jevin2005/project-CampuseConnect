@@ -449,10 +449,17 @@ export default function PhysicalProductPage() {
 
               <button
                 onClick={() => setShowRequest(true)}
-                className="btn btn-primary btn-lg"
-                style={{ width: "100%", marginTop: 8 }}
+                disabled={product.status !== "active"}
+                className={`btn btn-lg ${product.status === "active" ? "btn-primary" : "btn-secondary"}`}
+                style={{ width: "100%", marginTop: 8, cursor: product.status === "active" ? "pointer" : "not-allowed" }}
               >
-                <ShoppingBag size={16} /> Send Buy Request
+                {product.status === "active" ? (
+                  <>
+                    <ShoppingBag size={16} /> Send Buy Request
+                  </>
+                ) : (
+                  "Sold Out"
+                )}
               </button>
 
               <div style={{ background: "rgba(16,185,129,0.03)", border: "1px solid rgba(16,185,129,0.12)", borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start", marginTop: 4 }}>

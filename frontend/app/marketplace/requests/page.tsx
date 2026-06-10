@@ -178,7 +178,7 @@ export default function RequestsPage() {
         </div>
       )}
 
-      <div className="rq-page" style={{ padding: "28px 32px", maxWidth: 900 }}>
+      <div className="rq-page" style={{ padding: "28px 32px", maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 16 }}>

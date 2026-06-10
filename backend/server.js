@@ -5,6 +5,19 @@
 
 require('dotenv').config();
 
+/* ─── Programmatic dependency install for DRM PDF truncation ─── */
+try {
+  require('pdf-lib');
+} catch (e) {
+  console.log('📦 Installing pdf-lib for secure DRM preview truncation...');
+  try {
+    require('child_process').execSync('npm install pdf-lib', { cwd: __dirname, stdio: 'inherit' });
+    console.log('✅ pdf-lib installed successfully');
+  } catch (err) {
+    console.error('❌ Failed to install pdf-lib:', err.message);
+  }
+}
+
 /* ─── Startup env validation ────────────────────────────────────────── */
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
 const missingEnv = REQUIRED_ENV.filter((key) => !process.env[key]);
@@ -97,6 +110,35 @@ app.listen(PORT, () => {
   console.log(`   Auth endpoints: http://localhost:${PORT}/api/auth/*`);
   console.log(`   Health check:   http://localhost:${PORT}/api/health\n`);
 });
+
+
+
+// Sync database status for physical products with completed orders
+async function syncSoldProducts() {
+  try {
+    const orders = await prisma.order.findMany({
+      where: {
+        status: 'COMPLETED',
+        product: { productType: 'physical' }
+      },
+      select: { productId: true }
+    });
+    const productIds = orders.map(o => o.productId);
+    if (productIds.length > 0) {
+      const result = await prisma.product.updateMany({
+        where: { id: { in: productIds }, status: { not: 'sold' } },
+        data: { status: 'sold' }
+      });
+      if (result.count > 0) {
+        console.log(`✅ [DB Sync] Marked ${result.count} physical products as sold.`);
+      }
+    }
+  } catch (err) {
+    console.error('❌ [DB Sync] Error syncing sold physical products:', err.message);
+  }
+}
+
+syncSoldProducts();
 
 /* ─── Graceful shutdown ─────────────────────────────────────────────── */
 process.on('SIGINT', async () => {

@@ -46,10 +46,11 @@ const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
 };
 
 function statusLabel(l: Listing): string {
-  if (l.status === "active" && l.isApproved) return "Active";
-  if (l.status === "pending_review" || !l.isApproved) return "Pending Review";
-  if (l.status === "sold") return "Sold";
-  if (l.status === "removed") return "Removed";
+  const s = l.status?.toLowerCase();
+  if (s === "active" && l.isApproved) return "Active";
+  if (s === "pending_review" || !l.isApproved) return "Pending Review";
+  if (s === "sold" || s === "deal_done" || s === "completed") return "Sold";
+  if (s === "removed") return "Removed";
   return l.status;
 }
 
@@ -213,7 +214,7 @@ export default function MyListingsPage() {
         }
       `}</style>
 
-      <div className="lp" style={{ padding: "28px 32px", maxWidth: 1200 }}>
+      <div className="lp" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
 
         {/* Toast */}
         {toast && (

@@ -591,7 +591,7 @@ export default function SellProductPage() {
             <div style={{ fontSize: 80, marginBottom: 20 }}>🚀</div>
             <h1 className="sell-main-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 12 }}>Product Listing Published!</h1>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "#94A3B8", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 30px" }}>
-              Your item is now undergoing quick security &amp; accuracy review by administrative moderators. It will go live inside the campus feed within 24 hours.
+              Your item is now live and visible inside the campus feed immediately.
             </p>
 
             <div style={{

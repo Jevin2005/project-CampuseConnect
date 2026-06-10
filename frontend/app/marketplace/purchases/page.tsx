@@ -146,7 +146,7 @@ export default function MyPurchasesPage() {
         }
       `}</style>
 
-      <div className="pp-page" style={{ padding: "28px 32px", maxWidth: 1200 }}>
+      <div className="pp-page" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
 
         {/* Toast */}
         {toast && (

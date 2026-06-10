@@ -60,6 +60,7 @@ export default function ProfilePage() {
   const displayEmail = user?.email || "";
   const displayInits = initials(displayName);
   const memberSince  = user?.id ? "2024" : "–";
+  const activeListings = profile?.recentListings.filter(l => l.status === "active") || [];
 
   return (
     <StudentLayout>
@@ -122,7 +123,7 @@ export default function ProfilePage() {
         }
       `}</style>
 
-      <div className="pp" style={{ padding: "28px 32px", maxWidth: 1100 }}>
+      <div className="pp" style={{ padding: "28px 32px", maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Profile Hero */}
         <div className="profile-hero-card" style={{ background: "linear-gradient(135deg,#0d1829,#111827,#0a1f15)", border: "1px solid #1e2d45", borderRadius: 20, padding: "28px 32px", marginBottom: 24, position: "relative", overflow: "hidden" }}>
@@ -184,10 +185,10 @@ export default function ProfilePage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {!profile && <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#374151", textAlign: "center", padding: "20px 0" }}>Loading…</p>}
-              {profile && profile.recentListings.length === 0 && (
-                <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#374151", textAlign: "center", padding: "20px 0" }}>No listings yet</p>
+              {profile && activeListings.length === 0 && (
+                <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#374151", textAlign: "center", padding: "20px 0" }}>No active listings yet</p>
               )}
-              {profile?.recentListings.map(l => (
+              {activeListings.map(l => (
                 <Link key={l.id} href={`/marketplace/${l.productType === "digital" ? "digital" : "product"}/${l.id}`} style={{ textDecoration: "none" }}>
                   <div className="preview-row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "#1a2235", borderRadius: 10, cursor: "pointer", transition: "background 0.15s" }}>
                     <div style={{ width: 36, height: 36, borderRadius: 8, background: "#111827", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -200,8 +201,8 @@ export default function ProfilePage() {
                       <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.title}</p>
                       <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280" }}>₹{l.price.toLocaleString("en-IN")} · 👁 {l.views}</p>
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999, background: l.status === "active" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)", color: l.status === "active" ? "#10B981" : "#F59E0B" }}>
-                      {l.status}
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999, background: "rgba(16,185,129,0.1)", color: "#10B981" }}>
+                      active
                     </span>
                     <ChevronRight size={14} style={{ color: "#374151", flexShrink: 0 }} />
                   </div>

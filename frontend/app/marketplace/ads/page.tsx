@@ -116,7 +116,7 @@ export default function AdsPage() {
         .ad-filter-btn:hover { opacity: 0.9; }
       `}</style>
 
-      <div className="ads-page" style={{ padding: "28px 32px", maxWidth: 1400 }}>
+      <div className="ads-page" style={{ padding: "28px 32px", maxWidth: 1400, margin: "0 auto" }}>
 
         {/* ── Hero Banner ── */}
         <div style={{

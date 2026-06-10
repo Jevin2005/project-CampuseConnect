@@ -142,8 +142,8 @@ exports.createProduct = async (req, res) => {
         condition:      condition || 'Good',
         productType:    productType || 'physical',
         digitalSubType: digitalSubType || null,
-        status:         'pending_review',
-        isApproved:     false,
+        status:         'active',
+        isApproved:     true,
         sellerId:       req.user.id,
         collegeId:      req.user.collegeId,
       },
@@ -181,7 +181,7 @@ exports.updateProduct = async (req, res) => {
         ...(category                         && { category }),
         ...(condition                        && { condition }),
         ...(newMedia.length > 0             && { images: [...product.images, ...newMedia] }),
-        ...(contentChanged                   && { status: 'pending_review', isApproved: false }),
+        ...(contentChanged                   && { status: 'active', isApproved: true }),
       },
     });
 
@@ -848,6 +848,63 @@ exports.getMyProfile = async (req, res) => {
   }
 };
 
+const { Transform } = require('stream');
+
+class StreamLimitTransform extends Transform {
+  constructor(limit) {
+    super();
+    this.limit = limit;
+    this.bytesWritten = 0;
+  }
+  _transform(chunk, encoding, callback) {
+    if (this.bytesWritten >= this.limit) {
+      this.destroy();
+      return callback();
+    }
+    const remaining = this.limit - this.bytesWritten;
+    if (chunk.length <= remaining) {
+      this.bytesWritten += chunk.length;
+      this.push(chunk);
+    } else {
+      this.bytesWritten += remaining;
+      this.push(chunk.slice(0, remaining));
+      this.destroy();
+    }
+    callback();
+  }
+}
+
+async function getTruncatedPdfBuffer(pdfBuffer) {
+  try {
+    const { PDFDocument } = require('pdf-lib');
+    const fullPdfDoc = await PDFDocument.load(pdfBuffer);
+    const totalPages = fullPdfDoc.getPageCount();
+    if (totalPages <= 2) {
+      return pdfBuffer;
+    }
+    const previewPdfDoc = await PDFDocument.create();
+    const copiedPages = await previewPdfDoc.copyPages(
+      fullPdfDoc,
+      Array.from({ length: 2 }, (_, i) => i)
+    );
+    copiedPages.forEach(page => previewPdfDoc.addPage(page));
+    const truncatedBytes = await previewPdfDoc.save();
+    return Buffer.from(truncatedBytes);
+  } catch (err) {
+    console.error('[truncatePdf Error]', err);
+    return pdfBuffer; // fallback to full file if truncation fails
+  }
+}
+
+async function streamToBuffer(readableStream) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    readableStream.on('data', (chunk) => chunks.push(chunk));
+    readableStream.on('end', () => resolve(Buffer.concat(chunks)));
+    readableStream.on('error', (err) => reject(err));
+  });
+}
+
 /** GET /api/marketplace/products/:id/file — Securely stream PDF/video files with auth & DRM check */
 exports.streamProductFile = async (req, res) => {
   try {
@@ -908,9 +965,6 @@ exports.streamProductFile = async (req, res) => {
     if (isR2Url) {
       // Stream from R2
       try {
-        const stream = await r2.getObjectStreamByUrl(targetFile);
-        
-        // Detect content type
         let contentType = 'application/octet-stream';
         if (isDoc(targetFile)) contentType = 'application/pdf';
         else if (isVid(targetFile)) contentType = 'video/mp4';
@@ -920,15 +974,32 @@ exports.streamProductFile = async (req, res) => {
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
-        stream.pipe(res);
+        if (isPreview) {
+          if (isDoc(targetFile)) {
+            // PDF Preview: Truncate to 2 pages
+            const stream = await r2.getObjectStreamByUrl(targetFile);
+            const fullBuffer = await streamToBuffer(stream);
+            const truncatedBuffer = await getTruncatedPdfBuffer(fullBuffer);
+            res.setHeader('Content-Length', truncatedBuffer.length);
+            res.send(truncatedBuffer);
+          } else {
+            // Video Preview: limit bytes to 15MB
+            const stream = await r2.getObjectStreamByUrl(targetFile);
+            const previewLimit = 15 * 1024 * 1024;
+            res.setHeader('Content-Length', previewLimit);
+            stream.pipe(new StreamLimitTransform(previewLimit)).pipe(res);
+          }
+        } else {
+          // Full access
+          const stream = await r2.getObjectStreamByUrl(targetFile);
+          stream.pipe(res);
+        }
       } catch (err) {
         console.error('[streamProductFile - R2 Error]', err);
         res.status(500).json({ message: 'Error streaming file from cloud storage.' });
       }
     } else {
       // Stream from local disk
-      // Disk URL looks like `/uploads/documents/some-uuid.pdf`
-      // We convert it to local absolute path
       const fs = require('fs');
       const path = require('path');
       const relPath = targetFile.replace(/^\/uploads\//, '');
@@ -951,25 +1022,61 @@ exports.streamProductFile = async (req, res) => {
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
-      if (range && isVid(targetFile)) {
-        // Video range support for streaming seeking
-        const parts = range.replace(/bytes=/, '').split('-');
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-        const chunksize = (end - start) + 1;
-        const fileStream = fs.createReadStream(absolutePath, { start, end });
+      if (isPreview) {
+        if (isDoc(targetFile)) {
+          // PDF Preview: Truncate to 2 pages
+          const fullBuffer = fs.readFileSync(absolutePath);
+          const truncatedBuffer = await getTruncatedPdfBuffer(fullBuffer);
+          res.setHeader('Content-Length', truncatedBuffer.length);
+          res.send(truncatedBuffer);
+        } else {
+          // Video Preview: limit bytes to 15MB
+          const previewLimit = Math.min(fileSize, 15 * 1024 * 1024);
+          if (range) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            if (start >= previewLimit) {
+              return res.status(403).json({ message: 'Preview limit reached. Purchase to view full video.' });
+            }
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const adjustedEnd = Math.min(end, previewLimit - 1);
+            const chunksize = (adjustedEnd - start) + 1;
+            const fileStream = fs.createReadStream(absolutePath, { start, end: adjustedEnd });
 
-        res.writeHead(206, {
-          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': chunksize,
-          'Content-Type': contentType,
-        });
-        fileStream.pipe(res);
+            res.writeHead(206, {
+              'Content-Range': `bytes ${start}-${adjustedEnd}/${previewLimit}`,
+              'Accept-Ranges': 'bytes',
+              'Content-Length': chunksize,
+              'Content-Type': contentType,
+            });
+            fileStream.pipe(res);
+          } else {
+            res.setHeader('Content-Length', previewLimit);
+            const fileStream = fs.createReadStream(absolutePath, { start: 0, end: previewLimit - 1 });
+            fileStream.pipe(res);
+          }
+        }
       } else {
-        res.setHeader('Content-Length', fileSize);
-        const fileStream = fs.createReadStream(absolutePath);
-        fileStream.pipe(res);
+        // Full access
+        if (range && isVid(targetFile)) {
+          const parts = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+          const chunksize = (end - start) + 1;
+          const fileStream = fs.createReadStream(absolutePath, { start, end });
+
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunksize,
+            'Content-Type': contentType,
+          });
+          fileStream.pipe(res);
+        } else {
+          res.setHeader('Content-Length', fileSize);
+          const fileStream = fs.createReadStream(absolutePath);
+          fileStream.pipe(res);
+        }
       }
     }
   } catch (err) {

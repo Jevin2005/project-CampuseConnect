@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { 
-  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Lock, 
-  ShoppingCart, ShieldAlert, Eye, FileText, Download, CheckCircle 
+import {
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Lock,
+  ShoppingCart, ShieldAlert, Eye, FileText, Download, CheckCircle
 } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
@@ -330,6 +330,7 @@ function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEma
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState(false);
+  const renderTaskRef = useRef<any>(null);
 
   useEffect(() => {
     if (!pdfDocument || !canvasRef.current) return;
@@ -337,6 +338,16 @@ function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEma
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Cancel any active render task on this canvas before starting a new one
+    if (renderTaskRef.current) {
+      try {
+        renderTaskRef.current.cancel();
+      } catch (err) {
+        console.error("Cancel failed", err);
+      }
+      renderTaskRef.current = null;
+    }
 
     pdfDocument.getPage(pageNum).then((pdfPage: any) => {
       if (!active) return;
@@ -349,8 +360,17 @@ function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEma
         viewport: viewport,
       };
 
-      pdfPage.render(renderContext).promise.catch((err: any) => {
-        console.error("Render failed for page " + pageNum, err);
+      const renderTask = pdfPage.render(renderContext);
+      renderTaskRef.current = renderTask;
+
+      renderTask.promise.then(() => {
+        if (active) {
+          renderTaskRef.current = null;
+        }
+      }).catch((err: any) => {
+        if (err.name !== "RenderingCancelledException" && err.message !== "Rendering cancelled, page change") {
+          console.error("Render failed for page " + pageNum, err);
+        }
       });
     }).catch((err: any) => {
       console.error("Error loading page " + pageNum, err);
@@ -359,6 +379,11 @@ function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEma
 
     return () => {
       active = false;
+      if (renderTaskRef.current) {
+        try {
+          renderTaskRef.current.cancel();
+        } catch (err) {}
+      }
     };
   }, [pdfDocument, pageNum, zoom]);
 
@@ -435,6 +460,52 @@ function PdfViewerInner() {
   // DRM overlays trigger
   const [focusLost, setFocusLost] = useState(false);
   const [clipboardAttacked, setClipboardAttacked] = useState(false);
+  const [permanentlyLocked, setPermanentlyLocked] = useState(false);
+  const permanentlyLockedRef = useRef(false);
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+
+  const triggerPermanentLock = () => {
+    document.body.classList.add('focus-lost');
+    setFocusLost(true);
+    setPermanentlyLocked(true);
+    permanentlyLockedRef.current = true;
+  };
+
+  // DevTools detection loop
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const threshold = 160;
+    const check = () => {
+      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+      const isOpen = widthThreshold || heightThreshold;
+
+      setDevToolsOpen(prev => {
+        if (prev !== isOpen) {
+          if (isOpen) {
+            document.body.classList.add('focus-lost');
+            setFocusLost(true);
+          } else {
+            if (!permanentlyLockedRef.current) {
+              document.body.classList.remove('focus-lost');
+              setFocusLost(false);
+            }
+          }
+        }
+        return isOpen;
+      });
+    };
+
+    const interval = setInterval(check, 500);
+    window.addEventListener("resize", check);
+    check();
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", check);
+    };
+  }, []);
 
   // Dynamically load PDF.js library from CDN
   useEffect(() => {
@@ -468,7 +539,7 @@ function PdfViewerInner() {
         // 2. Fetch purchases to see if student has purchased this
         const ordersRes = await api.get("/api/marketplace/orders");
         const orders = ordersRes.data || [];
-        
+
         const hasOrder = orders.some(
           (o: any) => o.productId === productId && o.status === "COMPLETED"
         );
@@ -496,6 +567,12 @@ function PdfViewerInner() {
   // Load PDF file if uploaded
   useEffect(() => {
     if (!pdfjsLoaded || !product) return;
+
+    if (devToolsOpen) {
+      setPdfDocument(null);
+      return;
+    }
+
     const docs = (product.images || []).filter(isDocumentUrl);
     if (docs.length === 0) return;
 
@@ -535,12 +612,12 @@ function PdfViewerInner() {
     return () => {
       active = false;
     };
-  }, [pdfjsLoaded, product, purchased, productId, searchParams, user]);
+  }, [pdfjsLoaded, product, purchased, productId, searchParams, user, devToolsOpen]);
 
   // Determine DRM preview parameters
   const isPreviewRequested = searchParams.get("preview") === "true";
   const isSeller = product?.sellerId === user?.id;
-  
+
   // Strict Preview Rules: Forced preview if NOT purchased AND NOT the seller
   const isPreview = isPreviewRequested || (!purchased && !isSeller);
 
@@ -549,42 +626,91 @@ function PdfViewerInner() {
 
   // 🛡️ DRM Event Listeners: Focus Loss & Keyboard PrintScreen Control
   useEffect(() => {
-    // 1. Focus loss blur handler (Snipping Tools capture triggers focus loss)
-    const handleBlur = () => setFocusLost(true);
-    const handleFocus = () => setFocusLost(false);
+    // 1. Focus loss blur handler
+    const handleBlur = () => {
+      // Small timeout filters out transient focus shifts (like Tab press, scrollbar drag)
+      setTimeout(() => {
+        if (!document.hasFocus()) {
+          document.body.classList.add('focus-lost');
+          setFocusLost(true);
+        }
+      }, 150);
+    };
+    const handleFocus = () => {
+      if (permanentlyLockedRef.current) return;
+      document.body.classList.remove('focus-lost');
+      setFocusLost(false);
+    };
 
-    // 2. Keyboard screenshot prevent and copy blockers
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Block PrintScreen action
-      if (e.key === "PrintScreen" || e.keyCode === 44) {
-        e.preventDefault();
-        setClipboardAttacked(true);
-        // Clean clipboard
-        navigator.clipboard?.writeText("🔒").catch(() => {});
-        setTimeout(() => setClipboardAttacked(false), 2200);
-      }
-
-      // Block copy, print, save keys (Ctrl+C, Ctrl+P, Ctrl+S, Cmd+C, Cmd+P, Cmd+S)
-      if ((e.ctrlKey || e.metaKey) && ["c", "p", "s", "x"].includes(e.key.toLowerCase())) {
-        e.preventDefault();
+    // 2. Visibility change (switching tabs or minimizing window)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        document.body.classList.add('focus-lost');
+        setFocusLost(true);
       }
     };
 
-    // 3. Right-click contextmenu prevent
+    // 3. Mouse boundaries (cursor leaving viewport blocks captures via overlay panels)
+    const handleMouseLeave = () => {
+      document.body.classList.add('focus-lost');
+      setFocusLost(true);
+    };
+    const handleMouseEnter = () => {
+      if (permanentlyLockedRef.current) return;
+      document.body.classList.remove('focus-lost');
+      setFocusLost(false);
+    };
+
+    // 4. Keyboard screenshot prevent and copy blockers
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+
+      // Allow page refresh/reload keys (F5, Ctrl+R, Cmd+R)
+      if (key === "f5" || ((e.ctrlKey || e.metaKey) && key === "r")) {
+        return;
+      }
+
+      // Block all other keys and trigger permanent lock
+      e.preventDefault();
+      triggerPermanentLock();
+
+      // Wipe clipboard if printscreen key is hit
+      if (key === "printscreen" || e.keyCode === 44) {
+        document.body.classList.add('clipboard-attacked');
+        setClipboardAttacked(true);
+        navigator.clipboard?.writeText("🔒").catch(() => { });
+        setTimeout(() => {
+          document.body.classList.remove('clipboard-attacked');
+          setClipboardAttacked(false);
+        }, 2200);
+      }
+    };
+
+    // 5. Right-click contextmenu prevent
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
 
     window.addEventListener("blur", handleBlur);
     window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("mouseleave", handleMouseLeave);
+    document.addEventListener("mouseenter", handleMouseEnter);
     window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+      document.removeEventListener("mouseenter", handleMouseEnter);
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("contextmenu", handleContextMenu);
+
+      // Cleanup classes on component unmount
+      document.body.classList.remove('focus-lost');
+      document.body.classList.remove('clipboard-attacked');
     };
   }, []);
 
@@ -623,6 +749,74 @@ function PdfViewerInner() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#060913", overflow: "hidden", position: "relative" }}>
       <style>{`
+        @media print {
+          body, html, #__next, .pdf-workspace, .pdf-document-card, .pdf-page-container {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+          }
+        }
+
+        /* DRM Instant Blackout styles */
+        body.focus-lost .pdf-workspace,
+        body.focus-lost .pdf-header,
+        body.focus-lost .pdf-bottom-bar,
+        body.focus-lost .pdf-secured-bar {
+          filter: blur(60px) !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          transition: none !important;
+        }
+
+        .drm-blackout-overlay {
+          position: fixed;
+          inset: 0;
+          background: #060913;
+          z-index: 99999 !important;
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          gap: 16px;
+          text-align: center;
+          padding: 24px;
+          box-sizing: border-box;
+        }
+
+        body.focus-lost .drm-blackout-overlay {
+          display: flex !important;
+        }
+
+        body.clipboard-attacked .pdf-workspace,
+        body.clipboard-attacked .pdf-header,
+        body.clipboard-attacked .pdf-bottom-bar,
+        body.clipboard-attacked .pdf-secured-bar {
+          filter: blur(60px) !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          transition: none !important;
+        }
+
+        .drm-clipboard-overlay {
+          position: fixed;
+          inset: 0;
+          background: #000000;
+          z-index: 100000 !important;
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          gap: 12px;
+          box-sizing: border-box;
+          padding: 24px;
+        }
+
+        body.clipboard-attacked .drm-clipboard-overlay {
+          display: flex !important;
+        }
+
         .pdf-watermark-text {
           font-family: 'DM Sans', sans-serif;
           font-size: 12px;
@@ -706,44 +900,32 @@ function PdfViewerInner() {
       `}</style>
 
       {/* ─── DRM BLUR BLACKOUT OVERLAY (FOCUS LOST) ─── */}
-      {focusLost && (
-        <div style={{
-          position: "fixed", inset: 0, background: "#060913", zIndex: 9999,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          color: "#fff", gap: 16, textAlign: "center", padding: 24
-        }}>
-          <ShieldAlert size={56} style={{ color: "#EF4444" }} />
-          <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#EF4444" }}>
-            🔒 DRM CONTENT PROTECTED
-          </h2>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 13, maxWidth: 440, lineHeight: 1.7 }}>
-            External tool capture, screenshot software, or screen sharing active.
-            CampusConnect security rules prohibit recording or copying this academic content. 
-            <br />
-            <strong style={{ color: "#8B5CF6", marginTop: 8, display: "block" }}>
-              Click back inside this window tab to resume reading.
-            </strong>
-          </p>
-        </div>
-      )}
+      <div className="drm-blackout-overlay">
+        <ShieldAlert size={56} style={{ color: "#EF4444" }} />
+        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#EF4444", margin: 0 }}>
+          🔒 DRM CONTENT PROTECTED
+        </h2>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 13, maxWidth: 440, lineHeight: 1.7, margin: 0 }}>
+          External tool capture, screenshot software, or screen sharing active.
+          CampusConnect security rules prohibit recording or copying this academic content.
+          <br />
+          <strong style={{ color: "#8B5CF6", marginTop: 8, display: "block" }}>
+            Click back inside this window tab to resume reading.
+          </strong>
+        </p>
+      </div>
 
       {/* ─── CLIPBOARD / PRINTSCREEN BLACKOUT OVERLAY ─── */}
-      {clipboardAttacked && (
-        <div style={{
-          position: "fixed", inset: 0, background: "#000000", zIndex: 10000,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          color: "#fff", gap: 12
-        }}>
-          <ShieldAlert size={64} style={{ color: "#EF4444", animation: "pulse 1s infinite" }} />
-          <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#EF4444" }}>
-            SCREENSHOT ATTEMPT BLOCKED
-          </h2>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 14 }}>
-            System screenshot utilities have been neutralized. Clipboard wiped.
-          </p>
-          <style>{`@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}`}</style>
-        </div>
-      )}
+      <div className="drm-clipboard-overlay">
+        <ShieldAlert size={64} style={{ color: "#EF4444", animation: "pulse 1s infinite" }} />
+        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#EF4444", margin: 0 }}>
+          SCREENSHOT ATTEMPT BLOCKED
+        </h2>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 14, margin: 0 }}>
+          System screenshot utilities have been neutralized. Clipboard wiped.
+        </p>
+        <style>{`@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}`}</style>
+      </div>
 
       {/* ─── VIEWER NAVBAR ─── */}
       <header className="pdf-header" style={{
@@ -791,7 +973,7 @@ function PdfViewerInner() {
           <button onClick={() => setZoom(z => Math.max(70, z - 10))} style={ctrlBtnStyle} title="Zoom Out" className="pdf-zoom-btn">
             <ZoomOut size={15} />
           </button>
-          
+
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#9CA3AF", minWidth: 38, textAlign: "center" }} className="pdf-zoom-text">
             {zoom}%
           </span>

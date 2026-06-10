@@ -40,6 +40,7 @@ interface Product {
   badgeC?: string;
   hot?: boolean;
   createdAt?: string;
+  status?: string;
 }
 
 function getBadge(p: Product): { badge: string; badgeC: string } {
@@ -482,7 +483,7 @@ export default function MarketplacePage() {
     api.get("/api/marketplace/products?limit=100")
       .then(res => {
         const data = res.data;
-        if (data?.products?.length) {
+        if (data?.products) {
           setAllProducts(data.products.map(normProduct));
         }
         if (typeof data?.total === 'number') setTotalCount(data.total);
@@ -499,6 +500,7 @@ export default function MarketplacePage() {
   }, []);
 
   const filtered = allProducts.filter(p => {
+    if (p.status && p.status.toLowerCase() !== "active") return false;
     const { badge } = getBadge(p);
     if (cat === "Notes PDF" && badge !== "Notes PDF") return false;
     if (cat === "Video Course" && badge !== "Video") return false;
@@ -739,7 +741,7 @@ export default function MarketplacePage() {
         }
       `}</style>
 
-      <div className="mkt-page" style={{ padding: "28px 32px", maxWidth: 1400 }}>
+      <div className="mkt-page" style={{ padding: "28px 32px", maxWidth: 1400, margin: "0 auto" }}>
 
         {/* Hero Banner */}
         <div className="mkt-hero-banner" style={{

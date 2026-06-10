@@ -3,21 +3,21 @@
 import { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { 
-  ChevronLeft, CheckCircle, Lock, Bell, User, ShoppingCart, 
-  Play, Pause, Volume2, ShieldAlert, Monitor, SkipForward, Maximize2, Settings 
+import {
+  ChevronLeft, CheckCircle, Lock, Bell, User, ShoppingCart,
+  Play, Pause, Volume2, ShieldAlert, Monitor, SkipForward, Maximize2, Settings
 } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
 /* ─── Course outline syllabus ────────────────────────────────────────── */
 const SYLLABUS_LESSONS = [
-  { id: 1, title: "Course Introduction & Setup",    duration: "12:15", topic: "intro" },
-  { id: 2, title: "Mathematical Prefaces & Matrix",  duration: "25:40", topic: "math" },
+  { id: 1, title: "Course Introduction & Setup", duration: "12:15", topic: "intro" },
+  { id: 2, title: "Mathematical Prefaces & Matrix", duration: "25:40", topic: "math" },
   { id: 3, title: "Wave-Particle Duality & Theory", duration: "32:10", topic: "wave" },
-  { id: 4, title: "The Schrödinger Equation",       duration: "45:55", topic: "schrodinger" },
+  { id: 4, title: "The Schrödinger Equation", duration: "45:55", topic: "schrodinger" },
   { id: 5, title: "Infinite Square Well Solutions", duration: "38:20", topic: "well" },
-  { id: 6, title: "Tunneling & Barrier Penetration",duration: "41:15", topic: "tunnel" },
+  { id: 6, title: "Tunneling & Barrier Penetration", duration: "41:15", topic: "tunnel" },
 ];
 
 const WATERMARK_POSITIONS: React.CSSProperties[] = [
@@ -84,7 +84,7 @@ function VideoPaywall({ productTitle, price, productId }: { productTitle: string
         fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
         textAlign: "center", maxWidth: 340, lineHeight: 1.7,
       }}>
-        You&apos;ve watched the <strong style={{ color: "#10B981" }}>5-minute free preview</strong>. 
+        You&apos;ve watched the <strong style={{ color: "#10B981" }}>5-minute free preview</strong>.
         Purchase the course to unlock all syllabus lectures, study downloads, and final certificates.
       </p>
 
@@ -148,6 +148,54 @@ function VideoViewerInner() {
   // Security overlays trigger
   const [focusLost, setFocusLost] = useState(false);
   const [clipboardAttacked, setClipboardAttacked] = useState(false);
+  const [permanentlyLocked, setPermanentlyLocked] = useState(false);
+  const permanentlyLockedRef = useRef(false);
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+
+  const triggerPermanentLock = () => {
+    document.body.classList.add('focus-lost');
+    setFocusLost(true);
+    setPlaying(false);
+    setPermanentlyLocked(true);
+    permanentlyLockedRef.current = true;
+  };
+
+  // DevTools detection loop
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const threshold = 160;
+    const check = () => {
+      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+      const isOpen = widthThreshold || heightThreshold;
+
+      setDevToolsOpen(prev => {
+        if (prev !== isOpen) {
+          if (isOpen) {
+            document.body.classList.add('focus-lost');
+            setFocusLost(true);
+            setPlaying(false);
+          } else {
+            if (!permanentlyLockedRef.current) {
+              document.body.classList.remove('focus-lost');
+              setFocusLost(false);
+            }
+          }
+        }
+        return isOpen;
+      });
+    };
+
+    const interval = setInterval(check, 500);
+    window.addEventListener("resize", check);
+    check();
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", check);
+    };
+  }, []);
 
   // Canvas context reference for the simulation
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -160,7 +208,7 @@ function VideoViewerInner() {
 
   const videoFiles = (product?.images || []).filter(isVideoUrl);
   const activeVideoFile = videoFiles[Math.min(currentLessonId - 1, Math.max(0, videoFiles.length - 1))];
-  
+
   // Direct video elements to the backend proxy stream URL for range-compatible secure delivery
   const isPreviewRequested = searchParams.get("preview") === "true";
   const isSeller = product?.sellerId === user?.id;
@@ -182,7 +230,7 @@ function VideoViewerInner() {
 
         const ordersRes = await api.get("/api/marketplace/orders");
         const orders = ordersRes.data || [];
-        
+
         const hasOrder = orders.some(
           (o: any) => o.productId === productId && o.status === "COMPLETED"
         );
@@ -258,6 +306,13 @@ function VideoViewerInner() {
     const video = videoRef.current;
     if (!video) return;
 
+    if (devToolsOpen) {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      return;
+    }
+
     if (realVideoUrl) {
       video.src = realVideoUrl;
       video.load();
@@ -266,7 +321,7 @@ function VideoViewerInner() {
     } else {
       video.src = "";
     }
-  }, [realVideoUrl]);
+  }, [realVideoUrl, devToolsOpen]);
 
   // Update video duration state on load
   useEffect(() => {
@@ -325,7 +380,7 @@ function VideoViewerInner() {
         setExpired(true);
         video.pause();
       }
-      
+
       // Check normal end
       if (current >= totalLessonSecs) {
         setPlaying(false);
@@ -350,22 +405,62 @@ function VideoViewerInner() {
   // 🛡️ DRM Event Listeners: Focus Loss & Keyboard PrintScreen
   useEffect(() => {
     const handleBlur = () => {
-      setFocusLost(true);
-      setPlaying(false); // Pause video on focus loss!
+      // Small timeout filters out transient focus shifts (like Tab press, scrollbar drag)
+      setTimeout(() => {
+        if (!document.hasFocus()) {
+          document.body.classList.add('focus-lost');
+          setFocusLost(true);
+          setPlaying(false); // Pause video on focus loss!
+        }
+      }, 150);
     };
-    const handleFocus = () => setFocusLost(false);
+    const handleFocus = () => {
+      if (permanentlyLockedRef.current) return;
+      document.body.classList.remove('focus-lost');
+      setFocusLost(false);
+    };
+
+    // Visibility change (switching tabs or minimizing window)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        document.body.classList.add('focus-lost');
+        setFocusLost(true);
+        setPlaying(false);
+      }
+    };
+
+    // Mouse boundaries (cursor leaving viewport blocks captures via overlays)
+    const handleMouseLeave = () => {
+      document.body.classList.add('focus-lost');
+      setFocusLost(true);
+      setPlaying(false);
+    };
+    const handleMouseEnter = () => {
+      if (permanentlyLockedRef.current) return;
+      document.body.classList.remove('focus-lost');
+      setFocusLost(false);
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen" || e.keyCode === 44) {
-        e.preventDefault();
-        setClipboardAttacked(true);
-        setPlaying(false);
-        navigator.clipboard?.writeText("🔒").catch(() => {});
-        setTimeout(() => setClipboardAttacked(false), 2200);
+      const key = e.key.toLowerCase();
+
+      // Allow page refresh/reload keys (F5, Ctrl+R, Cmd+R)
+      if (key === "f5" || ((e.ctrlKey || e.metaKey) && key === "r")) {
+        return;
       }
 
-      if ((e.ctrlKey || e.metaKey) && ["c", "p", "s", "x"].includes(e.key.toLowerCase())) {
-        e.preventDefault();
+      // Block all other keys and trigger permanent lock
+      e.preventDefault();
+      triggerPermanentLock();
+
+      if (key === "printscreen" || e.keyCode === 44) {
+        document.body.classList.add('clipboard-attacked');
+        setClipboardAttacked(true);
+        navigator.clipboard?.writeText("🔒").catch(() => { });
+        setTimeout(() => {
+          document.body.classList.remove('clipboard-attacked');
+          setClipboardAttacked(false);
+        }, 2200);
       }
     };
 
@@ -375,14 +470,24 @@ function VideoViewerInner() {
 
     window.addEventListener("blur", handleBlur);
     window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("mouseleave", handleMouseLeave);
+    document.addEventListener("mouseenter", handleMouseEnter);
     window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+      document.removeEventListener("mouseenter", handleMouseEnter);
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("contextmenu", handleContextMenu);
+
+      // Cleanup classes on component unmount
+      document.body.classList.remove('focus-lost');
+      document.body.classList.remove('clipboard-attacked');
     };
   }, []);
 
@@ -392,11 +497,11 @@ function VideoViewerInner() {
     if (!document.fullscreenElement) {
       playerContainerRef.current.requestFullscreen().then(() => {
         setIsFullscreen(true);
-      }).catch(() => {});
+      }).catch(() => { });
     } else {
       document.exitFullscreen().then(() => {
         setIsFullscreen(false);
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -616,6 +721,72 @@ function VideoViewerInner() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#060913", overflow: "hidden", position: "relative" }}>
       <style>{`
+        @media print {
+          body, html, #__next, .video-workspace-grid, .video-player-pane, .video-sidebar {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+          }
+        }
+
+        /* DRM Instant Blackout styles */
+        body.focus-lost .video-workspace-grid,
+        body.focus-lost .video-header,
+        body.focus-lost .video-trace-bar {
+          filter: blur(60px) !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          transition: none !important;
+        }
+
+        .drm-blackout-overlay {
+          position: fixed;
+          inset: 0;
+          background: #060913;
+          z-index: 99999 !important;
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          gap: 16px;
+          text-align: center;
+          padding: 24px;
+          box-sizing: border-box;
+        }
+
+        body.focus-lost .drm-blackout-overlay {
+          display: flex !important;
+        }
+
+        body.clipboard-attacked .video-workspace-grid,
+        body.clipboard-attacked .video-header,
+        body.clipboard-attacked .video-trace-bar {
+          filter: blur(60px) !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          transition: none !important;
+        }
+
+        .drm-clipboard-overlay {
+          position: fixed;
+          inset: 0;
+          background: #000000;
+          z-index: 100000 !important;
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          gap: 12px;
+          box-sizing: border-box;
+          padding: 24px;
+        }
+
+        body.clipboard-attacked .drm-clipboard-overlay {
+          display: flex !important;
+        }
+
         .video-watermark-text {
           font-family: 'DM Sans', sans-serif;
           font-size: 12px;
@@ -695,43 +866,32 @@ function VideoViewerInner() {
       `}</style>
 
       {/* ─── DRM BLUR BLACKOUT OVERLAY (FOCUS LOST) ─── */}
-      {focusLost && (
-        <div style={{
-          position: "fixed", inset: 0, background: "#060913", zIndex: 9999,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          color: "#fff", gap: 16, textAlign: "center", padding: 24
-        }}>
-          <ShieldAlert size={56} style={{ color: "#EF4444" }} />
-          <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#EF4444" }}>
-            🔒 DRM PLAYBACK SUSPENDED
-          </h2>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 13, maxWidth: 440, lineHeight: 1.7 }}>
-            External screen recorder, screenshot software, or screen sharing active.
-            CampusConnect security rules prohibit recording or copying this academic content. 
-            <br />
-            <strong style={{ color: "#10B981", marginTop: 8, display: "block" }}>
-              Click back inside this tab to resume video lecture.
-            </strong>
-          </p>
-        </div>
-      )}
+      <div className="drm-blackout-overlay">
+        <ShieldAlert size={56} style={{ color: "#EF4444" }} />
+        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#EF4444", margin: 0 }}>
+          🔒 DRM PLAYBACK SUSPENDED
+        </h2>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 13, maxWidth: 440, lineHeight: 1.7, margin: 0 }}>
+          External screen recorder, screenshot software, or screen sharing active.
+          CampusConnect security rules prohibit recording or copying this academic content.
+          <br />
+          <strong style={{ color: "#10B981", marginTop: 8, display: "block" }}>
+            Click back inside this tab to resume video lecture.
+          </strong>
+        </p>
+      </div>
 
       {/* ─── CLIPBOARD / PRINTSCREEN BLACKOUT OVERLAY ─── */}
-      {clipboardAttacked && (
-        <div style={{
-          position: "fixed", inset: 0, background: "#000000", zIndex: 10000,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          color: "#fff", gap: 12
-        }}>
-          <ShieldAlert size={64} style={{ color: "#EF4444", animation: "pulse 1s infinite" }} />
-          <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#EF4444" }}>
-            SCREENSHOT ACTION NEUTRALIZED
-          </h2>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 14 }}>
-            System screenshot utilities have been blocked. Clipboard contents wiped.
-          </p>
-        </div>
-      )}
+      <div className="drm-clipboard-overlay">
+        <ShieldAlert size={64} style={{ color: "#EF4444", animation: "pulse 1s infinite" }} />
+        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#EF4444", margin: 0 }}>
+          SCREENSHOT ACTION NEUTRALIZED
+        </h2>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 14, margin: 0 }}>
+          System screenshot utilities have been blocked. Clipboard contents wiped.
+        </p>
+        <style>{`@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}`}</style>
+      </div>
 
       {/* ─── NAVBAR ─── */}
       <header className="video-header" style={{
@@ -863,10 +1023,10 @@ function VideoViewerInner() {
 
             {/* Paywall Overlay inside player container when preview expired */}
             {expired && (
-              <VideoPaywall 
-                productTitle={product.title} 
-                price={product.price} 
-                productId={productId} 
+              <VideoPaywall
+                productTitle={product.title}
+                price={product.price}
+                productId={productId}
               />
             )}
 
@@ -880,7 +1040,7 @@ function VideoViewerInner() {
                 padding: "0 18px 12px", zIndex: 28,
               }}>
                 {/* Seek Timeline Track */}
-                <div 
+                <div
                   onClick={handleSeek}
                   style={{
                     height: 5, background: "rgba(255,255,255,0.2)",
@@ -914,13 +1074,13 @@ function VideoViewerInner() {
                   {/* Volume Slider */}
                   <div className="video-volume-slider" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Volume2 size={16} style={{ color: "#d1d5db" }} />
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="100" 
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
                       value={volume}
                       onChange={e => setVolume(parseInt(e.target.value))}
-                      style={{ width: 60, accentColor: "#10B981", cursor: "pointer", height: 3 }} 
+                      style={{ width: 60, accentColor: "#10B981", cursor: "pointer", height: 3 }}
                     />
                   </div>
 
@@ -967,7 +1127,7 @@ function VideoViewerInner() {
           }}>
             <span style={{
               background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)",
-              color: "#10B981", borderRadius: 6, padding: "2px 8px", 
+              color: "#10B981", borderRadius: 6, padding: "2px 8px",
               fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
               textTransform: "uppercase", letterSpacing: "0.5px"
             }}>
@@ -977,7 +1137,7 @@ function VideoViewerInner() {
             <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF", margin: "10px 0 6px" }}>
               {activeLesson.title}
             </h2>
-            
+
             <p style={{
               fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
               lineHeight: 1.7, marginBottom: 14, textAlign: "justify"
@@ -1031,8 +1191,8 @@ function VideoViewerInner() {
                   style={{
                     padding: "8px 10px",
                     borderRadius: 8,
-                    background: isCurrent && !lockedInPreview 
-                      ? "rgba(16,185,129,0.08)" 
+                    background: isCurrent && !lockedInPreview
+                      ? "rgba(16,185,129,0.08)"
                       : "rgba(255,255,255,0.02)",
                     border: `1.5px solid ${isCurrent && !lockedInPreview ? "rgba(16,185,129,0.25)" : "transparent"}`,
                     cursor: lockedInPreview ? "not-allowed" : "pointer",
@@ -1070,7 +1230,7 @@ function VideoViewerInner() {
                       fontFamily: "'JetBrains Mono', monospace",
                       fontWeight: 700,
                     }}>L{l.id}</span>
-                    
+
                     {lockedInPreview ? (
                       <Lock size={14} style={{ color: "#9CA3AF" }} />
                     ) : isCurrent ? (

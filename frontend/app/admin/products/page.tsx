@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
 import api from '@/lib/axios';
 
-type PS = 'pending' | 'active' | 'removed';
+type PS = 'pending' | 'active' | 'removed' | 'sold';
 
 interface Product {
   id: string; title: string; seller: string; price: string; priceRaw: number;
@@ -19,6 +19,7 @@ const SC: Record<PS, { bg: string; c: string; l: string }> = {
   pending: { bg: 'rgba(245,158,11,.12)', c: '#F59E0B', l: 'PENDING' },
   active:  { bg: 'rgba(16,185,129,.12)', c: '#10B981', l: 'ACTIVE'  },
   removed: { bg: 'rgba(239,68,68,.12)',  c: '#EF4444', l: 'REMOVED' },
+  sold:    { bg: 'rgba(79,142,247,.12)',  c: '#4F8EF7',  l: 'SOLD OUT' },
 };
 
 export default function ProductManagementPage() {
@@ -62,6 +63,7 @@ export default function ProductManagementPage() {
     pending: products.filter(p => p.status === 'pending').length,
     active:  products.filter(p => p.status === 'active').length,
     removed: products.filter(p => p.status === 'removed').length,
+    sold:    products.filter(p => p.status === 'sold').length,
   };
 
   const rows = products.filter(p => {
@@ -84,7 +86,7 @@ export default function ProductManagementPage() {
         @keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         h1{font-family:'Sora',sans-serif;font-size:28px;font-weight:700;margin-bottom:4px;color:var(--txt)}
         .sub{font-size:14px;color:var(--mut);margin-bottom:22px}
-        .stat-row{display:flex;gap:12px;margin-bottom:20px}
+        .stat-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
         .sc-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:8px}
         .sn{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;color:var(--txt)}
         .sl{font-size:12px;color:var(--mut)}
@@ -146,13 +148,14 @@ export default function ProductManagementPage() {
           <div className="sc-stat"><div className="dot" /><span className="sn" style={{ color: 'var(--org)' }}>{cnt.pending}</span><span className="sl">Pending</span></div>
           <div className="sc-stat"><span className="sn" style={{ color: 'var(--green)' }}>{cnt.active}</span><span className="sl">Active</span></div>
           <div className="sc-stat"><span className="sn" style={{ color: 'var(--red)' }}>{cnt.removed}</span><span className="sl">Removed</span></div>
+          <div className="sc-stat"><span className="sn" style={{ color: 'var(--blue)' }}>{cnt.sold}</span><span className="sl">Sold Out</span></div>
         </div>
 
         <div className="fbar">
           <div className="pills">
-            {(['all', 'pending', 'active', 'removed'] as const).map(t => (
+            {(['all', 'pending', 'active', 'removed', 'sold'] as const).map(t => (
               <button key={t} className={`pill ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}<span className="cnt">{cnt[t]}</span>
+                {t === 'sold' ? 'Sold Out' : t.charAt(0).toUpperCase() + t.slice(1)}<span className="cnt">{cnt[t]}</span>
               </button>
             ))}
           </div>
@@ -190,6 +193,7 @@ export default function ProductManagementPage() {
                   </>}
                   {p.status === 'active' && <button className="brm" onClick={() => setRmModal(p.id)}>Remove ✗</button>}
                   {p.status === 'removed' && <button className="brs" onClick={() => setRsModal(p.id)}>↩ Restore</button>}
+                  {p.status === 'sold' && <span style={{ color: 'var(--mut)' }}>—</span>}
                 </div>
               </div>
             );
