@@ -160,8 +160,8 @@ export default function PlatformRevenuePage() {
                       <td><div className="skeleton" style={{ height: 14, width: 60 }} /></td>
                     </tr>
                   ))
-                : revenueBars.map(r => (
-                    <tr key={r.name}>
+                : revenueBars.map((r, i) => (
+                    <tr key={`${r.name}-${i}`}>
                       <td style={{ fontWeight: 600, color: 'var(--t1)' }}>{r.name}</td>
                       <td style={{ color: 'var(--gold)', fontFamily: 'JetBrains Mono,monospace', fontSize: 12, fontWeight: 700 }}>
                         {fmt(r.amount)}

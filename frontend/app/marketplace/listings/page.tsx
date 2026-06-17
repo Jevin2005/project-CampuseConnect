@@ -5,12 +5,12 @@ import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
 import { AdStrip } from "@/components/AdBanner";
-import { OWN_COLLEGE_ADS, CROSS_COLLEGE_ADS } from "@/lib/adsData";
+import { OWN_COLLEGE_ADS, CROSS_COLLEGE_ADS, fetchLiveAds } from "@/lib/adsData";
 import { Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 function mediaUrl(p: string) { return p?.startsWith("http") ? p : `${API}${p}`; }
-function isVideo(p: string)  { return /\.(mp4|webm|ogg|mov)$/i.test(p); }
+function isVideo(p: string) { return /\.(mp4|webm|ogg|mov)$/i.test(p); }
 
 interface Listing {
   id: string;
@@ -29,20 +29,20 @@ const TABS = ["All", "Active", "Pending Review", "Sold", "Removed"] as const;
 type Tab = typeof TABS[number];
 
 const ST: Record<string, { bg: string; color: string }> = {
-  "active":         { bg: "rgba(16,185,129,0.1)",  color: "#10B981" },
-  "pending_review": { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B" },
-  "sold":           { bg: "rgba(79,142,247,0.1)",  color: "#4F8EF7" },
-  "removed":        { bg: "rgba(239,68,68,0.1)",   color: "#EF4444" },
+  "active": { bg: "rgba(16,185,129,0.1)", color: "#10B981" },
+  "pending_review": { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" },
+  "sold": { bg: "rgba(79,142,247,0.1)", color: "#4F8EF7" },
+  "removed": { bg: "rgba(239,68,68,0.1)", color: "#EF4444" },
   // friendly tab labels
-  "Active":         { bg: "rgba(16,185,129,0.1)",  color: "#10B981" },
-  "Pending Review": { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B" },
-  "Sold":           { bg: "rgba(79,142,247,0.1)",  color: "#4F8EF7" },
-  "Removed":        { bg: "rgba(239,68,68,0.1)",   color: "#EF4444" },
+  "Active": { bg: "rgba(16,185,129,0.1)", color: "#10B981" },
+  "Pending Review": { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" },
+  "Sold": { bg: "rgba(79,142,247,0.1)", color: "#4F8EF7" },
+  "Removed": { bg: "rgba(239,68,68,0.1)", color: "#EF4444" },
 };
 
 const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
-  "digital":  { bg: "rgba(167,139,250,0.12)", color: "#A78BFA" },
-  "physical": { bg: "rgba(79,142,247,0.12)",  color: "#4F8EF7" },
+  "digital": { bg: "rgba(167,139,250,0.12)", color: "#A78BFA" },
+  "physical": { bg: "rgba(79,142,247,0.12)", color: "#4F8EF7" },
 };
 
 function statusLabel(l: Listing): string {
@@ -76,7 +76,9 @@ export default function MyListingsPage() {
   const [toast, setToast] = useState("");
 
   const user = useAuthStore(s => s.user);
+  const collegeId = useAuthStore(s => s.collegeId);
   const authLoading = useAuthStore(s => s.isLoading);
+  const [liveAds, setLiveAds] = useState<any[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -85,9 +87,16 @@ export default function MyListingsPage() {
     setLoading(true);
     api.get("/api/marketplace/my-listings")
       .then(res => setListings(Array.isArray(res.data) ? res.data : []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    fetchLiveAds(collegeId ?? undefined)
+      .then(ads => setLiveAds(ads || []))
+      .catch(() => {});
+  }, [collegeId, authLoading]);
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
@@ -118,10 +127,10 @@ export default function MyListingsPage() {
   });
 
   const totals = {
-    active:   listings.filter(l => statusLabel(l) === "Active").length,
-    views:    listings.reduce((s, l) => s + (l.views || 0), 0),
+    active: listings.filter(l => statusLabel(l) === "Active").length,
+    views: listings.reduce((s, l) => s + (l.views || 0), 0),
     requests: listings.reduce((s, l) => s + (l._count?.buyRequests || 0), 0),
-    orders:   listings.reduce((s, l) => s + (l._count?.orders || 0), 0),
+    orders: listings.reduce((s, l) => s + (l._count?.orders || 0), 0),
   };
 
   return (
@@ -326,7 +335,7 @@ export default function MyListingsPage() {
                   <ListingThumb images={l.images || []} />
                   <div>
                     <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, color: "#F0F4FF", marginBottom: 2 }}>{l.title}</p>
-                    <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#374151" }}>#{l.id.slice(0,8)} · {l.category}</p>
+                    <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#374151" }}>#{l.id.slice(0, 8)} · {l.category}</p>
                   </div>
                 </div>
                 <span className="listings-cell-type" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ts.bg, color: ts.color, borderRadius: 9999, padding: "4px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>
@@ -357,13 +366,28 @@ export default function MyListingsPage() {
         </div>
 
         {/* Ads */}
-        <div style={{ marginTop: 24 }}>
-          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase", marginBottom: 10 }}>📢 ADVERTISEMENTS</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <AdStrip ad={{ ...OWN_COLLEGE_ADS[0], subtitle: "Zenith Tech Fest 2024 — Register before Dec 20. ₹5L prize pool!", dismissible: true }} />
-            <AdStrip ad={{ ...CROSS_COLLEGE_ADS[0], subtitle: "Inter-college Hackathon — VIT × MIT × PCCOE. ₹2L prizes. Open to all!", dismissible: true }} />
-          </div>
-        </div>
+        {(() => {
+          const adsToShow = liveAds.length > 0
+            ? liveAds
+            : (process.env.NODE_ENV === "production"
+                ? []
+                : [
+                    { ...OWN_COLLEGE_ADS[0], subtitle: "Zenith Tech Fest 2024 — Register before Dec 20. ₹5L prize pool!", dismissible: true },
+                    { ...CROSS_COLLEGE_ADS[0], subtitle: "Inter-college Hackathon — VIT × MIT × PCCOE. ₹2L prizes. Open to all!", dismissible: true }
+                  ]
+              );
+          if (adsToShow.length === 0) return null;
+          return (
+            <div style={{ marginTop: 24 }}>
+              <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase", marginBottom: 10 }}>📢 ADVERTISEMENTS</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {adsToShow.slice(0, 2).map((ad, idx) => (
+                  <AdStrip key={ad.id || idx} ad={ad} />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </StudentLayout>
   );

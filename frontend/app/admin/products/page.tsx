@@ -8,12 +8,16 @@ type PS = 'pending' | 'active' | 'removed' | 'sold';
 interface Product {
   id: string; title: string; seller: string; price: string; priceRaw: number;
   category: string; status: PS; isApproved: boolean; orders: number;
-  date: string; imageUrl?: string; description?: string;
+  date: string; images?: string[]; imageUrl?: string; description?: string;
 }
 
 const CAT_ICON: Record<string, string> = {
   BOOK: '📕', LAPTOP: '💻', PHONE: '📱', NOTE: '📄', VIDEO: '🎥', OTHER: '📦',
 };
+
+const isImage = (url: string) => /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url);
+const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
+const isPdf = (url: string) => /\.pdf$/i.test(url) || url.includes('/documents/') || url.includes('.pdf');
 
 const SC: Record<PS, { bg: string; c: string; l: string }> = {
   pending: { bg: 'rgba(245,158,11,.12)', c: '#F59E0B', l: 'PENDING' },
@@ -32,6 +36,7 @@ export default function ProductManagementPage() {
   const [rsModal, setRsModal] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [viewModal, setViewModal] = useState<Product | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
@@ -54,7 +59,7 @@ export default function ProductManagementPage() {
       await api.post(`/api/admin/products/${id}/${action}`);
       showToast(action === 'approve' ? '✅ Product approved!' : action === 'remove' ? '🗑 Product removed.' : '↩ Product restored!');
       await fetchProducts();
-    } catch { showToast('❌ Action failed'); }
+    } catch (e) { console.error(e); showToast('❌ Action failed'); }
     finally { setActionLoading(null); setRmModal(null); setRsModal(null); }
   };
 
@@ -74,7 +79,7 @@ export default function ProductManagementPage() {
 
   const fmtDate = (d: string) => {
     try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
-    catch { return d; }
+    catch (_e) { return d; }
   };
 
   return (
@@ -103,8 +108,8 @@ export default function ProductManagementPage() {
         .sinput::placeholder{color:var(--mut)}
         .sinput:focus{border-color:var(--green)}
         .tbl{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-        .th{display:grid;grid-template-columns:2.5fr 1fr 1fr .8fr .8fr 1fr 1.3fr;background:var(--card2);padding:11px 18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--mut);border-bottom:1px solid var(--border)}
-        .tr{display:grid;grid-template-columns:2.5fr 1fr 1fr .8fr .8fr 1fr 1.3fr;padding:13px 18px;align-items:center;border-bottom:1px solid rgba(30,45,69,.5);transition:background .15s}
+        .th{display:grid;grid-template-columns:2.1fr 1fr 1fr .8fr .8fr 1fr 1.8fr;background:var(--card2);padding:11px 18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--mut);border-bottom:1px solid var(--border)}
+        .tr{display:grid;grid-template-columns:2.1fr 1fr 1fr .8fr .8fr 1fr 1.8fr;padding:13px 18px;align-items:center;border-bottom:1px solid rgba(30,45,69,.5);transition:background .15s}
         .tr:last-child{border-bottom:none}
         .tr:hover{background:rgba(16,185,129,.025)}
         .pcell{display:flex;align-items:center;gap:9px}
@@ -187,13 +192,14 @@ export default function ProductManagementPage() {
                 <div className="dt">{fmtDate(p.date)}</div>
                 <div><span className="sbadge" style={{ background: ss.bg, color: ss.c }}>{ss.l}</span></div>
                 <div className="acts">
-                  {p.status === 'pending' && <>
+                  <button className="brs" style={{ border: '1.5px solid rgba(79,142,247,.35)', color: 'var(--blue)', padding: '5px 11px' }} onClick={() => setViewModal(p)}>👁 View</button>
+                  {p.status === 'pending' && !p.isApproved && <>
                     <button className="bap" disabled={actionLoading === p.id} onClick={() => doAction(p.id, 'approve')}>Approve ✓</button>
                     <button className="brm" onClick={() => setRmModal(p.id)}>Remove ✗</button>
                   </>}
-                  {p.status === 'active' && <button className="brm" onClick={() => setRmModal(p.id)}>Remove ✗</button>}
+                  {(p.status === 'active' || (p.status === 'pending' && p.isApproved)) && <button className="brm" onClick={() => setRmModal(p.id)}>Remove ✗</button>}
                   {p.status === 'removed' && <button className="brs" onClick={() => setRsModal(p.id)}>↩ Restore</button>}
-                  {p.status === 'sold' && <span style={{ color: 'var(--mut)' }}>—</span>}
+                  {p.status === 'sold' && <span style={{ color: 'var(--mut)', padding: '5px 10px' }}>—</span>}
                 </div>
               </div>
             );
@@ -209,7 +215,7 @@ export default function ProductManagementPage() {
           <button className="bcrm" onClick={() => doAction(rmModal, 'remove')}>Confirm Remove</button>
         </div>
       </div></div>}
-
+ 
       {rsModal && <div className="mo" onClick={() => setRsModal(null)}><div className="mb" onClick={e => e.stopPropagation()}>
         <div className="mt">↩️ Restore Product?</div>
         <p className="ms">This product will become Active and visible to students again.</p>
@@ -218,6 +224,111 @@ export default function ProductManagementPage() {
           <button className="bcrs" onClick={() => doAction(rsModal, 'restore')}>Confirm Restore</button>
         </div>
       </div></div>}
+
+      {viewModal && (
+        <div className="mo" onClick={() => setViewModal(null)}>
+          <div className="mb" style={{ maxWidth: '640px', width: '90%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div className="mt" style={{ fontSize: '20px' }}>Product Specifications</div>
+              <span className="sbadge" style={{ background: SC[viewModal.status].bg, color: SC[viewModal.status].c }}>{SC[viewModal.status].l}</span>
+            </div>
+
+            {/* Images Grid */}
+            {viewModal.images && viewModal.images.length > 0 ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: viewModal.images.length === 1 ? '1fr' : 'repeat(auto-fill, minmax(130px, 1fr))',
+                gap: 10,
+                marginBottom: 20,
+                maxHeight: '220px',
+                overflowY: 'auto',
+                padding: 4,
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                background: 'var(--card2)'
+              }}>
+                {viewModal.images.map((img, idx) => {
+                  const API_URL = 'http://localhost:5000';
+                  const fullImgUrl = img.startsWith('http') ? img : `${API_URL}${img}`;
+                  
+                  if (isVideo(img)) {
+                    return (
+                      <div key={idx} style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                        <video src={fullImgUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    );
+                  }
+                  
+                  if (isPdf(img)) {
+                    return (
+                      <div key={idx} onClick={() => window.open(fullImgUrl, '_blank')} style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 8, border: '1.5px dashed rgba(167, 139, 250, 0.3)', background: 'rgba(167, 139, 250, 0.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 8, boxSizing: 'border-box' }} title="Click to view full PDF document">
+                        <span style={{ fontSize: '28px', marginBottom: '4px' }}>📄</span>
+                        <span style={{ fontSize: '10px', color: 'var(--soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>
+                          {img.split('/').pop() || 'document.pdf'}
+                        </span>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div key={idx} style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                      <img src={fullImgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => window.open(fullImgUrl, '_blank')} title="Click to view full poster image" />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '24px', background: 'var(--card2)', borderRadius: 10, border: '1px solid var(--border)', color: 'var(--mut)', marginBottom: 20, textAlign: 'center' }}>
+                No product images/posters uploaded
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--txt)', marginBottom: 4 }}>{viewModal.title}</h3>
+                <div style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--soft)' }}>
+                  <span>Category: <strong>{viewModal.category}</strong></span> · 
+                  <span>Price: <strong style={{ color: 'var(--green)' }}>{viewModal.price}</strong></span>
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: 'var(--border)' }} />
+
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--mut)', marginBottom: 4 }}>Seller Contact Info</div>
+                <div style={{ fontSize: 13, color: 'var(--txt)' }}>Name: <strong style={{ color: 'var(--blue)' }}>{viewModal.seller}</strong></div>
+              </div>
+
+              <div style={{ height: 1, background: 'var(--border)' }} />
+
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--mut)', marginBottom: 4 }}>Description / Specifications</div>
+                <p style={{ fontSize: 13, color: 'var(--soft)', lineHeight: 1.6, whiteSpace: 'pre-line', maxHeight: '160px', overflowY: 'auto' }}>
+                  {viewModal.description || 'No description provided.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="macts" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <button className="bcnl" onClick={() => setViewModal(null)}>Close</button>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                {viewModal.status === 'pending' && !viewModal.isApproved && (
+                  <>
+                    <button className="bcrm" style={{ background: 'transparent', border: '1.5px solid var(--red)', color: 'var(--red)' }} onClick={() => { setRmModal(viewModal.id); setViewModal(null); }}>Remove ✗</button>
+                    <button className="bap" onClick={() => { doAction(viewModal.id, 'approve'); setViewModal(null); }}>Approve ✓</button>
+                  </>
+                )}
+                {(viewModal.status === 'active' || (viewModal.status === 'pending' && viewModal.isApproved)) && (
+                  <button className="bcrm" onClick={() => { setRmModal(viewModal.id); setViewModal(null); }}>Remove ✗</button>
+                )}
+                {viewModal.status === 'removed' && (
+                  <button className="bcrs" onClick={() => { doAction(viewModal.id, 'restore'); setViewModal(null); }}>Restore</button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -380,6 +380,7 @@ export default function SellProductPage() {
       <style>{`
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 768px) {
           .sell-page-container {
@@ -591,7 +592,7 @@ export default function SellProductPage() {
             <div style={{ fontSize: 80, marginBottom: 20 }}>🚀</div>
             <h1 className="sell-main-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 12 }}>Product Listing Published!</h1>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "#94A3B8", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 30px" }}>
-              Your item is now live and visible inside the campus feed immediately.
+              Your item is now live on the campus marketplace! Students can search and send buy requests for it immediately.
             </p>
 
             <div style={{
@@ -601,7 +602,7 @@ export default function SellProductPage() {
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#F1F5F9", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
                 <CheckCircle size={16} style={{ color: "#10B981" }} />
-                <span>One-time publication fee of ₹{listFee} received</span>
+                <span>Product listed directly to the campus feed</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#F1F5F9", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
                 <CheckCircle size={16} style={{ color: "#10B981" }} />
@@ -750,11 +751,11 @@ export default function SellProductPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                         <span style={{ fontSize: 36 }}>{t.icon}</span>
                         <span style={{
-                          background: `${t.color}15`, color: t.color,
+                          background: "rgba(16, 185, 129, 0.1)", color: "#10B981",
                           borderRadius: 8, padding: "4px 12px",
                           fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700
                         }}>
-                          ₹{t.fee} listing fee
+                          Free to list
                         </span>
                       </div>
 
@@ -1388,10 +1389,10 @@ export default function SellProductPage() {
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#3B82F6", textTransform: "uppercase", marginBottom: 8 }}>Seller Fee (One-Time)</p>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                         <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Listing Submission:</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>₹{listFee}</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>Free</span>
                       </div>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", margin: 0, lineHeight: 1.4 }}>
-                        Paid at Step 3 to publish your assets to the administrative verification queue.
+                        Listing products is completely free. Your item is approved and listed directly on the marketplace.
                       </p>
                     </div>
 
@@ -1567,7 +1568,7 @@ export default function SellProductPage() {
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 6 }}>Publication Cost</p>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Listing Fee (One-time):</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff" }}>₹{listFee}</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#10B981" }}>Free</span>
                       </div>
                     </div>
 
@@ -1592,23 +1593,31 @@ export default function SellProductPage() {
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>Review all attachments and prices before confirming.</p>
                     </div>
 
-                    <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFee}</span>
+                    <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#10B981" }}>Free</span>
                   </div>
 
                   <button
-                    onClick={() => {
-                      setPayStep("choose");
-                      setPayModal(true);
-                    }}
+                    onClick={submitToAPI}
+                    disabled={submitting}
                     style={{
                       width: "100%", height: 50, borderRadius: 14,
-                      background: "linear-gradient(90deg, #3B82F6, #1D4ED8)", border: "none",
-                      cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff",
+                      background: submitting ? "#1E293B" : "linear-gradient(90deg, #10B981, #059669)", border: "none",
+                      cursor: submitting ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                      boxShadow: "0 10px 20px rgba(59, 130, 246, 0.3)"
+                      boxShadow: submitting ? "none" : "0 10px 20px rgba(16, 185, 129, 0.3)",
+                      transition: "all 0.25s"
                     }}
                   >
-                    💳 Pay ₹{listFee} &amp; Submit Product
+                    {submitting ? (
+                      <>
+                        <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                        <span>Publishing Listing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🚀 Publish Product Listing</span>
+                      </>
+                    )}
                   </button>
                 </div>
 

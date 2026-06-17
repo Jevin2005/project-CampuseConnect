@@ -28,9 +28,10 @@ model College {
   isApproved  Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  admins      Admin[]
-  products    Product[]
-  students    Student[]
+  admins         Admin[]
+  products       Product[]
+  students       Student[]
+  advertisements Advertisement[]
 }
 
 model Admin {
@@ -45,6 +46,7 @@ model Admin {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   college         College  @relation(fields: [collegeId], references: [id])
+  advertisements  Advertisement[]
 }
 
 model Student {
@@ -190,4 +192,26 @@ model Notification {
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
   student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Advertisement {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  bannerUrl   String?
+  scope       String              // "own" | "cross"
+  format      String    @default("banner") // strip | banner | square | portrait | card
+  status      String    @default("active") // active | expired | deactivated
+  duration    Int                 // 7 | 14 | 30 (days)
+  cost        Float     @default(0)
+  views       Int       @default(0)
+  clicks      Int       @default(0)
+  startsAt    DateTime  @default(now())
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  adminId     String
+  collegeId   String
+  admin       Admin     @relation(fields: [adminId], references: [id])
+  college     College   @relation(fields: [collegeId], references: [id])
 }

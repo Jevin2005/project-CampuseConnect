@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
-import { AdCard, AdBannerHorizontal, AdStrip } from "@/components/AdBanner";
-import { INLINE_ADS, OWN_COLLEGE_ADS, HOSTEL_ADS } from "@/lib/adsData";
+import { AdCard, AdBannerHorizontal, AdStrip, AdRenderer } from "@/components/AdBanner";
+import { INLINE_ADS, OWN_COLLEGE_ADS, HOSTEL_ADS, CROSS_COLLEGE_ADS, fetchLiveAds } from "@/lib/adsData";
 import { Search, SlidersHorizontal, TrendingUp, Zap, X, Heart, Eye, ChevronLeft, ChevronRight, Play, FileText, Sparkles, Layers, Plus, MessageSquare, ShoppingBag } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -448,8 +448,10 @@ const DEMO: Product[] = [
   { id: "8", productType: "digital", images: [], badge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Raj K." }, title: "Engg Maths Handwritten", price: 199, views: 99, category: "Notes PDF", hot: true },
 ] as any;
 
+
 export default function MarketplacePage() {
   const user = useAuthStore((s) => s.user);
+  const collegeId = useAuthStore((s) => s.collegeId);
   const [cat, setCat] = useState<Category>("All");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Newest");
@@ -461,6 +463,10 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
+  const [liveAds, setLiveAds] = useState<typeof INLINE_ADS>([]);
+  const [adCategoryFilter, setAdCategoryFilter] = useState<string>("all");
+  const [adFormatFilter, setAdFormatFilter] = useState<string>("all");
+
 
   // Listen to search and category changes in URL
   useEffect(() => {
@@ -497,7 +503,13 @@ export default function MarketplacePage() {
         setWishlistIds(ids.filter(Boolean));
       })
       .catch(() => { });
-  }, []);
+
+    // Fetch live ads from backend using the student's collegeId so we get
+    // own-college ads + cross-college ads from all other colleges.
+    fetchLiveAds(collegeId ?? undefined)
+      .then(ads => { setLiveAds(ads || []); })
+      .catch(() => { });
+  }, [collegeId]);
 
   const filtered = allProducts.filter(p => {
     if (p.status && p.status.toLowerCase() !== "active") return false;
@@ -528,14 +540,35 @@ export default function MarketplacePage() {
   const activeFilters = [minP, maxP].filter(Boolean).length;
   function clearFilters() { setMinP(""); setMaxP(""); setPage(1); }
 
-  type GridItem = { kind: "product"; data: Product } | { kind: "ad"; data: typeof INLINE_ADS[0] };
+  // Merge live ads with static fallback inline ads (only fallback when not in production)
+  const inlineAdsToShow = liveAds.length > 0
+    ? liveAds
+    : (process.env.NODE_ENV === "production" ? [] : INLINE_ADS);
+
+  // Separate ads by rendering style:
+  // Full-width (strip/banner) = injected between rows as full-span items
+  // Inline (card/square/portrait) = injected into the grid as regular items
+  const fullWidthAds = inlineAdsToShow.filter(a => !a.format || a.format === 'strip' || a.format === 'banner');
+  const inlineAds = inlineAdsToShow.filter(a => a.format === 'card' || a.format === 'square' || a.format === 'portrait');
+
+  type GridItem =
+    | { kind: "product"; data: Product }
+    | { kind: "ad-inline"; data: typeof INLINE_ADS[0] }
+    | { kind: "ad-fullwidth"; data: typeof INLINE_ADS[0] };
+
   const gridItems: GridItem[] = [];
-  let adIdx = 0;
+  let inlineAdIdx = 0;
+  let fullWidthAdIdx = 0;
+
   if (cat === "All") {
     paged.forEach((p, i) => {
       gridItems.push({ kind: "product", data: p });
-      if ((i + 1) % 4 === 0 && adIdx < INLINE_ADS.length)
-        gridItems.push({ kind: "ad", data: INLINE_ADS[adIdx++] });
+      // After every 4 products insert an inline ad
+      if ((i + 1) % 4 === 0 && inlineAdIdx < inlineAds.length)
+        gridItems.push({ kind: "ad-inline", data: inlineAds[inlineAdIdx++] });
+      // After every 8 products insert a full-width strip/banner
+      if ((i + 1) % 8 === 0 && fullWidthAdIdx < fullWidthAds.length)
+        gridItems.push({ kind: "ad-fullwidth", data: fullWidthAds[fullWidthAdIdx++] });
     });
   } else {
     paged.forEach(p => gridItems.push({ kind: "product", data: p }));
@@ -787,10 +820,10 @@ export default function MarketplacePage() {
           </div>
         </div>
 
-        {/* ── Featured Ad Banner (Hostel) — shown in All view ── */}
-        {cat === "All" && (
+        {/* ── Featured Ad Banner — shown in All view —── */}
+        {cat === "All" && (liveAds.length > 0 || process.env.NODE_ENV !== "production") && (
           <div style={{ marginBottom: 22 }}>
-            <AdBannerHorizontal ad={HOSTEL_ADS[0]} />
+            <AdBannerHorizontal ad={liveAds.length > 0 ? liveAds[0] : HOSTEL_ADS[0]} />
           </div>
         )}
 
@@ -884,46 +917,186 @@ export default function MarketplacePage() {
         {/* ── ADS-ONLY VIEW ── */}
         {showAdsOnly ? (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
+
+
+            {/* Sub-Filters and Tabs for Usability */}
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              marginBottom: 28,
+              padding: "16px 20px",
+              background: "#111827",
+              border: "1.5px solid #1e2d45",
+              borderRadius: 18,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.25)"
+            }}>
+              {/* Category Filter */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "1px", width: 90 }}>Filter Ads:</span>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flex: 1 }}>
+                  {[
+                    { val: "all", label: "All Campaigns", icon: "📢" },
+                    { val: "college_event", label: "Campus Events", icon: "🏫" },
+                    { val: "cross_college", label: "Cross-Campus", icon: "🌐" },
+                    { val: "hostel_pg", label: "Hostels & PG", icon: "🏠" },
+                    { val: "sponsored", label: "Promotions", icon: "💎" }
+                  ].map(item => (
+                    <button
+                      key={item.val}
+                      onClick={() => { setAdCategoryFilter(item.val); setPage(1); }}
+                      style={{
+                        height: 32, padding: "0 14px", borderRadius: 9999, cursor: "pointer",
+                        background: adCategoryFilter === item.val ? "rgba(79, 142, 247, 0.12)" : "transparent",
+                        border: `1.5px solid ${adCategoryFilter === item.val ? "#4F8EF7" : "#1e2d45"}`,
+                        color: adCategoryFilter === item.val ? "#4F8EF7" : "#9CA3AF",
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600,
+                        display: "flex", alignItems: "center", gap: 6,
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      <span>{item.icon}</span> {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: "rgba(30, 45, 69, 0.5)" }} />
+
+              {/* Format Filter */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "1px", width: 90 }}>Ad Format:</span>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flex: 1 }}>
+                  {[
+                    { val: "all", label: "All Formats", icon: "📱" },
+                    { val: "banner", label: "Banners (3:1)", icon: "▬" },
+                    { val: "strip", label: "Strips (6:1)", icon: "━" },
+                    { val: "square", label: "Squares (1:1)", icon: "■" },
+                    { val: "portrait", label: "Stories (2:3)", icon: "▮" },
+                    { val: "card", label: "Grid Cards", icon: "🃏" }
+                  ].map(item => (
+                    <button
+                      key={item.val}
+                      onClick={() => { setAdFormatFilter(item.val); setPage(1); }}
+                      style={{
+                        height: 32, padding: "0 14px", borderRadius: 9999, cursor: "pointer",
+                        background: adFormatFilter === item.val ? "rgba(16, 185, 129, 0.12)" : "transparent",
+                        border: `1.5px solid ${adFormatFilter === item.val ? "#10B981" : "#1e2d45"}`,
+                        color: adFormatFilter === item.val ? "#10B981" : "#9CA3AF",
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600,
+                        display: "flex", alignItems: "center", gap: 6,
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      <span>{item.icon}</span> {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Results Title Count */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280" }}>
-                Showing <strong style={{ color: "#F0F4FF" }}>{INLINE_ADS.length + OWN_COLLEGE_ADS.length}</strong> advertisements
+                Showing <strong style={{ color: "#F0F4FF" }}>{
+                  (() => {
+                    const adsSource = liveAds.length > 0 ? liveAds : (process.env.NODE_ENV === "production" ? [] : [
+                      ...OWN_COLLEGE_ADS,
+                      ...HOSTEL_ADS,
+                      ...CROSS_COLLEGE_ADS
+                    ]);
+                    const filteredAds = adsSource.filter(ad => {
+                      if (search) {
+                        const q = search.toLowerCase();
+                        const match = ad.title.toLowerCase().includes(q) ||
+                          ad.subtitle.toLowerCase().includes(q) ||
+                          ad.description.toLowerCase().includes(q) ||
+                          (ad.location || "").toLowerCase().includes(q);
+                        if (!match) return false;
+                      }
+                      if (adCategoryFilter !== "all") {
+                        if (adCategoryFilter === "hostel_pg") {
+                          if (ad.type !== "hostel" && ad.type !== "pg") return false;
+                        } else {
+                          if (ad.type !== adCategoryFilter) return false;
+                        }
+                      }
+                      if (adFormatFilter !== "all") {
+                        if (ad.format !== adFormatFilter) return false;
+                      }
+                      return true;
+                    });
+                    return filteredAds.length;
+                  })()
+                }</strong> advertisements matching criteria
               </p>
-              <Link href="/marketplace/ads" style={{ textDecoration: "none" }}>
-                <span style={{ fontSize: 11, color: "#F7C948", background: "rgba(247,201,72,0.1)", padding: "3px 12px", borderRadius: 9999, fontWeight: 700, fontFamily: "'DM Sans',sans-serif", cursor: "pointer" }}>
-                  View Full Ad Hub →
-                </span>
-              </Link>
             </div>
 
-            {/* MIT Events */}
-            <div style={{ marginBottom: 28 }}>
-              <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase", marginBottom: 14 }}>🎓 {user?.collegeName ? user.collegeName.toUpperCase() : "YOUR CAMPUS"} EVENTS</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 20, marginBottom: 20 }}>
-                {OWN_COLLEGE_ADS.map(ad => <AdCard key={ad.id} ad={ad} />)}
-              </div>
-            </div>
+            {/* Responsive Ads Display Grid */}
+            {(() => {
+              const adsSource = liveAds.length > 0 ? liveAds : (process.env.NODE_ENV === "production" ? [] : [
+                ...OWN_COLLEGE_ADS,
+                ...HOSTEL_ADS,
+                ...CROSS_COLLEGE_ADS
+              ]);
+              const filteredAds = adsSource.filter(ad => {
+                if (search) {
+                  const q = search.toLowerCase();
+                  const match = ad.title.toLowerCase().includes(q) ||
+                    ad.subtitle.toLowerCase().includes(q) ||
+                    ad.description.toLowerCase().includes(q) ||
+                    (ad.location || "").toLowerCase().includes(q);
+                  if (!match) return false;
+                }
+                if (adCategoryFilter !== "all") {
+                  if (adCategoryFilter === "hostel_pg") {
+                    if (ad.type !== "hostel" && ad.type !== "pg") return false;
+                  } else {
+                    if (ad.type !== adCategoryFilter) return false;
+                  }
+                }
+                if (adFormatFilter !== "all") {
+                  if (ad.format !== adFormatFilter) return false;
+                }
+                return true;
+              });
 
-            {/* Hostel & PG */}
-            <div style={{ marginBottom: 28 }}>
-              <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase", marginBottom: 14 }}>🏠 HOSTEL & PG NEAR CAMPUS</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 20 }}>
-                {INLINE_ADS.filter(a => a.type === "hostel" || a.type === "pg").map(ad => <AdCard key={ad.id} ad={ad} />)}
-              </div>
-            </div>
+              if (filteredAds.length === 0) {
+                return (
+                  <div style={{ textAlign: "center", padding: "80px 0", background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 18 }}>
+                    <span style={{ fontSize: 48 }}>🔍</span>
+                    <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF", marginTop: 12 }}>No advertisements found</p>
+                    <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", marginTop: 4 }}>Try clearing or changing your filters</p>
+                  </div>
+                );
+              }
 
-            <div style={{ textAlign: "center", marginTop: 24 }}>
-              <Link href="/marketplace/ads" style={{ textDecoration: "none" }}>
-                <button style={{
-                  height: 44, padding: "0 32px", borderRadius: 9999,
-                  background: "linear-gradient(90deg,#F7C948,#F59E0B)",
-                  border: "none", fontFamily: "'DM Sans',sans-serif", fontSize: 14,
-                  fontWeight: 700, color: "#1a0d00", cursor: "pointer",
-                  boxShadow: "0 4px 20px rgba(247,201,72,0.3)",
-                }}>
-                  📢 Explore All Advertisements →
-                </button>
-              </Link>
-            </div>
+              return (
+                <div className="mkt-ads-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(285px, 1fr))", gap: 24, marginBottom: 40 }}>
+                  <style>{`
+                    @media (min-width: 768px) {
+                      .mkt-ads-grid .grid-span-full {
+                        grid-column: 1 / -1 !important;
+                      }
+                    }
+                  `}</style>
+                  {filteredAds.map((ad, idx) => {
+                    const isWide = ad.format === "banner" || ad.format === "strip";
+                    return (
+                      <div
+                        key={ad.id || `ad-${idx}`}
+                        className={isWide ? "grid-span-full" : undefined}
+                        style={{
+                          gridRow: ad.format === "portrait" ? "span 2" : undefined,
+                        }}
+                      >
+                        <AdRenderer ad={ad} />
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <>
@@ -940,41 +1113,49 @@ export default function MarketplacePage() {
               </div>
             </div>
 
-            {/* ── MIT Event strip ad ── */}
-            {cat === "All" && (
-              <div style={{ marginBottom: 18 }}>
-                <AdStrip ad={{
-                  ...OWN_COLLEGE_ADS[0],
-                  subtitle: "Register for Zenith Tech Fest — ₹5L prize pool. Dec 20 deadline!",
-                  dismissible: true,
-                }} />
-              </div>
-            )}
+
 
             {/* Mixed Product + Ad Grid */}
             <div className="mkt-products-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 22, marginBottom: 40 }}>
-              {gridItems.map((item, idx) =>
-                item.kind === "product"
-                  ? <ProductCard
-                    key={`p-${item.data.id}`}
-                    p={item.data}
-                    isSaved={wishlistIds.includes(item.data.id)}
-                    onToggleWishlist={async (productId) => {
-                      if (wishlistIds.includes(productId)) {
-                        try {
-                          await api.delete(`/api/marketplace/wishlist/${productId}`);
-                          setWishlistIds(ids => ids.filter(id => id !== productId));
-                        } catch (e) { }
-                      } else {
-                        try {
-                          await api.post(`/api/marketplace/wishlist`, { productId });
-                          setWishlistIds(ids => [...ids, productId]);
-                        } catch (e) { }
-                      }
+              {gridItems.map((item, idx) => {
+                if (item.kind === "product") {
+                  return (
+                    <ProductCard
+                      key={`p-${item.data.id}`}
+                      p={item.data}
+                      isSaved={wishlistIds.includes(item.data.id)}
+                      onToggleWishlist={async (productId) => {
+                        if (wishlistIds.includes(productId)) {
+                          try { await api.delete(`/api/marketplace/wishlist/${productId}`); setWishlistIds(ids => ids.filter(id => id !== productId)); } catch (e) { }
+                        } else {
+                          try { await api.post(`/api/marketplace/wishlist`, { productId }); setWishlistIds(ids => [...ids, productId]); } catch (e) { }
+                        }
+                      }}
+                    />
+                  );
+                }
+                if (item.kind === "ad-fullwidth") {
+                  // Strip or banner — span entire grid width
+                  return (
+                    <div key={`adfw-${item.data.id}-${idx}`} style={{ gridColumn: "1 / -1" }}>
+                      <AdRenderer ad={item.data} />
+                    </div>
+                  );
+                }
+                // ad-inline: square/portrait take 1 column; card takes 1 column
+                const fmt = (item as any).data.format;
+                const rowSpan = fmt === "portrait" ? 2 : 1;
+                return (
+                  <div
+                    key={`adil-${item.data.id}-${idx}`}
+                    style={{
+                      gridRow: fmt === "portrait" ? `span ${rowSpan}` : undefined,
                     }}
-                  />
-                  : <AdCard key={`ad-${item.data.id}-${idx}`} ad={item.data} />
-              )}
+                  >
+                    <AdRenderer ad={(item as any).data} />
+                  </div>
+                );
+              })}
               {filtered.length === 0 && (
                 <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 0" }}>
                   <span style={{ fontSize: 48 }}>🔍</span>

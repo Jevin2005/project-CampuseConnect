@@ -361,11 +361,10 @@ async function getProducts(req, res) {
       priceRaw: p.price,
       category: p.category || 'OTHER',
       isApproved: p.isApproved,
-      // Use DB status field directly; map pending_review -> pending for the frontend
-      status: p.status === 'active' ? 'active' : p.status === 'removed' ? 'removed' : p.status === 'sold' ? 'sold' : 'pending',
+      status: p.isApproved && p.status !== 'removed' && p.status !== 'sold' ? 'active' : (p.status === 'active' ? 'active' : p.status === 'removed' ? 'removed' : p.status === 'sold' ? 'sold' : 'pending'),
       orders: p._count.orders,
       date: p.createdAt,
-      imageUrl: p.imageUrl,
+      images: p.images || [],
       description: p.description,
     })));
   } catch (err) {

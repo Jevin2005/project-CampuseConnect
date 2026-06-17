@@ -10,6 +10,7 @@ const ctrl            = require('../controllers/marketplace.controller');
 const auth            = require('../middleware/auth.middleware');
 const { checkRole }   = require('../middleware/role.middleware');
 const { uploadMedia } = require('../middleware/upload.middleware');
+const adCtrl          = require('../controllers/ad.controller');
 
 const requireAdmin = [auth, checkRole('admin', 'master')];
 
@@ -22,6 +23,12 @@ router.get('/settings', (req, res) => {
     res.json({ listingFeePhysical: 49, listingFeeDigital: 29, platformFeePercent: 5 });
   }
 });
+
+// Public ads endpoint — no auth needed
+router.get('/ads',                adCtrl.getPublicAds);
+router.get('/ads/:id',            adCtrl.getPublicAdById);
+router.post('/ads/:id/view',      adCtrl.trackAdView);
+router.post('/ads/:id/click',     adCtrl.trackAdClick);
 
 router.get('/products',     auth, ctrl.getProducts);
 router.get('/products/:id', auth, ctrl.getProductById);

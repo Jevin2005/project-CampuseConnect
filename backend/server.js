@@ -58,7 +58,7 @@ app.use(cookieParser());
 const path = require('path');
 const fs   = require('fs');
 const uploadsPath = path.join(__dirname, 'uploads');
-['images','videos','thumbnails'].forEach(d => {
+['images','videos','thumbnails','banners'].forEach(d => {
   const p = path.join(uploadsPath, d);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });

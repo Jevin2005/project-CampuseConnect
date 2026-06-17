@@ -1,5 +1,66 @@
 import type { AdData } from "@/components/AdBanner";
 
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+/**
+ * Map a DB Advertisement record to the AdData shape used by AdBanner components.
+ */
+function mapDbAdToAdData(ad: any): AdData {
+  const isOwn = ad.scope === "own";
+  const collegeName = ad.college?.name || "";
+  const bannerUrl = ad.bannerUrl
+    ? (ad.bannerUrl.startsWith("http") ? ad.bannerUrl : `${API}${ad.bannerUrl}`)
+    : undefined;
+
+  return {
+    id:          ad.id,
+    type:        isOwn ? "college_event" : "cross_college",
+    format:      ad.format || "banner",
+    title:       ad.title,
+    subtitle:    collegeName
+      ? `${collegeName}${isOwn ? "" : " · Cross-Campus"}`
+      : (isOwn ? "Your College Ad" : "Cross-College Advertisement"),
+    description: ad.description,
+    tag:         isOwn
+      ? (collegeName.split(" ")[0]?.toUpperCase() || "OWN COLLEGE")
+      : "ALL COLLEGES",
+    tagColor:    isOwn ? "#10B981" : "#F7C948",
+    bgGradient:  isOwn
+      ? "linear-gradient(135deg,#0a1f15,#0d2d1e,#091a12)"
+      : "linear-gradient(135deg,#1a1500,#2a2000,#1f1800)",
+    accentColor: isOwn ? "#10B981" : "#F7C948",
+    glowColor:   isOwn ? "rgba(16,185,129,0.2)" : "rgba(247,201,72,0.2)",
+    ctaLabel:    "Learn More",
+    ctaLink:     undefined,
+    icon:        isOwn ? "🏫" : "🌐",
+    dismissible: true,
+    // Extra fields used by the live ads system
+    bannerUrl,
+    adId:        ad.id,
+    college:     collegeName,
+  } as AdData & { bannerUrl?: string; adId?: string; college?: string };
+}
+
+/**
+ * Fetch live ads from the backend.
+ * Falls back to an empty array on any error (static fallbacks will be used).
+ */
+export async function fetchLiveAds(collegeId?: string): Promise<AdData[]> {
+  try {
+    const url = collegeId
+      ? `${API}/api/marketplace/ads?collegeId=${encodeURIComponent(collegeId)}`
+      : `${API}/api/marketplace/ads`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.ads || []).map(mapDbAdToAdData);
+  } catch {
+    return [];
+  }
+}
+
+
+
 /* ════════════════════════════════════════════════
    HOSTEL & PG ADVERTISEMENTS
 ════════════════════════════════════════════════ */

@@ -142,8 +142,8 @@ export default function MasterDashboardPage() {
             ) : revenueBars.length === 0 ? (
               <div style={{ color: 'var(--t3)', fontSize: 13, padding: '20px 0' }}>No completed orders yet.</div>
             ) : (
-              revenueBars.map(b => (
-                <div className="bar-row" key={b.name}>
+              revenueBars.map((b, idx) => (
+                <div className="bar-row" key={`${b.name}-${idx}`}>
                   <div className="bar-lr">
                     <span>{b.name}</span>
                     <span style={{ color: '#F7C948', fontWeight: 700 }}>₹{b.amount.toLocaleString('en-IN')}</span>
