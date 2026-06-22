@@ -837,7 +837,7 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
             flexShrink: 0,
           }}>
             <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#374151" }}>
-              © 2024 CampusConnect
+              © 2026 CampusConnect
             </span>
           </footer>
         )}
