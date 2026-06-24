@@ -102,10 +102,16 @@ export default function MyListingsPage() {
 
   async function doDelete() {
     try {
+      const productToDelete = listings.find(l => l.id === deleteId);
       await api.delete(`/api/marketplace/products/${deleteId}`);
-      setListings(ls => ls.filter(l => l.id !== deleteId));
+      if (productToDelete?.productType === 'digital') {
+        setListings(ls => ls.map(l => l.id === deleteId ? { ...l, status: 'removed' } : l));
+        showToast("Digital product unlisted (marked as removed) to preserve access for existing buyers.");
+      } else {
+        setListings(ls => ls.filter(l => l.id !== deleteId));
+        showToast("Listing removed successfully.");
+      }
       setDeleteId(null);
-      showToast("Listing removed successfully.");
     } catch (err) {
       console.error("Error deleting listing:", err);
     }
@@ -304,8 +310,8 @@ export default function MyListingsPage() {
 
         {/* Table */}
         <div className="listings-table-container" style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 16, overflow: "hidden" }}>
-          <div className="listings-table-header" style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 70px 110px", background: "#1a2235", padding: "12px 22px", gap: 8 }}>
-            {["Product", "Type", "Price", "Status", "Views", "Requests", "Actions"].map(h => (
+          <div className="listings-table-header" style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 100px 110px", background: "#1a2235", padding: "12px 22px", gap: 8 }}>
+            {["Product", "Type", "Price", "Status", "Views", "Sales / Requests", "Actions"].map(h => (
               <span key={h} style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase" }}>{h}</span>
             ))}
           </div>
@@ -329,7 +335,7 @@ export default function MyListingsPage() {
             const st = ST[sl] || ST["Active"];
             const ts = TYPE_STYLE[l.productType] || TYPE_STYLE["physical"];
             return (
-              <div key={l.id} className="row listings-table-row" style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 70px 110px", padding: "14px 22px", borderBottom: "1px solid #1e2d45", alignItems: "center", gap: 8, transition: "all 0.15s", background: hov === l.id ? "rgba(79,142,247,0.02)" : "transparent" }}
+              <div key={l.id} className="row listings-table-row" style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1fr 70px 100px 110px", padding: "14px 22px", borderBottom: "1px solid #1e2d45", alignItems: "center", gap: 8, transition: "all 0.15s", background: hov === l.id ? "rgba(79,142,247,0.02)" : "transparent" }}
                 onMouseEnter={() => setHov(l.id)} onMouseLeave={() => setHov(null)}>
                 <div className="listings-cell-info" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <ListingThumb images={l.images || []} />
@@ -344,7 +350,12 @@ export default function MyListingsPage() {
                 <span className="listings-cell-price" style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>₹{l.price.toLocaleString("en-IN")}</span>
                 <span className="listings-cell-status" style={{ display: "inline-block", background: st.bg, color: st.color, borderRadius: 9999, padding: "4px 12px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>{sl}</span>
                 <span className="listings-cell-views" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{(l.views || 0).toLocaleString()}</span>
-                <span className="listings-cell-requests" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>{l._count?.buyRequests || 0}</span>
+                <span className="listings-cell-requests" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>
+                  {l.productType === "digital"
+                    ? `${l._count?.orders || 0} Sale${(l._count?.orders || 0) === 1 ? "" : "s"}`
+                    : `${l._count?.buyRequests || 0} Req${(l._count?.buyRequests || 0) === 1 ? "" : "s"}`
+                  }
+                </span>
                 <div className="listings-cell-actions" style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => setDeleteId(l.id)} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#EF4444" }}><Trash2 size={13} /></button>
                 </div>

@@ -59,10 +59,16 @@ export default function SellProductPage() {
   const [bothDocs, setBothDocs] = useState<File[]>([]);
   const [bothVideos, setBothVideos] = useState<File[]>([]);
 
-  // Platform Fee Settings
-  const [feePhysical, setFeePhysical] = useState(49);
-  const [feeDigital, setFeeDigital] = useState(29);
-  const [platformFeePercent, setPlatformFeePercent] = useState(5);
+  // Platform Fee Settings (Live from master admin)
+  const [digitalListingFee, setDigitalListingFee] = useState(20);
+  const [digitalBuyerFeePercent, setDigitalBuyerFeePercent] = useState(15);
+  const [digitalSellerCutPercent, setDigitalSellerCutPercent] = useState(15);
+  const [digitalPayoutDays, setDigitalPayoutDays] = useState(7);
+  const [physicalTiers, setPhysicalTiers] = useState<any[]>([
+    { min: 0, max: 500, percent: 5 },
+    { min: 501, max: 1000, percent: 4 },
+    { min: 1001, max: 2000, percent: 3 },
+  ]);
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -82,15 +88,17 @@ export default function SellProductPage() {
       .then(res => {
         const d = res.data;
         if (d) {
-          setFeePhysical(d.listingFeePhysical ?? 49);
-          setFeeDigital(d.listingFeeDigital ?? 29);
-          setPlatformFeePercent(d.platformFeePercent ?? 5);
+          setDigitalListingFee(d.digitalListingFee ?? 20);
+          setDigitalBuyerFeePercent(d.digitalBuyerFeePercent ?? 15);
+          setDigitalSellerCutPercent(d.digitalSellerCutPercent ?? 15);
+          setDigitalPayoutDays(d.digitalPayoutDays ?? 7);
+          if (d.physicalTiers && Array.isArray(d.physicalTiers)) {
+            setPhysicalTiers(d.physicalTiers);
+          }
         }
       })
       .catch(() => { });
   }, []);
-
-  const listFee = prodType === "digital" ? feeDigital : feePhysical;
 
   const STEPS = ["Select Category", "Complete Form", "Verify & Publish"];
 
@@ -207,8 +215,43 @@ export default function SellProductPage() {
   // Live Calculations
   const calculatedSellPrice = parseFloat(sellPrice.replace(/,/g, "")) || 0;
   const calculatedOrigPrice = parseFloat(origPrice.replace(/,/g, "")) || 0;
-  const buyerFee = (calculatedSellPrice * platformFeePercent) / 100;
-  const buyerTotal = calculatedSellPrice + buyerFee;
+
+  function getPhysicalFee(price: number, tiers: any[]): number {
+    if (!Array.isArray(tiers) || tiers.length === 0) return 0;
+    for (const t of tiers) {
+      if (price >= t.min && price <= t.max) {
+        const type = t.type || 'percent';
+        const val = typeof t.value === 'number' ? t.value : (t.percent || 0);
+        return type === 'fixed' ? val : parseFloat(((val / 100) * price).toFixed(2));
+      }
+    }
+    const last = tiers[tiers.length - 1];
+    const type = last.type || 'percent';
+    const val = typeof last.value === 'number' ? last.value : (last.percent || 0);
+    return type === 'fixed' ? val : parseFloat(((val / 100) * price).toFixed(2));
+  }
+
+  const listFee = prodType === "digital"
+    ? digitalListingFee
+    : getPhysicalFee(calculatedSellPrice, physicalTiers);
+
+  // GST & Gateway/Transaction charges on the Listing Fee
+  const listFeeGst = listFee > 0 ? parseFloat((listFee * 0.18).toFixed(2)) : 0;
+  const listFeeGateway = listFee > 0 ? parseFloat((listFee * 0.02).toFixed(2)) : 0;
+  const listFeeTotal = listFee > 0 ? parseFloat((listFee + listFeeGst + listFeeGateway).toFixed(2)) : 0;
+
+  // Buyer Platform Fee removed as requested
+  const buyerFee = 0;
+  const buyerTotal = calculatedSellPrice;
+
+  const sellerCut = prodType === "digital"
+    ? parseFloat(((calculatedSellPrice * digitalSellerCutPercent) / 100).toFixed(2))
+    : 0;
+
+  const sellerEarnings = prodType === "digital"
+    ? calculatedSellPrice - sellerCut
+    : calculatedSellPrice;
+
   const discountPercent = calculatedOrigPrice > calculatedSellPrice
     ? Math.round(((calculatedOrigPrice - calculatedSellPrice) / calculatedOrigPrice) * 100)
     : 0;
@@ -510,15 +553,29 @@ export default function SellProductPage() {
                   </div>
 
                   <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid #334155", borderRadius: 16, padding: "18px", marginBottom: 24 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                       <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>
                         Category: <strong style={{ color: "#F1F5F9" }}>{prodType === "digital" ? "Digital Product" : "Physical Product"}</strong>
                       </span>
                       <span style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10B981", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>Active</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>One-time Fee:</span>
-                      <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFee}</span>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12 }}>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>Base Listing Fee:</span>
+                      <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#F1F5F9" }}>₹{listFee}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12 }}>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>GST (18%):</span>
+                      <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#94A3B8" }}>+₹{listFeeGst}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, fontSize: 12 }}>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>Gateway Charge (2%):</span>
+                      <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#94A3B8" }}>+₹{listFeeGateway}</span>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1.5px solid #334155", paddingTop: 10 }}>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#fff", fontWeight: 600 }}>Grand Total to Pay:</span>
+                      <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFeeTotal}</span>
                     </div>
                   </div>
 
@@ -573,7 +630,7 @@ export default function SellProductPage() {
                   <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
                   <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#10B981", marginBottom: 6 }}>Payment Completed!</h2>
                   <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>
-                    ₹{listFee} successfully processed. Uploading documents and metadata...
+                    ₹{listFeeTotal} successfully processed. Uploading documents and metadata...
                   </p>
                 </div>
               )}
@@ -610,7 +667,7 @@ export default function SellProductPage() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#F1F5F9", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
                 <CheckCircle size={16} style={{ color: "#10B981" }} />
-                <span>Buyer platform fee settled at {platformFeePercent}% per sale</span>
+                <span>Zero convenience fees or transaction surcharges for buyers</span>
               </div>
             </div>
 
@@ -703,7 +760,6 @@ export default function SellProductPage() {
                       icon: "📚",
                       label: "Physical Assets",
                       desc: "Textbooks, lab kits, drawing equipment, calculators, electronics, or dorm gear.",
-                      fee: feePhysical,
                       color: "#3B82F6",
                       glow: "rgba(59,130,246,0.15)",
                       bullets: ["Cash in-person transaction", "Instant on-campus meetup", "Upload detailed pictures"]
@@ -713,7 +769,6 @@ export default function SellProductPage() {
                       icon: "⚡",
                       label: "Digital Publications",
                       desc: "Handwritten notes, complete courses, test series, or comprehensive exam bundles.",
-                      fee: feeDigital,
                       color: "#8B5CF6",
                       glow: "rgba(139,92,246,0.15)",
                       bullets: ["Hosted secure downloads", "Immediate access for buyers", "Automated distribution system"]
@@ -1384,49 +1439,107 @@ export default function SellProductPage() {
                       <h4 style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 800, color: "#fff", margin: 0 }}>Fee Calculator Breakdown</h4>
                     </div>
 
-                    {/* Section 1: Seller's instant cost */}
-                    <div style={{ marginBottom: 16 }}>
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#3B82F6", textTransform: "uppercase", marginBottom: 8 }}>Seller Fee (One-Time)</p>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Listing Submission:</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>Free</span>
-                      </div>
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", margin: 0, lineHeight: 1.4 }}>
-                        Listing products is completely free. Your item is approved and listed directly on the marketplace.
-                      </p>
-                    </div>
+                    {prodType === "digital" ? (
+                      <>
+                        {/* Digital Breakdown */}
+                        <div style={{ marginBottom: 14 }}>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#8B5CF6", textTransform: "uppercase", marginBottom: 8 }}>Upfront Listing Fee</p>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Activation Fee:</span>
+                            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>₹{digitalListingFee}</span>
+                          </div>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", margin: 0, lineHeight: 1.4 }}>
+                            One-time flat fee to verify and publish your digital listing inside the college network.
+                          </p>
+                        </div>
 
-                    <div style={{ height: 1, background: "#1E293B", margin: "14px 0" }} />
+                        <div style={{ height: 1, background: "#1E293B", margin: "12px 0" }} />
 
-                    {/* Section 2: Buyer percentage fee */}
-                    <div>
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#10B981", textTransform: "uppercase", marginBottom: 8 }}>Buyer Fee ({platformFeePercent}% per transaction)</p>
+                        <div style={{ marginBottom: 14 }}>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#10B981", textTransform: "uppercase", marginBottom: 8 }}>Transaction Payout</p>
 
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Base Product Price:</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>
-                          {calculatedSellPrice ? `₹${calculatedSellPrice.toLocaleString("en-IN")}` : "₹0"}
-                        </span>
-                      </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Your Selling Price:</span>
+                            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>₹{calculatedSellPrice}</span>
+                          </div>
 
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Platform Share ({platformFeePercent}%):</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>
-                          {buyerFee ? `₹${buyerFee.toLocaleString("en-IN")}` : "₹0"}
-                        </span>
-                      </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Seller Rev Cut (-{digitalSellerCutPercent}%):</span>
+                            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#EF4444" }}>-₹{sellerCut}</span>
+                          </div>
 
-                      <div style={{ background: "rgba(30, 41, 59, 0.4)", borderRadius: 12, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#fff", fontWeight: 600 }}>Buyer Total Cost:</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#10B981" }}>
-                          {buyerTotal ? `₹${buyerTotal.toLocaleString("en-IN")}` : "₹0"}
-                        </span>
-                      </div>
+                          <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.15)", borderRadius: 12, padding: "10px 12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#fff", fontWeight: 600 }}>Your Net Payout:</span>
+                              <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 800, color: "#10B981" }}>₹{sellerEarnings}</span>
+                            </div>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", margin: "4px 0 0 0", lineHeight: 1.3 }}>
+                              🔒 Disbursed after a security hold of {digitalPayoutDays} days.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Physical Breakdown */}
+                        <div style={{ marginBottom: 14 }}>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#3B82F6", textTransform: "uppercase", marginBottom: 8 }}>Upfront Listing Fee</p>
 
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", marginTop: 8, lineHeight: 1.4 }}>
-                        * Paid directly by the student customer upon purchase on campus. Platform fee helps keep hosting active.
-                      </p>
-                    </div>
+                          {(() => {
+                            const lastT = physicalTiers[physicalTiers.length - 1];
+                            const matchedTier = physicalTiers.find(t => calculatedSellPrice >= t.min && calculatedSellPrice <= t.max) || lastT;
+                            const isBeyond = lastT && calculatedSellPrice > lastT.max;
+
+                            let activeTierText = "No tier matched";
+                            if (matchedTier) {
+                              const type = matchedTier.type || 'percent';
+                              const val = typeof matchedTier.value === 'number' ? matchedTier.value : (matchedTier.percent || 0);
+                              const rateText = type === 'fixed' ? `₹${val} Flat` : `${val}%`;
+
+                              activeTierText = isBeyond
+                                ? `Above ₹${lastT.max} (${rateText})`
+                                : `₹${matchedTier.min}–₹${matchedTier.max} (${rateText})`;
+                            }
+                            return (
+                              <>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Pricing Category:</span>
+                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#94A3B8" }}>{activeTierText}</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Activation Fee:</span>
+                                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#3B82F6" }}>₹{listFee}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", marginTop: 4, marginBottom: 0, lineHeight: 1.4 }}>
+                            One-time tiered listing fee paid upfront. No commission will be taken when your product sells.
+                          </p>
+                        </div>
+
+                        <div style={{ height: 1, background: "#1E293B", margin: "12px 0" }} />
+
+                        <div style={{ marginBottom: 14 }}>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#10B981", textTransform: "uppercase", marginBottom: 8 }}>Transaction Details</p>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Buyer Cost (Total):</span>
+                            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>₹{calculatedSellPrice}</span>
+                          </div>
+
+                          <div style={{ background: "rgba(59, 130, 246, 0.08)", border: "1px solid rgba(59, 130, 246, 0.15)", borderRadius: 12, padding: "10px 12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#fff", fontWeight: 600 }}>Seller Net Earnings:</span>
+                              <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, fontWeight: 800, color: "#3B82F6" }}>₹{sellerEarnings}</span>
+                            </div>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#64748B", margin: "4px 0 0 0", lineHeight: 1.3 }}>
+                              ⚡ Payout directly collected from the student buyer in-person upon meetup.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Actions buttons */}
@@ -1563,20 +1676,44 @@ export default function SellProductPage() {
                   <div style={{ height: 1, background: "#1E293B", margin: "20px 0" }} />
 
                   {/* Pricing Breakdown Summary */}
-                  <div className="sell-summary-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  <div className="sell-summary-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, padding: "18px 22px", background: "rgba(30, 41, 59, 0.2)", border: "1px solid #1E293B", borderRadius: 20 }}>
                     <div>
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 6 }}>Publication Cost</p>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Listing Fee (One-time):</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#10B981" }}>Free</span>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.5px" }}>Upfront Listing Cost</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 12, color: "#94A3B8" }}>
+                        <span>Base Listing Fee:</span>
+                        <span>₹{listFee}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 12, color: "#94A3B8" }}>
+                        <span>GST (18%):</span>
+                        <span>+₹{listFeeGst}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12, color: "#94A3B8" }}>
+                        <span>Gateway Charge (2%):</span>
+                        <span>+₹{listFeeGateway}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #334155", paddingTop: 6 }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#fff", fontWeight: 600 }}>Total Listing Cost:</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: listFeeTotal > 0 ? "#3B82F6" : "#10B981" }}>
+                          {listFeeTotal > 0 ? `₹${listFeeTotal}` : "Free"}
+                        </span>
                       </div>
                     </div>
 
-                    <div>
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 6 }}>Buyer Pricing Structure</p>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#94A3B8" }}>Buyer Cost (With {platformFeePercent}% Fee):</span>
-                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#10B981" }}>₹{buyerTotal.toLocaleString("en-IN")}</span>
+                    <div style={{ borderLeft: "1.5px solid #1E293B", paddingLeft: 24 }}>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.5px" }}>Buyer Pricing (No Fee)</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 12, color: "#94A3B8" }}>
+                        <span>Base Product Price:</span>
+                        <span>₹{calculatedSellPrice.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12, color: "#94A3B8" }}>
+                        <span>Buyer Platform Fee:</span>
+                        <span>₹0</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #334155", paddingTop: 6 }}>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#fff", fontWeight: 600 }}>Buyer Total Cost:</span>
+                        <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#10B981" }}>
+                          ₹{buyerTotal.toLocaleString("en-IN")}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1593,11 +1730,20 @@ export default function SellProductPage() {
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#64748B", margin: 0 }}>Review all attachments and prices before confirming.</p>
                     </div>
 
-                    <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#10B981" }}>Free</span>
+                    <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: listFeeTotal > 0 ? "#3B82F6" : "#10B981" }}>
+                      {listFeeTotal > 0 ? `₹${listFeeTotal}` : "Free"}
+                    </span>
                   </div>
 
                   <button
-                    onClick={submitToAPI}
+                    onClick={() => {
+                      if (listFeeTotal > 0) {
+                        setPayStep("choose");
+                        setPayModal(true);
+                      } else {
+                        submitToAPI();
+                      }
+                    }}
                     disabled={submitting}
                     style={{
                       width: "100%", height: 50, borderRadius: 14,

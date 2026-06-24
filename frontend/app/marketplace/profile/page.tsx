@@ -160,19 +160,50 @@ export default function ProfilePage() {
         {/* Stats row */}
         <div className="profile-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
           {[
-            { icon: <Package size={18} />,     label: "Listed",       value: String(profile?.stats.listed ?? "–"),     color: "#4F8EF7" },
-            { icon: <TrendingUp size={18} />,  label: "Sold",         value: String(profile?.stats.sold ?? "–"),       color: "#10B981" },
-            { icon: <ShoppingBag size={18} />, label: "Purchased",    value: String(profile?.stats.purchased ?? "–"),  color: "#A78BFA" },
-            { icon: <Calendar size={18} />,    label: "Revenue",      value: profile ? `₹${profile.stats.revenue.toLocaleString("en-IN")}` : "–", color: "#F7C948" },
-          ].map(s => (
-            <div key={s.label} style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: `${s.color}15`, display: "flex", alignItems: "center", justifyContent: "center", color: s.color, flexShrink: 0 }}>{s.icon}</div>
-              <div>
-                <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 4 }}>{s.label}</p>
-                <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#F0F4FF" }}>{s.value}</p>
+            { icon: <Package size={18} />,     label: "Listed",       value: String(profile?.stats.listed ?? "–"),     color: "#4F8EF7", href: null },
+            { icon: <TrendingUp size={18} />,  label: "Sold",         value: String(profile?.stats.sold ?? "–"),       color: "#10B981", href: null },
+            { icon: <ShoppingBag size={18} />, label: "Purchased",    value: String(profile?.stats.purchased ?? "–"),  color: "#A78BFA", href: null },
+            { icon: <Calendar size={18} />,    label: "Revenue",      value: profile ? `₹${profile.stats.revenue.toLocaleString("en-IN")}` : "–", color: "#F7C948", href: "/marketplace/earnings" },
+          ].map(s => {
+            const cardContent = (
+              <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", height: "100%" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: `${s.color}15`, display: "flex", alignItems: "center", justifyContent: "center", color: s.color, flexShrink: 0 }}>{s.icon}</div>
+                <div>
+                  <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 4 }}>{s.label}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: "#F0F4FF", margin: 0 }}>{s.value}</p>
+                    {s.href && <span style={{ fontSize: 10, color: "#4F8EF7", fontWeight: 700 }}>↗</span>}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+
+            const cardStyle = {
+              background: "#111827",
+              border: "1px solid #1e2d45",
+              borderRadius: 14,
+              padding: "18px 20px",
+              display: "flex",
+              alignItems: "center",
+              cursor: s.href ? "pointer" : "default",
+              transition: "border-color 0.2s, transform 0.2s",
+              textDecoration: "none"
+            };
+
+            if (s.href) {
+              return (
+                <Link key={s.label} href={s.href} style={cardStyle} className="preview-row">
+                  {cardContent}
+                </Link>
+              );
+            }
+
+            return (
+              <div key={s.label} style={cardStyle}>
+                {cardContent}
+              </div>
+            );
+          })}
         </div>
 
         {/* 2-col section */}

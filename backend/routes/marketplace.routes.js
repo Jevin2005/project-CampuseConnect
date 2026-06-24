@@ -15,14 +15,7 @@ const adCtrl          = require('../controllers/ad.controller');
 const requireAdmin = [auth, checkRole('admin', 'master')];
 
 /* ─── Public ─────────────────────────────────────────────────────────── */
-router.get('/settings', (req, res) => {
-  try {
-    const settings = require('../config/platformSettings.json');
-    res.json(settings);
-  } catch {
-    res.json({ listingFeePhysical: 49, listingFeeDigital: 29, platformFeePercent: 5 });
-  }
-});
+router.get('/settings', ctrl.getSettings);
 
 // Public ads endpoint — no auth needed
 router.get('/ads',                adCtrl.getPublicAds);
@@ -38,6 +31,7 @@ router.get('/products/:id/file', auth, ctrl.streamProductFile);
 
 // Profile & stats
 router.get('/me', auth, ctrl.getMyProfile);
+router.get('/earnings', auth, ctrl.getMyEarnings);
 
 // Listings
 router.post(

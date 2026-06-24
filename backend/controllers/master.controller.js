@@ -253,6 +253,155 @@ async function getActiveColleges(req, res) {
   }
 }
 
+// ─── Get Platform Pricing Settings ──────────────────────────────────
+async function getPlatformPricing(req, res) {
+  try {
+    let settings = await prisma.platformSettings.findFirst();
+    if (!settings) {
+      // Create defaults on first fetch
+      settings = await prisma.platformSettings.create({
+        data: {
+          digitalListingFee: 20,
+          digitalBuyerFeePercent: 15,
+          digitalSellerCutPercent: 15,
+          digitalPayoutDays: 7,
+          physicalTiers: [
+            { min: 0,    max: 500,  percent: 5 },
+            { min: 501,  max: 1000, percent: 4 },
+            { min: 1001, max: 2000, percent: 3 },
+          ],
+        },
+      });
+    }
+    return res.json(settings);
+  } catch (err) {
+    console.error('[MasterController.getPlatformPricing]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// ─── Update Platform Pricing Settings ────────────────────────────────
+async function updatePlatformPricing(req, res) {
+  try {
+    const {
+      digitalListingFee,
+      digitalBuyerFeePercent,
+      digitalSellerCutPercent,
+      digitalPayoutDays,
+      physicalTiers,
+    } = req.body;
+
+    // Validate physicalTiers
+    if (physicalTiers !== undefined) {
+      if (!Array.isArray(physicalTiers)) {
+        return res.status(400).json({ message: 'physicalTiers must be an array' });
+      }
+      for (const tier of physicalTiers) {
+        if (typeof tier.min !== 'number' || typeof tier.max !== 'number') {
+          return res.status(400).json({ message: 'Each tier must have min and max as numbers' });
+        }
+        const val = typeof tier.value === 'number' ? tier.value : tier.percent;
+        const type = tier.type || 'percent';
+        if (typeof val !== 'number') {
+          return res.status(400).json({ message: 'Each tier must have a numeric value or percent' });
+        }
+        if (tier.min < 0 || tier.max <= tier.min || val < 0 || (type === 'percent' && val > 100)) {
+          return res.status(400).json({ message: 'Invalid tier values' });
+        }
+      }
+    }
+
+    const existing = await prisma.platformSettings.findFirst();
+
+    const data = {
+      ...(digitalListingFee !== undefined       && { digitalListingFee: parseFloat(digitalListingFee) }),
+      ...(digitalBuyerFeePercent !== undefined  && { digitalBuyerFeePercent: parseFloat(digitalBuyerFeePercent) }),
+      ...(digitalSellerCutPercent !== undefined && { digitalSellerCutPercent: parseFloat(digitalSellerCutPercent) }),
+      ...(digitalPayoutDays !== undefined       && { digitalPayoutDays: parseInt(digitalPayoutDays) }),
+      ...(physicalTiers !== undefined           && { physicalTiers }),
+      updatedBy: req.user.email || req.user.id,
+    };
+
+    let settings;
+    if (existing) {
+      settings = await prisma.platformSettings.update({ where: { id: existing.id }, data });
+    } else {
+      settings = await prisma.platformSettings.create({ data });
+    }
+
+    return res.json({ message: 'Platform pricing updated successfully', settings });
+  } catch (err) {
+    console.error('[MasterController.updatePlatformPricing]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// ─── Get Seller Payouts ───────────────────────────────────────────────
+async function getSellerPayouts(req, res) {
+  try {
+    const { status = '', page = '1', limit = '20' } = req.query;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, parseInt(limit) || 20);
+    const skip = (pageNum - 1) * limitNum;
+
+    const now = new Date();
+    const where = {};
+    if (status === 'pending')  where.status = 'pending';
+    if (status === 'released') where.status = 'released';
+    if (status === 'overdue') {
+      where.status = 'pending';
+      where.releaseAfter = { lte: now };
+    }
+
+    const [payouts, total] = await Promise.all([
+      prisma.sellerPayout.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          seller: { select: { id: true, name: true, email: true, college: { select: { name: true } } } },
+          order:  { include: { product: { select: { id: true, title: true, productType: true } } } },
+        },
+      }),
+      prisma.sellerPayout.count({ where }),
+    ]);
+
+    // Mark overdue status in response
+    const formatted = payouts.map((p) => ({
+      ...p,
+      isOverdue: p.status === 'pending' && new Date(p.releaseAfter) <= now,
+    }));
+
+    return res.json({ payouts: formatted, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+  } catch (err) {
+    console.error('[MasterController.getSellerPayouts]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// ─── Release Overdue Payouts ──────────────────────────────────────────
+async function releasePayouts(req, res) {
+  try {
+    const { payoutIds } = req.body; // optional: specific IDs; if empty release all overdue
+    const now = new Date();
+
+    const where = payoutIds?.length
+      ? { id: { in: payoutIds }, status: 'pending' }
+      : { status: 'pending', releaseAfter: { lte: now } };
+
+    const result = await prisma.sellerPayout.updateMany({
+      where,
+      data: { status: 'released', releasedAt: now },
+    });
+
+    return res.json({ message: `${result.count} payout(s) released successfully`, released: result.count });
+  } catch (err) {
+    console.error('[MasterController.releasePayouts]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   getColleges,
   approveCollege,
@@ -260,4 +409,8 @@ module.exports = {
   getDashboardStats,
   getStudents,
   getActiveColleges,
+  getPlatformPricing,
+  updatePlatformPricing,
+  getSellerPayouts,
+  releasePayouts,
 };

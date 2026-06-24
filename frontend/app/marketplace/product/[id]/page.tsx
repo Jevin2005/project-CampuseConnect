@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
+import { usePlatformPricing, calcPhysicalListingFee, findTier } from "@/lib/usePlatformPricing";
 
 interface Product {
   id: string;
@@ -57,6 +58,7 @@ export default function PhysicalProductPage() {
   const [reqMsg, setReqMsg] = useState("");
   const [reqSent, setReqSent] = useState(false);
   const [reqLoading, setReqLoading] = useState(false);
+  const { pricing } = usePlatformPricing();
 
   function showToast(msg: string) {
     setToast(msg);
@@ -429,21 +431,34 @@ export default function PhysicalProductPage() {
               </h1>
 
               {/* Price card details */}
-              <div style={{ background: "rgba(0,0,0,0.25)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px", marginTop: 8 }}>
+              <div style={{ background: "rgba(0,0,0,0.25)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", marginTop: 8 }}>
                 {product.originalPrice && product.originalPrice > product.price && (
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                    <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Retail Price</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 18px", borderBottom: "1px solid var(--border)" }}>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Retail MRP</span>
                     <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", textDecoration: "line-through" }}>₹{product.originalPrice.toLocaleString("en-IN")}</span>
                   </div>
                 )}
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Platform Fees</span>
-                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--accent-green)", fontWeight: 600 }}>Free for Buyer</span>
+                {/* Seller listing fee info */}
+                {(() => {
+                  const tier = findTier(product.price, pricing.physicalTiers);
+                  const listingFee = calcPhysicalListingFee(product.price, pricing.physicalTiers);
+                  return tier ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px", borderBottom: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Seller Listing Fee</span>
+                        <span style={{ fontSize: 10, background: "rgba(247,201,72,0.1)", color: "#F7C948", padding: "2px 7px", borderRadius: 99, fontWeight: 700 }}>{tier.percent}%</span>
+                      </div>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#F7C948", fontWeight: 600 }}>₹{listingFee.toLocaleString("en-IN")}</span>
+                    </div>
+                  ) : null;
+                })()}
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 18px", borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Buyer Platform Fee</span>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--accent-green)", fontWeight: 600 }}>Free for Buyer ✔</span>
                 </div>
-                <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", fontWeight: 500 }}>Selling Price</span>
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: "var(--accent-green)" }}>₹{product.price.toLocaleString("en-IN")}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px" }}>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", fontWeight: 500 }}>You Pay</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 800, color: "var(--accent-green)" }}>₹{product.price.toLocaleString("en-IN")}</span>
                 </div>
               </div>
 

@@ -97,7 +97,7 @@ export default function RevenueAdminPage() {
         <p className="sub">{loading ? 'Loading…' : `Track all platform earnings for ${data?.collegeName}`}</p>
 
         <div className="stat-cards">
-          {loading ? Array(3).fill(0).map((_,i) => <div key={i} className="scard"><div className="skeleton" style={{height:80}} /></div>) : <>
+          {loading ? Array(3).fill(0).map((_, i) => <div key={i} className="scard"><div className="skeleton" style={{ height: 80 }} /></div>) : <>
             <div className="scard">
               <div className="sc-label">💰 Total Sales Volume</div>
               <div className="sc-val" style={{ color: 'var(--blue)' }}>{data?.stats.totalSales ?? '₹0'}</div>
@@ -116,7 +116,7 @@ export default function RevenueAdminPage() {
         <div className="chart-card">
           <div className="chart-title">Revenue (Last 7 Days)</div>
           <div className="chart-wrap">
-            {loading ? <div className="skeleton" style={{height:200}} /> : pts.length > 0 ? (
+            {loading ? <div className="skeleton" style={{ height: 200 }} /> : pts.length > 0 ? (
               <svg viewBox="0 0 500 200" style={{ height: 200 }}>
                 <defs>
                   <linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1">
@@ -142,7 +142,7 @@ export default function RevenueAdminPage() {
                   </g>
                 ))}
               </svg>
-            ) : <div style={{textAlign:'center',padding:40,color:'var(--mut)'}}>No revenue data yet</div>}
+            ) : <div style={{ textAlign: 'center', padding: 40, color: 'var(--mut)' }}>No revenue data yet</div>}
             {tooltip && (() => {
               const pt = pts.find(p => p.day === tooltip.day);
               if (!pt) return null;
@@ -157,8 +157,8 @@ export default function RevenueAdminPage() {
             <button className="export-btn" onClick={downloadCSV}>↓ Export CSV</button>
           </div>
           <div className="th"><div>Product</div><div>Buyer</div><div>Seller</div><div>Sale Price</div><div>Platform Cut</div><div>Date</div></div>
-          {loading ? Array(4).fill(0).map((_,i) => (
-            <div key={i} className="tr">{Array(6).fill(0).map((_,j) => <div key={j}><div className="skeleton" style={{height:14,width:j===0?160:80}} /></div>)}</div>
+          {loading ? Array(4).fill(0).map((_, i) => (
+            <div key={i} className="tr">{Array(6).fill(0).map((_, j) => <div key={j}><div className="skeleton" style={{ height: 14, width: j === 0 ? 160 : 80 }} /></div>)}</div>
           )) : (data?.transactions?.length ?? 0) === 0 ? (
             <div className="empty">No transactions yet.</div>
           ) : data!.transactions.map(t => (
@@ -167,7 +167,7 @@ export default function RevenueAdminPage() {
               <div className="uname">{t.buyer}</div>
               <div className="uname">{t.seller}</div>
               <div className="price">{t.price}</div>
-              <div className="cut">{t.cut} <span style={{fontSize:'10px',color:'var(--mut)',fontWeight:400}}>(5%)</span></div>
+              <div className="cut">{t.cut} <span style={{ fontSize: '10px', color: 'var(--mut)', fontWeight: 400 }}>(5%)</span></div>
               <div className="dt">{t.date}</div>
             </div>
           ))}

@@ -11,7 +11,7 @@ function getInitials(name) {
   return parts[0].substring(0, 2).toUpperCase();
 }
 
-const AVATAR_COLORS = ['#F7C948','#4F8EF7','#7C3AED','#10B981','#F59E0B','#EF4444','#06B6D4','#EC4899'];
+const AVATAR_COLORS = ['#F7C948', '#4F8EF7', '#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899'];
 function avatarColor(str) {
   let h = 0;
   for (const c of (str || '')) h = (h * 31 + c.charCodeAt(0)) & 0xFFFFFF;
@@ -56,7 +56,7 @@ async function getStudents(req, res) {
         purchases: student._count.purchases,
         // Check if email domain matches college domain
         match: student.email.endsWith('@' + admin.college.emailDomain) ||
-               student.email.includes('.' + admin.college.emailDomain),
+          student.email.includes('.' + admin.college.emailDomain),
       };
 
       if (!student.isApproved) {
@@ -189,7 +189,7 @@ async function unsuspendStudent(req, res) {
 
     // Re-notify student that access is restored
     notifyStudentApproved(student.email, student.name || 'Student', admin.college.name)
-      .catch(() => {});
+      .catch(() => { });
 
     return res.json({ message: 'Student unsuspended successfully' });
   } catch (err) {
@@ -267,9 +267,9 @@ async function getDashboard(req, res) {
     const topSellerIds = topSellerOrders.map(o => o.sellerId);
     const topSellerStudents = topSellerIds.length > 0
       ? await prisma.student.findMany({
-          where: { id: { in: topSellerIds } },
-          select: { id: true, name: true, email: true },
-        })
+        where: { id: { in: topSellerIds } },
+        select: { id: true, name: true, email: true },
+      })
       : [];
 
     const topSellers = topSellerOrders.map(o => {

@@ -11,6 +11,7 @@ import {
 import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
+import { usePlatformPricing } from "@/lib/usePlatformPricing";
 
 interface Product {
   id: string;
@@ -78,6 +79,7 @@ export default function DigitalProductPage() {
   const [selectedUpi, setSelectedUpi] = useState("");
   const [isPurchased, setIsPurchased] = useState(false);
   const user = useAuthStore(s => s.user);
+  const { pricing } = usePlatformPricing();
 
   function showToast(msg: string) {
     setToast(msg);
@@ -148,9 +150,13 @@ export default function DigitalProductPage() {
     if (!product) return;
     setBuyLoading(true);
     try {
+      // Buyer pays product price + platform fee (billing-only fee)
+      const platformFeeAmt = parseFloat(((pricing.digitalBuyerFeePercent / 100) * product.price).toFixed(2));
+      const totalBuyerAmt  = parseFloat((product.price + platformFeeAmt).toFixed(2));
+
       const res = await api.post("/api/marketplace/orders", {
         productId: product.id,
-        amount: product.price,
+        amount: totalBuyerAmt,
         method,
       });
       if (res.status === 200 || res.status === 201 || res.data.orderId) {
@@ -324,30 +330,55 @@ export default function DigitalProductPage() {
             {buyStep === "confirm" && (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>Secure Purchase</h2>
+                  <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>Order Summary</h2>
                   <button onClick={() => setBuyModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><X size={18} /></button>
                 </div>
-                <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>Instant lifetime access is granted to your profile immediately after payment.</p>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", marginBottom: 18 }}>Review your order details before proceeding to payment.</p>
 
-                <div style={{ background: "rgba(0,0,0,0.25)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px", marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {[
-                    ["Resource", product.title],
-                    ["Category", subtypeLabel],
-                    ["Access Mode", "Permanent / Unlimited"],
-                    ["Secure Price", `₹${product.price.toLocaleString("en-IN")}`]
-                  ].map(([label, val]) => (
-                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>{label}</span>
-                      <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: label.includes("Price") ? "var(--accent-green)" : "var(--text-primary)", fontWeight: 600 }}>{val}</span>
+                {/* Professional Invoice Breakdown */}
+                {(() => {
+                  const platformFeeAmt = parseFloat(((pricing.digitalBuyerFeePercent / 100) * (product?.price ?? 0)).toFixed(2));
+                  const totalAmt = parseFloat(((product?.price ?? 0) + platformFeeAmt).toFixed(2));
+                  return (
+                    <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
+                      {/* Invoice header */}
+                      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontFamily: "var(--font-body)", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1 }}>Invoice Breakdown</span>
+                        <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "var(--text-muted)" }}>Digital Product</span>
+                      </div>
+                      {/* Line items */}
+                      <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)" }}>{product?.title}</span>
+                          <span style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>₹{(product?.price ?? 0).toLocaleString("en-IN")}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)" }}>Platform Fee</span>
+                            <span style={{ fontSize: 10, background: "rgba(59,130,246,0.1)", color: "#60A5FA", padding: "2px 7px", borderRadius: 99, fontWeight: 700 }}>{pricing.digitalBuyerFeePercent}%</span>
+                          </div>
+                          <span style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, color: "#60A5FA" }}>₹{platformFeeAmt.toLocaleString("en-IN")}</span>
+                        </div>
+                        <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Total Payable</span>
+                          <span style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: themeColor }}>₹{totalAmt.toLocaleString("en-IN")}</span>
+                        </div>
+                      </div>
+                      {/* Access info */}
+                      <div style={{ padding: "10px 18px", background: "rgba(16,185,129,0.04)", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+                        <Check size={12} style={{ color: "var(--accent-green)", flexShrink: 0 }} />
+                        <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)" }}>Permanent lifetime access granted immediately after payment</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
 
                 <button
                   onClick={() => setBuyStep("pay")}
                   style={{ width: "100%", height: 48, borderRadius: 9999, background: themeColor, border: "none", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 16px ${themeGlow}` }}
                 >
-                  💳 Proceed to Payment Methods
+                  💳 Proceed to Payment
                 </button>
                 <button onClick={() => setBuyModal(false)} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid var(--border)", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "var(--text-soft)"} onMouseOut={e => e.currentTarget.style.borderColor = "var(--border)"}>Cancel</button>
               </>
@@ -539,9 +570,13 @@ export default function DigitalProductPage() {
 
             {/* Secure Purchase CTA widget */}
             <div className="glass-panel" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", fontWeight: 500 }}>Lifetime Access Cost</span>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>₹{product.price.toLocaleString("en-IN")}</span>
+              {/* Price display — NO platform fee shown here */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <div>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Listed Price</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, color: "var(--text-primary)" }}>₹{(product?.price ?? 0).toLocaleString("en-IN")}</span>
+                </div>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", padding: "4px 10px", borderRadius: 99 }}>+ fees at checkout</span>
               </div>
 
               <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />

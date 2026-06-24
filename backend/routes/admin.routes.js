@@ -1,7 +1,7 @@
 const express = require('express');
 const adminController = require('../controllers/admin.controller');
-const adController    = require('../controllers/ad.controller');
-const authMiddleware  = require('../middleware/auth.middleware');
+const adController = require('../controllers/ad.controller');
+const authMiddleware = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
@@ -39,14 +39,14 @@ router.put('/settings/profile', adminController.updateProfile);
 router.put('/settings/password', adminController.updatePassword);
 
 // ── Advertisements ────────────────────────────────────────
-router.get('/ads',             adController.getMyAds);
-router.post('/ads',            adController.createAd);
+router.get('/ads', adController.getMyAds);
+router.post('/ads', adController.createAd);
 // IMPORTANT: /ads/upload must be declared BEFORE /ads/:id/* to avoid Express
 // treating the literal "upload" string as an :id parameter value.
-router.post('/ads/upload',     adController.uploadBannerMiddleware, adController.uploadAdBanner);
-router.patch('/ads/:id/end',   adController.endAd);
-router.post('/ads/:id/view',   adController.trackAdView);
-router.post('/ads/:id/click',  adController.trackAdClick);
+router.post('/ads/upload', adController.uploadBannerMiddleware, adController.uploadAdBanner);
+router.patch('/ads/:id/end', adController.endAd);
+router.post('/ads/:id/view', adController.trackAdView);
+router.post('/ads/:id/click', adController.trackAdClick);
 
 module.exports = router;
 

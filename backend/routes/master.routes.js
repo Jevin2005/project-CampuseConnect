@@ -25,4 +25,12 @@ router.get('/stats', masterController.getDashboardStats);
 // Students
 router.get('/students', masterController.getStudents);
 
+// Platform Pricing Settings
+router.get('/pricing', masterController.getPlatformPricing);
+router.put('/pricing', masterController.updatePlatformPricing);
+
+// Seller Payouts
+router.get('/payouts', masterController.getSellerPayouts);
+router.post('/payouts/release', masterController.releasePayouts);
+
 module.exports = router;

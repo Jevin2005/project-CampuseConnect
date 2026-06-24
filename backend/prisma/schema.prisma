@@ -18,6 +18,20 @@ model MasterAdmin {
   auditLogs    AuditLog[]
 }
 
+model PlatformSettings {
+  id                      String   @id @default(cuid())
+  // Digital product settings
+  digitalListingFee       Float    @default(20)
+  digitalBuyerFeePercent  Float    @default(15)
+  digitalSellerCutPercent Float    @default(15)
+  digitalPayoutDays       Int      @default(7)
+  // Physical product settings (JSON array of {min, max, percent, label})
+  physicalTiers           Json     @default("[{\"min\":0,\"max\":500,\"percent\":5},{\"min\":501,\"max\":1000,\"percent\":4},{\"min\":1001,\"max\":2000,\"percent\":3}]")
+  // Audit
+  updatedAt               DateTime @updatedAt
+  updatedBy               String?  // masterAdmin email
+}
+
 model College {
   id          String    @id @default(cuid())
   name        String
@@ -72,6 +86,7 @@ model Student {
   sentMessages     ChatMessage[]
   wishlistItems    WishlistItem[]
   notifications    Notification[]
+  sellerPayouts    SellerPayout[]   @relation("SellerPayouts")
 }
 
 model Product {
@@ -150,17 +165,36 @@ model ChatMessage {
 }
 
 model Order {
-  id        String   @id @default(cuid())
-  amount    Float
-  status    String   @default("PENDING")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  buyerId   String
-  sellerId  String
-  productId String
-  buyer     Student  @relation("BuyerOrders",  fields: [buyerId],  references: [id])
-  product   Product  @relation(fields: [productId], references: [id])
-  seller    Student  @relation("SellerOrders", fields: [sellerId], references: [id])
+  id             String        @id @default(cuid())
+  amount         Float
+  status         String        @default("PENDING")
+  platformFee    Float?        // platform fee collected from buyer (digital only)
+  sellerCut      Float?        // amount deducted from seller
+  netSellerAmt   Float?        // what seller actually receives
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  buyerId        String
+  sellerId       String
+  productId      String
+  buyer          Student       @relation("BuyerOrders",  fields: [buyerId],  references: [id])
+  product        Product       @relation(fields: [productId], references: [id])
+  seller         Student       @relation("SellerOrders", fields: [sellerId], references: [id])
+  sellerPayout   SellerPayout?
+}
+
+model SellerPayout {
+  id           String    @id @default(cuid())
+  orderId      String    @unique
+  sellerId     String
+  grossAmount  Float     // original product price
+  platformCut  Float     // amount deducted from seller
+  netAmount    Float     // what seller receives
+  status       String    @default("pending")  // pending | released | overdue
+  releaseAfter DateTime  // when this becomes releasable
+  releasedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  order        Order     @relation(fields: [orderId], references: [id])
+  seller       Student   @relation("SellerPayouts", fields: [sellerId], references: [id])
 }
 
 model WishlistItem {

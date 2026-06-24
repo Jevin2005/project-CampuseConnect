@@ -12,7 +12,8 @@ const BASE_NAV = [
   { href: '/master/colleges',  icon: '🎓', label: 'All Colleges' },
   { href: '/master/students',  icon: '👤', label: 'All Students' },
   { href: '/master/revenue',   icon: '💰', label: 'Platform Revenue' },
-  { href: '/master/settings',  icon: '⚙️', label: 'Settings' },
+  { href: '/master/payouts',   icon: '💸', label: 'Seller Payouts' },
+  { href: '/master/settings',  icon: '⚙️', label: 'Pricing Settings' },
 ];
 
 export default function MasterLayoutClient({ children }: { children: React.ReactNode }) {

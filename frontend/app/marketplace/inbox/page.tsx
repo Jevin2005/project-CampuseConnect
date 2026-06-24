@@ -170,7 +170,7 @@ export default function InboxPage() {
 
     const isFirstLoad = prevMsgCountRef.current === 0;
     const hasNewMessages = msgs.length > prevMsgCountRef.current;
-    
+
     prevMsgCountRef.current = msgs.length;
 
     let isNearBottom = true;
@@ -338,9 +338,9 @@ export default function InboxPage() {
           <div className="inbox-chat-window" style={{ flex: 1, display: "flex", flexDirection: "column", background: "#0A0E1A", minWidth: 0 }}>
             {/* Header */}
             <div style={{ padding: "14px 24px", borderBottom: "1px solid #1e2d45", background: "#0d1120", display: "flex", alignItems: "center", gap: 14 }}>
-              <button 
-                onClick={() => setMobileView("list")} 
-                className="inbox-back-btn" 
+              <button
+                onClick={() => setMobileView("list")}
+                className="inbox-back-btn"
                 style={{
                   background: "transparent",
                   border: "none",
@@ -419,7 +419,7 @@ export default function InboxPage() {
 
             {/* Messages Container with Floating Scroll Button */}
             <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-              <div 
+              <div
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
                 style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}
@@ -484,7 +484,7 @@ export default function InboxPage() {
               </div>
 
               {showScrollBtn && (
-                <button 
+                <button
                   onClick={() => scrollToBottom("smooth")}
                   style={{
                     position: "absolute",

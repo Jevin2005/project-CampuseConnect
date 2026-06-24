@@ -12,11 +12,11 @@ const prisma = new PrismaClient();
 function extractFiles(req) {
   const images = [], videos = [], documents = [];
   if (req.files) {
-    (req.files['images']     || []).forEach(f => images.push(f.path));
+    (req.files['images'] || []).forEach(f => images.push(f.path));
     (req.files['thumbnails'] || []).forEach(f => images.push(f.path));
-    (req.files['videos']     || []).forEach(f => videos.push(f.path));
-    (req.files['documents']  || []).forEach(f => documents.push(f.path));
-    (req.files['media']      || []).forEach(f => {
+    (req.files['videos'] || []).forEach(f => videos.push(f.path));
+    (req.files['documents'] || []).forEach(f => documents.push(f.path));
+    (req.files['media'] || []).forEach(f => {
       if (f.mimetype.startsWith('video/')) videos.push(f.path);
       else images.push(f.path);
     });
@@ -28,22 +28,88 @@ function extractFiles(req) {
   return { images, videos, documents };
 }
 
-/* ─── Helper: safe settings fetch ───────────────────────────────────────── */
+/* ─── Helper: safe settings fetch ────────────────────────────────────────────── */
 async function getPlatformSettings() {
   try {
-    const s = await prisma.settings.findFirst();
-    return s || { listingFeePhysical: 49, listingFeeDigital: 29, platformFeePercent: 5 };
-  } catch {
-    // If settings table doesn't exist yet
-    try {
-      const { listingFeePhysical = 49, listingFeeDigital = 29, platformFeePercent = 5 } =
-        require('../config/platformSettings.json');
-      return { listingFeePhysical, listingFeeDigital, platformFeePercent };
-    } catch {
-      return { listingFeePhysical: 49, listingFeeDigital: 29, platformFeePercent: 5 };
+    // Primary: read from PlatformSettings table (managed by master admin)
+    let s = await prisma.platformSettings.findFirst();
+    if (!s) {
+      // Auto-create defaults on first access
+      s = await prisma.platformSettings.create({
+        data: {
+          digitalListingFee: 20,
+          digitalBuyerFeePercent: 15,
+          digitalSellerCutPercent: 15,
+          digitalPayoutDays: 7,
+          physicalTiers: [
+            { min: 0, max: 500, type: 'percent', value: 5 },
+            { min: 501, max: 1000, type: 'percent', value: 4 },
+            { min: 1001, max: 2000, type: 'percent', value: 3 },
+          ],
+        },
+      });
     }
+    const normalizedTiers = (Array.isArray(s.physicalTiers) ? s.physicalTiers : []).map(t => ({
+      min: typeof t.min === 'number' ? t.min : 0,
+      max: typeof t.max === 'number' ? t.max : 999999,
+      type: t.type || 'percent',
+      value: typeof t.value === 'number' ? t.value : (typeof t.percent === 'number' ? t.percent : 0)
+    }));
+    return {
+      listingFeePhysical: s.digitalListingFee, // kept for backward compat
+      listingFeeDigital: s.digitalListingFee,
+      platformFeePercent: s.digitalBuyerFeePercent,
+      digitalBuyerFeePercent: s.digitalBuyerFeePercent,
+      digitalSellerCutPercent: s.digitalSellerCutPercent,
+      digitalPayoutDays: s.digitalPayoutDays,
+      physicalTiers: normalizedTiers,
+    };
+  } catch {
+    // Fallback to safe defaults if DB not available
+    return {
+      listingFeePhysical: 49,
+      listingFeeDigital: 20,
+      platformFeePercent: 15,
+      digitalBuyerFeePercent: 15,
+      digitalSellerCutPercent: 15,
+      digitalPayoutDays: 7,
+      physicalTiers: [
+        { min: 0, max: 500, type: 'percent', value: 5 },
+        { min: 501, max: 1000, type: 'percent', value: 4 },
+        { min: 1001, max: 2000, type: 'percent', value: 3 },
+      ],
+    };
   }
 }
+
+/* Helper: calculate physical listing fee from tiers */
+function calcPhysicalListingFee(price, tiers) {
+  if (!Array.isArray(tiers) || tiers.length === 0) return 0;
+  for (const tier of tiers) {
+    if (price >= tier.min && price <= tier.max) {
+      const type = tier.type || 'percent';
+      const val = typeof tier.value === 'number' ? tier.value : (tier.percent || 0);
+      return type === 'fixed' ? val : parseFloat(((val / 100) * price).toFixed(2));
+    }
+  }
+  // If beyond all tiers, use last tier's rate/value
+  const lastTier = tiers[tiers.length - 1];
+  const type = lastTier.type || 'percent';
+  const val = typeof lastTier.value === 'number' ? lastTier.value : (lastTier.percent || 0);
+  return type === 'fixed' ? val : parseFloat(((val / 100) * price).toFixed(2));
+}
+
+
+/** GET /api/marketplace/settings */
+exports.getSettings = async (req, res) => {
+  try {
+    const settings = await getPlatformSettings();
+    return res.json(settings);
+  } catch (err) {
+    console.error('[getSettings]', err);
+    return res.status(500).json({ message: 'Error retrieving platform settings' });
+  }
+};
 
 /* ═══════════════════════════════ PRODUCTS ═══════════════════════════════ */
 
@@ -58,21 +124,21 @@ exports.getProducts = async (req, res) => {
       where.collegeId = req.user.collegeId;
     }
     if (category) where.category = category;
-    if (type)     where.productType = type;
-    if (search)   where.title = { contains: search, mode: 'insensitive' };
+    if (type) where.productType = type;
+    if (search) where.title = { contains: search, mode: 'insensitive' };
 
     let orderBy = { createdAt: 'desc' };
-    if (sort === 'price_asc')  orderBy = { price: 'asc' };
+    if (sort === 'price_asc') orderBy = { price: 'asc' };
     if (sort === 'price_desc') orderBy = { price: 'desc' };
-    if (sort === 'popular')    orderBy = { views: 'desc' };
+    if (sort === 'popular') orderBy = { views: 'desc' };
 
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where, orderBy, skip, take: parseInt(limit),
         include: {
-          seller:  { select: { id: true, name: true, email: true } },
+          seller: { select: { id: true, name: true, email: true } },
           college: { select: { name: true } },
-          _count:  { select: { buyRequests: true } },
+          _count: { select: { buyRequests: true } },
         },
       }),
       prisma.product.count({ where }),
@@ -91,9 +157,9 @@ exports.getProductById = async (req, res) => {
     const product = await prisma.product.findUnique({
       where: { id: req.params.id },
       include: {
-        seller:  { select: { id: true, name: true, email: true, phone: true } },
+        seller: { select: { id: true, name: true, email: true, phone: true } },
         college: { select: { name: true } },
-        _count:  { select: { buyRequests: true } },
+        _count: { select: { buyRequests: true } },
       },
     });
     if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -104,7 +170,7 @@ exports.getProductById = async (req, res) => {
     }
 
     // Increment view count (fire-and-forget)
-    prisma.product.update({ where: { id: req.params.id }, data: { views: { increment: 1 } } }).catch(() => {});
+    prisma.product.update({ where: { id: req.params.id }, data: { views: { increment: 1 } } }).catch(() => { });
 
     res.json(product);
   } catch (err) {
@@ -134,18 +200,18 @@ exports.createProduct = async (req, res) => {
     const product = await prisma.product.create({
       data: {
         title,
-        description:    description || '',
-        price:          parseFloat(price),
-        originalPrice:  originalPrice ? parseFloat(originalPrice) : null,
-        images:         allMedia,
-        category:       category || 'Other',
-        condition:      condition || 'Good',
-        productType:    productType || 'physical',
+        description: description || '',
+        price: parseFloat(price),
+        originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+        images: allMedia,
+        category: category || 'Other',
+        condition: condition || 'Good',
+        productType: productType || 'physical',
         digitalSubType: digitalSubType || null,
-        status:         'active',
-        isApproved:     true,
-        sellerId:       req.user.id,
-        collegeId:      req.user.collegeId,
+        status: 'active',
+        isApproved: true,
+        sellerId: req.user.id,
+        collegeId: req.user.collegeId,
       },
     });
 
@@ -174,14 +240,14 @@ exports.updateProduct = async (req, res) => {
     const updated = await prisma.product.update({
       where: { id: req.params.id },
       data: {
-        ...(title                            && { title }),
-        ...(description !== undefined        && { description }),
-        ...(price                            && { price: parseFloat(price) }),
-        ...(originalPrice !== undefined      && { originalPrice: originalPrice ? parseFloat(originalPrice) : null }),
-        ...(category                         && { category }),
-        ...(condition                        && { condition }),
-        ...(newMedia.length > 0             && { images: [...product.images, ...newMedia] }),
-        ...(contentChanged                   && { status: 'active', isApproved: true }),
+        ...(title && { title }),
+        ...(description !== undefined && { description }),
+        ...(price && { price: parseFloat(price) }),
+        ...(originalPrice !== undefined && { originalPrice: originalPrice ? parseFloat(originalPrice) : null }),
+        ...(category && { category }),
+        ...(condition && { condition }),
+        ...(newMedia.length > 0 && { images: [...product.images, ...newMedia] }),
+        ...(contentChanged && { status: 'active', isApproved: true }),
       },
     });
 
@@ -198,6 +264,15 @@ exports.deleteProduct = async (req, res) => {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product) return res.status(404).json({ message: 'Not found' });
     if (product.sellerId !== req.user.id) return res.status(403).json({ message: 'Forbidden' });
+
+    if (product.productType === 'digital') {
+      // Soft-delete digital products to preserve access for existing buyers
+      await prisma.product.update({
+        where: { id: req.params.id },
+        data: { status: 'removed' }
+      });
+      return res.json({ message: 'Digital product unlisted successfully (status: removed)' });
+    }
 
     // Delete R2 files if they look like R2 URLs
     if (r2.isConfigured()) {
@@ -263,14 +338,14 @@ exports.createBuyRequest = async (req, res) => {
     const { message } = req.body;
     const request = await prisma.buyRequest.create({
       data: {
-        message:   message || 'Interested in buying this product.',
-        buyerId:   req.user.id,
-        sellerId:  product.sellerId,
+        message: message || 'Interested in buying this product.',
+        buyerId: req.user.id,
+        sellerId: product.sellerId,
         productId: product.id,
       },
       include: {
         product: { select: { id: true, title: true, price: true, images: true } },
-        buyer:   { select: { id: true, name: true, email: true } },
+        buyer: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -296,7 +371,7 @@ exports.getReceivedRequests = async (req, res) => {
       where: { sellerId: req.user.id },
       orderBy: { createdAt: 'desc' },
       include: {
-        buyer:   { select: { id: true, name: true, email: true, enrollmentId: true } },
+        buyer: { select: { id: true, name: true, email: true, enrollmentId: true } },
         product: { select: { id: true, title: true, price: true, images: true, category: true } },
       },
     });
@@ -314,7 +389,7 @@ exports.getSentRequests = async (req, res) => {
       where: { buyerId: req.user.id },
       orderBy: { createdAt: 'desc' },
       include: {
-        seller:  { select: { id: true, name: true, email: true } },
+        seller: { select: { id: true, name: true, email: true } },
         product: { select: { id: true, title: true, price: true, images: true, productType: true } },
       },
     });
@@ -333,15 +408,15 @@ exports.updateRequestStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid status' });
 
     const request = await prisma.buyRequest.findUnique({ where: { id: req.params.id } });
-    if (!request)                              return res.status(404).json({ message: 'Not found' });
-    if (request.sellerId !== req.user.id)      return res.status(403).json({ message: 'Forbidden' });
-    if (request.status !== 'pending')          return res.status(400).json({ message: 'Request already processed' });
+    if (!request) return res.status(404).json({ message: 'Not found' });
+    if (request.sellerId !== req.user.id) return res.status(403).json({ message: 'Forbidden' });
+    if (request.status !== 'pending') return res.status(400).json({ message: 'Request already processed' });
 
     const updated = await prisma.buyRequest.update({
       where: { id: req.params.id },
       data: { status },
       include: {
-        buyer:   { select: { id: true, name: true, email: true } },
+        buyer: { select: { id: true, name: true, email: true } },
         product: { select: { id: true, title: true, price: true } },
       },
     });
@@ -402,7 +477,7 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: 'productId and amount required' });
 
     const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product)        return res.status(404).json({ message: 'Product not found' });
+    if (!product) return res.status(404).json({ message: 'Product not found' });
     if (!product.isApproved) return res.status(400).json({ message: 'Product not yet approved' });
 
     // Prevent duplicate orders for digital products
@@ -413,21 +488,105 @@ exports.createOrder = async (req, res) => {
       if (existing) return res.status(409).json({ message: 'Already purchased', orderId: existing.id });
     }
 
-    const order = await prisma.order.create({
-      data: {
-        amount:    parseFloat(amount),
-        status:    'COMPLETED',        // For now; integrate payment gateway later
-        buyerId:   req.user.id,
-        sellerId:  product.sellerId,
-        productId,
-      },
-      include: {
-        product: { select: { id: true, title: true, images: true, productType: true } },
-        seller:  { select: { id: true, name: true, email: true } },
-      },
+    // Load live platform settings for commission splits
+    const settings = await getPlatformSettings();
+    const productPrice = product.price;
+
+    const platformFeeAmt = parseFloat(((settings.digitalBuyerFeePercent / 100) * productPrice).toFixed(2));
+    const sellerCutAmt = parseFloat(((settings.digitalSellerCutPercent / 100) * productPrice).toFixed(2));
+    const netSellerAmt = parseFloat((productPrice - sellerCutAmt).toFixed(2));
+    const payoutDays = settings.digitalPayoutDays || 7;
+
+    const releaseAfter = new Date();
+    releaseAfter.setDate(releaseAfter.getDate() + payoutDays);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create order with full fee breakdown
+      const order = await tx.order.create({
+        data: {
+          amount: productPrice + platformFeeAmt,
+          status: 'COMPLETED',
+          platformFee: platformFeeAmt,
+          sellerCut: sellerCutAmt,
+          netSellerAmt: netSellerAmt,
+          buyerId: req.user.id,
+          sellerId: product.sellerId,
+          productId,
+        },
+        include: {
+          product: { select: { id: true, title: true, images: true, productType: true } },
+          seller: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      // 2. Create SellerPayout record for the student's earnings dashboard
+      await tx.sellerPayout.create({
+        data: {
+          orderId: order.id,
+          sellerId: product.sellerId,
+          grossAmount: productPrice,
+          platformCut: sellerCutAmt,
+          netAmount: netSellerAmt,
+          status: payoutDays === 0 ? 'released' : 'pending',
+          releaseAfter,
+          releasedAt: payoutDays === 0 ? new Date() : null,
+        }
+      });
+
+      // 3. Update product status to sold (only for physical products)
+      if (product.productType === 'physical') {
+        await tx.product.update({
+          where: { id: productId },
+          data: { status: 'sold' }
+        });
+      }
+
+      // 4. Create notifications
+      const buyerAmtStr = `₹${(productPrice + platformFeeAmt).toLocaleString('en-IN')}`;
+      const sellerAmtStr = `₹${netSellerAmt.toLocaleString('en-IN')}`;
+
+      await tx.notification.create({
+        data: {
+          studentId: req.user.id,
+          text: `Deal completed! You bought "${product.title}" — Total paid: ${buyerAmtStr}.`,
+          type: 'DEAL_COMPLETED'
+        }
+      });
+
+      await tx.notification.create({
+        data: {
+          studentId: product.sellerId,
+          text: `Deal completed! Your product "${product.title}" was sold — Payout: ${sellerAmtStr} (releases in ${payoutDays} days).`,
+          type: 'DEAL_COMPLETED'
+        }
+      });
+
+      // 5. Close other active threads for this product (only for physical products)
+      if (product.productType === 'physical') {
+        const otherThreads = await tx.chatThread.findMany({
+          where: {
+            request: { productId },
+            status: 'active'
+          }
+        });
+
+        for (const otherThread of otherThreads) {
+          await tx.chatThread.update({ where: { id: otherThread.id }, data: { status: 'closed' } });
+          await tx.buyRequest.update({ where: { id: otherThread.requestId }, data: { status: 'rejected' } });
+          await tx.chatMessage.create({
+            data: {
+              text: 'This product is sold out. Sorry!',
+              threadId: otherThread.id,
+              senderId: product.sellerId
+            }
+          });
+        }
+      }
+
+      return order;
     });
 
-    res.status(201).json(order);
+    res.status(201).json(result);
   } catch (err) {
     console.error('[createOrder]', err);
     res.status(500).json({ message: 'Error creating order', detail: err.message });
@@ -444,7 +603,7 @@ exports.getWishlist = async (req, res) => {
       include: {
         product: {
           include: {
-            seller:  { select: { id: true, name: true } },
+            seller: { select: { id: true, name: true } },
             college: { select: { name: true } },
           },
         },
@@ -464,7 +623,7 @@ exports.addToWishlist = async (req, res) => {
   try {
     const { productId } = req.body;
     const item = await prisma.wishlistItem.upsert({
-      where:  { studentId_productId: { studentId: req.user.id, productId } },
+      where: { studentId_productId: { studentId: req.user.id, productId } },
       create: { studentId: req.user.id, productId },
       update: {},
     });
@@ -504,8 +663,8 @@ exports.getThreads = async (req, res) => {
       include: {
         request: {
           include: {
-            buyer:   { select: { id: true, name: true, email: true } },
-            seller:  { select: { id: true, name: true, email: true } },
+            buyer: { select: { id: true, name: true, email: true } },
+            seller: { select: { id: true, name: true, email: true } },
             product: { select: { id: true, title: true, price: true, images: true } },
           },
         },
@@ -531,7 +690,7 @@ exports.getMessages = async (req, res) => {
       return res.status(403).json({ message: 'Forbidden' });
 
     const messages = await prisma.chatMessage.findMany({
-      where:   { threadId: req.params.id },
+      where: { threadId: req.params.id },
       orderBy: { createdAt: 'asc' },
       include: { sender: { select: { id: true, name: true } } },
     });
@@ -561,7 +720,7 @@ exports.sendMessage = async (req, res) => {
     }
 
     const message = await prisma.chatMessage.create({
-      data:    { text: text.trim(), threadId: req.params.id, senderId: req.user.id },
+      data: { text: text.trim(), threadId: req.params.id, senderId: req.user.id },
       include: { sender: { select: { id: true, name: true } } },
     });
 
@@ -614,7 +773,33 @@ exports.completeDeal = async (req, res) => {
       return res.status(400).json({ message: 'Deal already completed for this conversation.' });
     }
 
-    // 4. Transaction: complete thread, request, product, log order, and close other active threads for this product
+    // 4. Load live platform settings
+    const settings = await getPlatformSettings();
+    const productType = thread.request.product.productType || 'physical';
+    const productPrice = thread.request.product.price;
+
+    let platformFeeAmt = 0;      // collected from buyer (shown only in billing)
+    let sellerCutAmt = 0;        // deducted from seller revenue
+    let netSellerAmt = productPrice; // what seller actually receives
+    let payoutDays = settings.digitalPayoutDays || 7;
+
+    if (productType === 'digital') {
+      platformFeeAmt = parseFloat(((settings.digitalBuyerFeePercent / 100) * productPrice).toFixed(2));
+      sellerCutAmt = parseFloat(((settings.digitalSellerCutPercent / 100) * productPrice).toFixed(2));
+      netSellerAmt = parseFloat((productPrice - sellerCutAmt).toFixed(2));
+    } else {
+      // Physical: no buyer surcharge; platform fee = listing fee (already paid)
+      // Revenue is passed in full to seller (listing fee was the platform's cut)
+      platformFeeAmt = 0;
+      sellerCutAmt = 0;
+      netSellerAmt = productPrice;
+      payoutDays = 0; // physical deals settle immediately
+    }
+
+    const releaseAfter = new Date();
+    releaseAfter.setDate(releaseAfter.getDate() + payoutDays);
+
+    // 5. Transaction
     const result = await prisma.$transaction(async (tx) => {
       // a. Update chat thread status
       const updatedThread = await tx.chatThread.update({
@@ -628,28 +813,50 @@ exports.completeDeal = async (req, res) => {
         data: { status: 'completed' }
       });
 
-      // c. Update product status to sold
-      await tx.product.update({
-        where: { id: thread.request.productId },
-        data: { status: 'sold' }
-      });
+      // c. Update product status to sold (only for physical products)
+      if (productType === 'physical') {
+        await tx.product.update({
+          where: { id: thread.request.productId },
+          data: { status: 'sold' }
+        });
+      }
 
-      // d. Create verified order log
+      // d. Create verified order log with fee breakdown
       const order = await tx.order.create({
         data: {
-          amount: thread.request.product.price,
+          amount: productType === 'digital' ? productPrice + platformFeeAmt : productPrice,
           status: 'COMPLETED',
+          platformFee: platformFeeAmt,
+          sellerCut: sellerCutAmt,
+          netSellerAmt: netSellerAmt,
           buyerId: thread.request.buyerId,
           sellerId: thread.request.sellerId,
           productId: thread.request.productId
         }
       });
 
-      // Create notifications for both buyer and seller inside the transaction
+      // e. Create SellerPayout record
+      await tx.sellerPayout.create({
+        data: {
+          orderId: order.id,
+          sellerId: thread.request.sellerId,
+          grossAmount: productPrice,
+          platformCut: sellerCutAmt,
+          netAmount: netSellerAmt,
+          status: payoutDays === 0 ? 'released' : 'pending',
+          releaseAfter,
+          releasedAt: payoutDays === 0 ? new Date() : null,
+        }
+      });
+
+      // f. Notifications
+      const buyerAmt = productType === 'digital' ? `₹${(productPrice + platformFeeAmt).toLocaleString('en-IN')}` : `₹${productPrice.toLocaleString('en-IN')}`;
+      const sellerAmt = `₹${netSellerAmt.toLocaleString('en-IN')}`;
+
       await tx.notification.create({
         data: {
           studentId: thread.request.buyerId,
-          text: `Deal completed! You bought "${thread.request.product.title}" for ₹${thread.request.product.price.toLocaleString('en-IN')}.`,
+          text: `Deal completed! You bought "​${thread.request.product.title}" — Total paid: ${buyerAmt}.`,
           type: 'DEAL_COMPLETED'
         }
       });
@@ -657,45 +864,50 @@ exports.completeDeal = async (req, res) => {
       await tx.notification.create({
         data: {
           studentId: thread.request.sellerId,
-          text: `Deal completed! You sold "${thread.request.product.title}" for ₹${thread.request.product.price.toLocaleString('en-IN')}.`,
+          text: `Deal completed! You sold "​${thread.request.product.title}" — Payout: ${sellerAmt}${payoutDays > 0 ? ` (releases in ${payoutDays} days)` : ''}.`,
           type: 'DEAL_COMPLETED'
         }
       });
 
-      // e. Find all other active conversation threads for this specific product
-      const otherThreads = await tx.chatThread.findMany({
-        where: {
-          request: {
-            productId: thread.request.productId
-          },
-          id: { not: id },
-          status: 'active'
-        }
-      });
-
-      // f. Close them and send auto sold-out messages from the seller
-      for (const otherThread of otherThreads) {
-        await tx.chatThread.update({
-          where: { id: otherThread.id },
-          data: { status: 'closed' }
-        });
-        await tx.buyRequest.update({
-          where: { id: otherThread.requestId },
-          data: { status: 'rejected' }
-        });
-        await tx.chatMessage.create({
-          data: {
-            text: "This product is sold out. Sorry!",
-            threadId: otherThread.id,
-            senderId: thread.request.sellerId
+      // g. Close other active threads for this product (only for physical products)
+      if (productType === 'physical') {
+        const otherThreads = await tx.chatThread.findMany({
+          where: {
+            request: { productId: thread.request.productId },
+            id: { not: id },
+            status: 'active'
           }
         });
+
+        for (const otherThread of otherThreads) {
+          await tx.chatThread.update({ where: { id: otherThread.id }, data: { status: 'closed' } });
+          await tx.buyRequest.update({ where: { id: otherThread.requestId }, data: { status: 'rejected' } });
+          await tx.chatMessage.create({
+            data: {
+              text: 'This product is sold out. Sorry!',
+              threadId: otherThread.id,
+              senderId: thread.request.sellerId
+            }
+          });
+        }
       }
 
       return { updatedThread, order };
     });
 
-    res.json({ message: 'Deal successfully completed!', thread: result.updatedThread, order: result.order });
+    res.json({
+      message: 'Deal successfully completed!',
+      thread: result.updatedThread,
+      order: result.order,
+      billing: {
+        productPrice,
+        platformFee: platformFeeAmt,
+        buyerTotal: productType === 'digital' ? productPrice + platformFeeAmt : productPrice,
+        sellerCut: sellerCutAmt,
+        sellerPayout: netSellerAmt,
+        payoutIn: payoutDays > 0 ? `${payoutDays} days` : 'Immediate',
+      }
+    });
   } catch (err) {
     console.error('[completeDeal]', err);
     res.status(500).json({ message: 'Error completing deal', detail: err.message });
@@ -767,7 +979,7 @@ exports.approveProduct = async (req, res) => {
   try {
     const updated = await prisma.product.update({
       where: { id: req.params.id },
-      data:  { isApproved: true, status: 'active' },
+      data: { isApproved: true, status: 'active' },
     });
 
     // Notify seller
@@ -788,10 +1000,10 @@ exports.approveProduct = async (req, res) => {
 exports.getPendingProducts = async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      where:   { status: 'pending_review' },
+      where: { status: 'pending_review' },
       orderBy: { createdAt: 'desc' },
       include: {
-        seller:  { select: { name: true, email: true } },
+        seller: { select: { name: true, email: true } },
         college: { select: { name: true } },
       },
     });
@@ -813,21 +1025,23 @@ exports.getMyProfile = async (req, res) => {
       prisma.order.count({ where: { buyerId: req.user.id, status: 'COMPLETED' } }),
     ]);
 
-    const revenue = await prisma.order.aggregate({
-      where:   { sellerId: req.user.id, status: 'COMPLETED' },
-      _sum:    { amount: true },
+    // Calculate actual net revenue for the seller (excluding platform buyer fee surcharge and including seller commission cuts)
+    const completedOrders = await prisma.order.findMany({
+      where: { sellerId: req.user.id, status: 'COMPLETED' },
+      select: { amount: true, netSellerAmt: true }
     });
+    const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.netSellerAmt ?? o.amount), 0);
 
     const recentListings = await prisma.product.findMany({
-      where:   { sellerId: req.user.id },
-      take:    5,
+      where: { sellerId: req.user.id },
+      take: 5,
       orderBy: { createdAt: 'desc' },
-      select:  { id: true, title: true, price: true, status: true, views: true, images: true, productType: true },
+      select: { id: true, title: true, price: true, status: true, views: true, images: true, productType: true },
     });
 
     const recentPurchases = await prisma.order.findMany({
-      where:   { buyerId: req.user.id, status: 'COMPLETED' },
-      take:    5,
+      where: { buyerId: req.user.id, status: 'COMPLETED' },
+      take: 5,
       orderBy: { createdAt: 'desc' },
       include: { product: { select: { id: true, title: true, images: true, productType: true } } },
     });
@@ -837,7 +1051,7 @@ exports.getMyProfile = async (req, res) => {
         listed,
         sold,
         purchased,
-        revenue: revenue._sum.amount || 0,
+        revenue: totalRevenue,
       },
       recentListings,
       recentPurchases,
@@ -847,6 +1061,104 @@ exports.getMyProfile = async (req, res) => {
     res.status(500).json({ message: 'Error fetching profile' });
   }
 };
+
+/** GET /api/marketplace/earnings — current student's digital seller earnings & payouts */
+exports.getMyEarnings = async (req, res) => {
+  try {
+    const sellerId = req.user.id;
+
+    // 1. Fetch all seller payouts for this student, including buyer details from order
+    const payouts = await prisma.sellerPayout.findMany({
+      where: { sellerId },
+      include: {
+        order: {
+          include: {
+            product: {
+              select: { id: true, title: true, productType: true }
+            },
+            buyer: {
+              select: { id: true, name: true, email: true, enrollmentId: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const now = new Date();
+
+    // 2. Aggregate stats
+    const totalDigitalSales = payouts.reduce((s, p) => s + p.grossAmount, 0);
+    const totalCuts = payouts.reduce((s, p) => s + p.platformCut, 0);
+    const totalEarnings = payouts.reduce((s, p) => s + p.netAmount, 0);
+
+    const releasedEarnings = payouts
+      .filter(p => p.status === 'released')
+      .reduce((s, p) => s + p.netAmount, 0);
+
+    const pendingEarnings = payouts
+      .filter(p => p.status === 'pending')
+      .reduce((s, p) => s + p.netAmount, 0);
+
+    const overdueCount = payouts.filter(
+      p => p.status === 'pending' && new Date(p.releaseAfter) <= now
+    ).length;
+
+    // 3. Build 7-day chart data
+    const chartData = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - i));
+      const dayPayouts = payouts.filter(p => {
+        const pd = new Date(p.createdAt);
+        return pd.getDate() === d.getDate() && pd.getMonth() === d.getMonth();
+      });
+      return {
+        day: d.toLocaleDateString('en-IN', { weekday: 'short' }),
+        earnings: Math.round(dayPayouts.reduce((s, p) => s + p.netAmount, 0)),
+        sales: Math.round(dayPayouts.reduce((s, p) => s + p.grossAmount, 0)),
+      };
+    });
+
+    const formattedTimeline = payouts.map(p => ({
+      id: p.id,
+      orderId: p.orderId,
+      productTitle: p.order?.product?.title || 'Unknown Product',
+      grossAmount: `₹${p.grossAmount.toLocaleString('en-IN')}`,
+      platformCut: `₹${p.platformCut.toLocaleString('en-IN')}`,
+      netAmount: `₹${p.netAmount.toLocaleString('en-IN')}`,
+      status: p.status,
+      isOverdue: p.status === 'pending' && new Date(p.releaseAfter) <= now,
+      releaseAfter: new Date(p.releaseAfter).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      releasedAt: p.releasedAt ? new Date(p.releasedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null,
+      date: new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      buyerName: p.order?.buyer?.name || 'Unknown Student',
+      buyerEmail: p.order?.buyer?.email || '',
+      buyerEnrollment: p.order?.buyer?.enrollmentId || '',
+    }));
+
+    return res.json({
+      stats: {
+        totalDigitalSales: `₹${Math.round(totalDigitalSales).toLocaleString('en-IN')}`,
+        totalDigitalSalesRaw: totalDigitalSales,
+        totalCuts: `₹${Math.round(totalCuts).toLocaleString('en-IN')}`,
+        totalCutsRaw: totalCuts,
+        totalEarnings: `₹${Math.round(totalEarnings).toLocaleString('en-IN')}`,
+        totalEarningsRaw: totalEarnings,
+        releasedEarnings: `₹${Math.round(releasedEarnings).toLocaleString('en-IN')}`,
+        releasedEarningsRaw: releasedEarnings,
+        pendingEarnings: `₹${Math.round(pendingEarnings).toLocaleString('en-IN')}`,
+        pendingEarningsRaw: pendingEarnings,
+        overdueCount,
+      },
+      chartData,
+      timeline: formattedTimeline,
+    });
+  } catch (err) {
+    console.error('[getMyEarnings]', err);
+    return res.status(500).json({ message: 'Server error fetching earnings' });
+  }
+};
+
 
 const { Transform } = require('stream');
 
