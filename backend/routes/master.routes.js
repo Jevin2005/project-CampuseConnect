@@ -16,6 +16,7 @@ router.use((req, res, next) => {
 // College management
 router.get('/colleges', masterController.getColleges);
 router.get('/colleges/active', masterController.getActiveColleges);
+router.get('/colleges/:collegeId', masterController.getCollegeDetail);
 router.post('/colleges/:collegeId/approve', masterController.approveCollege);
 router.post('/colleges/:collegeId/reject', masterController.rejectCollege);
 
@@ -32,5 +33,8 @@ router.put('/pricing', masterController.updatePlatformPricing);
 // Seller Payouts
 router.get('/payouts', masterController.getSellerPayouts);
 router.post('/payouts/release', masterController.releasePayouts);
+
+// Platform Revenue Accounting
+router.get('/revenue/accounting', masterController.getPlatformAccounting);
 
 module.exports = router;

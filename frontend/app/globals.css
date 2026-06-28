@@ -637,6 +637,20 @@ body {
   line-height: 1;
 }
 
+.stat-item-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 36px;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
 /* ══════════════════════════════════════════════
    GRADIENT BORDERS
 ══════════════════════════════════════════════ */
@@ -734,14 +748,28 @@ body {
   .stats-row {
     gap: 0 !important;
     margin-top: 32px !important;
+    flex-wrap: wrap !important;
   }
 
   .stats-row .stat-item {
-    padding: 0 20px !important;
+    padding: 0 !important;
+  }
+
+  .stat-item-inner {
+    padding: 0 16px !important;
   }
 
   .stats-row .stat-number {
     font-size: 24px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-item-inner {
+    padding: 0 8px !important;
+  }
+  .stats-row .stat-number {
+    font-size: 20px !important;
   }
 }
 

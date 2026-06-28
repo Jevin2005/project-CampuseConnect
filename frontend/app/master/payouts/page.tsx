@@ -17,113 +17,273 @@ interface Payout {
   order: { product: { id: string; title: string; productType: string } };
 }
 
+const COLORS = ['#4F8EF7', '#10B981', '#7C3AED', '#F59E0B', '#EC4899', '#14B8A6', '#F97316'];
+function avatarColor(name: string) {
+  const code = (name || 'Unknown').charCodeAt(0);
+  return COLORS[code % COLORS.length];
+}
+function initials(name: string) {
+  return (name || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+}
+
 const S = `
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg:#070B14;--surface:#0D1321;--card:#111827;--card2:#141f35;--bd:#1E2D45;--bd2:#243352;
-  --gold:#F7C948;--gold-dim:rgba(247,201,72,.12);--emerald:#10B981;--emerald-dim:rgba(16,185,129,.12);
-  --red:#EF4444;--red-dim:rgba(239,68,68,.1);--blue:#3B82F6;--amber:#F59E0B;--amber-dim:rgba(245,158,11,.1);
-  --t1:#F0F4FF;--t2:#94A3B8;--t3:#4B5563;
-  --font:'DM Sans',sans-serif;--font-head:'Sora',sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --bg: #080C14;
+  --card: rgba(15, 23, 42, 0.9);
+  --card2: rgba(20, 30, 55, 0.92);
+  --border: rgba(99, 130, 190, 0.15);
+  --border-hover: rgba(247, 201, 72, 0.4);
+  --gold: #F7C948;
+  --gold2: #F59E0B;
+  --blue: #4F8EF7;
+  --green: #10B981;
+  --purple: #7C3AED;
+  --red: #EF4444;
+  --t1: #F0F4FF;
+  --t2: #9CA3AF;
+  --t3: #6B7280;
 }
+
 * { box-sizing: border-box; }
-.po-wrap { padding: 32px; min-height: 100vh; background: var(--bg); font-family: var(--font); }
+
+.po-wrap {
+  padding: 36px;
+  min-height: 100vh;
+  background: var(--bg);
+  background-image: radial-gradient(ellipse 60% 30% at 50% 0%, rgba(247,201,72,.04) 0%, transparent 70%);
+  font-family: 'DM Sans', sans-serif;
+}
+
 .po-header { margin-bottom: 28px; }
-.po-breadcrumb { font-size: 12px; color: var(--t3); margin-bottom: 8px; }
+.po-breadcrumb { font-size: 12px; color: var(--t3); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
 .po-breadcrumb span { color: var(--gold); }
-.po-title { font-family: var(--font-head); font-size: 28px; font-weight: 800; color: var(--t1); margin: 0 0 6px; }
-.po-sub { font-size: 13px; color: var(--t2); }
+.po-title { font-family: 'Sora', sans-serif; font-size: 30px; font-weight: 800; color: var(--t1); margin: 0 0 6px; letter-spacing: -0.5px; }
+.po-title span { color: var(--gold); }
+.po-sub { font-size: 13px; color: var(--t3); }
 
 /* Stats grid */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-.stat-card { background: var(--card); border: 1px solid var(--bd); border-radius: 12px; padding: 18px 20px; }
-.stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--t3); margin-bottom: 8px; }
-.stat-val { font-family: var(--font-head); font-size: 24px; font-weight: 800; color: var(--t1); }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px;
+  backdrop-filter: blur(16px); transition: transform .2s, border-color .25s, box-shadow .25s;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,.025) 0%, transparent 60%);
+  pointer-events: none;
+}
+.stat-card:hover { border-color: var(--border-hover); transform: translateY(-3px); box-shadow: 0 12px 36px rgba(0,0,0,.35); }
+.stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--t3); margin-bottom: 8px; }
+.stat-val { font-family: 'Sora', sans-serif; font-size: 24px; font-weight: 800; color: var(--t1); line-height: 1; }
 .stat-val.gold { color: var(--gold); }
-.stat-val.emerald { color: var(--emerald); }
+.stat-val.emerald { color: var(--green); }
 .stat-val.red { color: var(--red); }
-.stat-val.amber { color: var(--amber); }
+.stat-val.amber { color: var(--gold2); }
 
 /* Toolbar */
-.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-.filter-tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--bd); border-radius: 10px; padding: 4px; }
-.filter-tab { padding: 7px 16px; border-radius: 7px; border: none; background: none; font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--t2); cursor: pointer; transition: all .2s; white-space: nowrap; }
-.filter-tab.active { background: var(--card); color: var(--t1); }
-.release-btn { margin-left: auto; display: flex; align-items: center; gap: 7px; padding: 9px 20px; border-radius: 99px; border: none; background: var(--emerald); color: #070B14; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font-head); transition: all .2s; }
-.release-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(16,185,129,.3); }
-.release-btn:disabled { opacity: .5; cursor: not-allowed; }
+.toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+.filter-tabs { display: flex; gap: 2px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+.filter-tab { padding: 8px 18px; border-radius: 7px; border: none; background: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: var(--t3); cursor: pointer; transition: all .2s; white-space: nowrap; }
+.filter-tab.active { background: var(--card2); color: var(--gold); text-shadow: 0 0 10px rgba(247,201,72,.2); border: 1px solid rgba(247,201,72,.15); }
+.filter-tab:hover:not(.active) { color: var(--t2); }
+
+/* Search Wrap */
+.search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
+.search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--t3); pointer-events: none; }
+.inp {
+  width: 100%; background: var(--card2); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 13px 10px 38px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--t1); outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.inp::placeholder { color: #3d4f6b; }
+.inp:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(247,201,72,.1); }
+
+/* Buttons */
+.release-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 20px; border-radius: 9999px; border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.08); color: var(--green); font-size: 13px; font-weight: 800;
+  cursor: pointer; font-family: 'Sora', sans-serif; transition: all .25s ease;
+}
+.release-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: var(--green);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
+  transform: translateY(-1px);
+}
+.release-btn.warning {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--gold2);
+}
+.release-btn.warning:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: var(--gold2);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+}
+.release-btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
 /* Table card */
-.table-card { background: var(--card); border: 1px solid var(--bd); border-radius: 14px; overflow: hidden; }
+.table-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; backdrop-filter: blur(16px); }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-thead th { padding: 11px 16px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--t3); border-bottom: 1px solid var(--bd); white-space: nowrap; }
-tbody td { padding: 14px 16px; font-size: 13px; color: var(--t2); border-bottom: 1px solid rgba(30,45,69,.5); vertical-align: middle; }
+thead th { padding: 12px 16px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--t3); border-bottom: 1px solid var(--border); background: rgba(8,12,24,.5); white-space: nowrap; }
+tbody td { padding: 14px 16px; font-size: 13px; color: var(--t2); border-bottom: 1px solid rgba(99,130,190,.08); vertical-align: middle; white-space: nowrap; }
 tbody tr:last-child td { border-bottom: none; }
-tbody tr:hover td { background: rgba(30,45,69,.3); }
-.seller-name { font-weight: 600; color: var(--t1); font-size: 13px; margin-bottom: 2px; }
-.seller-email { font-size: 11px; color: var(--t3); font-family: var(--font-mono); }
-.college-tag { font-size: 11px; color: var(--blue); background: var(--blue-dim, rgba(59,130,246,.1)); padding: 2px 8px; border-radius: 99px; display: inline-block; margin-top: 3px; }
-.product-ttl { font-weight: 600; color: var(--t1); font-size: 13px; }
-.product-type { font-size: 11px; color: var(--t3); }
-.amt { font-family: var(--font-mono); font-size: 13px; }
-.amt.green { color: var(--emerald); font-weight: 700; }
+tbody tr:hover td { background: rgba(247,201,72,.02); }
+
+/* Checkbox Custom Styles */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--card2);
+  margin: 0;
+  font: inherit;
+  color: var(--gold);
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition: 120ms border-color ease-in-out, 120ms background-color ease-in-out;
+}
+input[type="checkbox"]::before {
+  content: "✓";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  color: #070B14;
+}
+input[type="checkbox"]:checked {
+  border-color: var(--gold);
+  background-color: var(--gold);
+}
+input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(247,201,72,.15);
+}
+
+/* Seller Wrap */
+.seller-wrap { display: flex; align-items: center; gap: 10px; }
+.seller-avatar {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.seller-name { font-weight: 600; color: var(--t1); font-size: 13px; }
+.seller-email { font-size: 10px; color: var(--t3); font-family: var(--font-mono); margin-top: 1px; }
+.college-tag { font-size: 10px; font-weight: 700; color: var(--blue); background: rgba(79,142,247,.08); border: 1px solid rgba(79,142,247,.2); padding: 2px 8px; border-radius: 99px; display: inline-block; margin-top: 4px; }
+.product-ttl { font-weight: 600; color: var(--t1); font-size: 13px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.product-type { font-size: 11px; color: var(--t3); margin-top: 2px; }
+.amt { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.amt.green { color: var(--green); font-weight: 700; }
 .amt.red { color: var(--red); }
 .amt.gold { color: var(--gold); }
 
 /* Status badges */
-.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
-.badge.pending { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
-.badge.overdue { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,.3); animation: pulse 2s infinite; }
-.badge.released { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(16,185,129,.3); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.badge.pending { background: rgba(245,158,11,.08); color: var(--gold2); border: 1px solid rgba(245,158,11,.2); }
+.badge.overdue { background: rgba(239,68,68,.08); color: var(--red); border: 1px solid rgba(239,68,68,.25); box-shadow: 0 0 10px rgba(239,68,68,0.1); }
+.badge.released { background: rgba(16,185,129,.08); color: var(--green); border: 1px solid rgba(16,185,129,.2); }
 
-/* Release btn per row */
-.row-release-btn { padding: 5px 14px; border-radius: 99px; border: 1px solid rgba(16,185,129,.4); background: var(--emerald-dim); color: var(--emerald); font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font-head); transition: all .15s; }
-.row-release-btn:hover { background: var(--emerald); color: #070B14; }
+/* Row Action Buttons */
+.row-release-btn {
+  padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.06); color: var(--green); font-size: 11px; font-weight: 700;
+  cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s ease;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.row-release-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: var(--green);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  transform: translateY(-0.5px);
+}
+.row-release-btn.warning {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.06);
+  color: var(--gold2);
+}
+.row-release-btn.warning:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: var(--gold2);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+.row-release-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 /* Empty state */
-.empty { text-align: center; padding: 60px 20px; color: var(--t3); }
-.empty-icon { font-size: 48px; margin-bottom: 14px; }
-.empty-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--t2); margin-bottom: 6px; }
+.empty { text-align: center; padding: 70px 20px; color: var(--t3); }
+.empty-icon { font-size: 52px; margin-bottom: 16px; opacity: .6; }
+.empty-title { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 700; color: var(--t1); margin-bottom: 6px; }
 
-/* Date */
+/* Date styling */
 .date-str { font-family: var(--font-mono); font-size: 11px; color: var(--t3); }
 
-/* Toast */
-.toast { position: fixed; bottom: 28px; right: 28px; padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px; z-index: 9999; animation: slideIn .3s ease; box-shadow: 0 8px 30px rgba(0,0,0,.4); }
-.toast.success { background: #052E20; border: 1px solid rgba(16,185,129,.3); color: var(--emerald); }
-.toast.error { background: #200505; border: 1px solid rgba(239,68,68,.3); color: var(--red); }
-@keyframes slideIn { from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1} }
-
 /* Shimmer */
-.shimmer { background: linear-gradient(90deg,var(--card2) 25%,var(--bd) 50%,var(--card2) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:8px; }
+.shimmer { background: linear-gradient(90deg,var(--card2) 25%,var(--border) 50%,var(--card2) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:8px; }
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Toast Notification */
+.toast-container {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1.5px solid rgba(247, 201, 72, 0.35);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(247,201,72,0.15);
+  padding: 12px 22px; border-radius: 12px;
+  color: var(--t1); font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 10px;
+  backdrop-filter: blur(12px);
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideIn {
+  from { transform: translateY(20px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
 `;
 
 export default function PayoutsPage() {
-  const [payouts, setPayouts]   = useState<Payout[]>([]);
-  const [filter, setFilter]     = useState<string>('');
-  const [loading, setLoading]   = useState(true);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [filter, setFilter] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
+  const [loading, setLoading] = useState(true);
   const [releasing, setReleasing] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<string>('');
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+  // Safeguard confirmation states
+  const [confirmPayoutId, setConfirmPayoutId] = useState<string | null>(null);
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [confirmAllOverdue, setConfirmAllOverdue] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => {
+      setToast(prev => prev === msg ? '' : prev);
+    }, 4000);
   };
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const q = filter ? `?status=${filter}` : '';
-      const res = await api.get(`/api/master/payouts${q}`);
+      // Fetch high limit so we can do accurate global stats + fast client-side tab switching
+      const res = await api.get('/api/master/payouts?limit=250');
       setPayouts(res.data.payouts || []);
     } catch { /* empty */ }
     setLoading(false);
-  }, [filter]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -131,13 +291,29 @@ export default function PayoutsPage() {
     setReleasing(true);
     try {
       const res = await api.post('/api/master/payouts/release', { payoutIds: ids });
-      showToast(`✅ ${res.data.released} payout(s) released`);
+      showToast(`Released payout(s) successfully! 💸`);
       setSelected(new Set());
-      await load();
+      setConfirmPayoutId(null);
+      setConfirmBulk(false);
+      setConfirmAllOverdue(false);
+
+      // Real-time optimistic local state update for instant feedback
+      const nowStr = new Date().toISOString();
+      setPayouts(prev => prev.map(p => {
+        const matches = ids ? ids.includes(p.id) : p.isOverdue;
+        if (matches && p.status === 'pending') {
+          return { ...p, status: 'released', releasedAt: nowStr, isOverdue: false };
+        }
+        return p;
+      }));
+
+      // Reload database values silently in background
+      load();
     } catch (err: any) {
-      showToast(err?.response?.data?.message || 'Failed to release', 'error');
+      showToast(err?.response?.data?.message || 'Failed to release payouts ⚠️');
+    } finally {
+      setReleasing(false);
     }
-    setReleasing(false);
   };
 
   const toggleSelect = (id: string) => {
@@ -148,13 +324,33 @@ export default function PayoutsPage() {
     });
   };
 
-  /* Stats */
-  const total     = payouts.length;
-  const pending   = payouts.filter(p => p.status === 'pending').length;
-  const overdue   = payouts.filter(p => p.isOverdue).length;
-  const released  = payouts.filter(p => p.status === 'released').length;
-  const totalNet  = payouts.reduce((s, p) => s + p.netAmount, 0);
+  // Global static stats computed from total database list
+  const total = payouts.length;
+  const pending = payouts.filter(p => p.status === 'pending').length;
+  const overdue = payouts.filter(p => p.isOverdue).length;
+  const totalNet = payouts.filter(p => p.status === 'pending' || p.isOverdue).reduce((s, p) => s + p.netAmount, 0);
 
+  // Client-side filtration based on status tabs & search query
+  const filteredPayouts = payouts.filter(p => {
+    // 1. Tab filtration
+    if (filter === 'pending' && p.status !== 'pending') return false;
+    if (filter === 'released' && p.status !== 'released') return false;
+    if (filter === 'overdue' && !p.isOverdue) return false;
+
+    // 2. Query filtration
+    const q = search.toLowerCase();
+    return (
+      !search ||
+      p.seller.name.toLowerCase().includes(q) ||
+      p.seller.email.toLowerCase().includes(q) ||
+      (p.seller.college?.name || '').toLowerCase().includes(q) ||
+      (p.order?.product?.title || '').toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q)
+    );
+  });
+
+  const pendingFiltered = filteredPayouts.filter(p => p.status === 'pending');
+  const allChecked = pendingFiltered.length > 0 && pendingFiltered.every(p => selected.has(p.id));
   const overdueList = payouts.filter(p => p.isOverdue);
 
   return (
@@ -163,68 +359,110 @@ export default function PayoutsPage() {
       <div className="po-wrap">
         <div className="po-header">
           <div className="po-breadcrumb">Master Admin · <span>Seller Payouts</span></div>
-          <h1 className="po-title">💸 Seller Payouts</h1>
-          <div className="po-sub">Track and release platform-held seller earnings</div>
+          <h1 className="po-title">💸 Seller <span>Payouts</span></h1>
+          <div className="po-sub">Monitor transaction disbursements and disburse seller balances</div>
         </div>
 
-        {/* Stats */}
+        {/* Stats Grid */}
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-label">Total Payouts</div>
-            <div className="stat-val">{total}</div>
+            <div className="stat-label">Total Transactions</div>
+            <div className="stat-val">{loading ? '…' : total}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Pending Release</div>
-            <div className="stat-val amber">{pending}</div>
+            <div className="stat-val amber">{loading ? '…' : pending}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Overdue 🔴</div>
-            <div className="stat-val red">{overdue}</div>
+            <div className="stat-label">Overdue Releases</div>
+            <div className="stat-val red">{loading ? '…' : overdue}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Total Payout Value</div>
-            <div className="stat-val gold">₹{totalNet.toLocaleString('en-IN')}</div>
+            <div className="stat-label">Held Balance Value</div>
+            <div className="stat-val gold">₹{loading ? '…' : totalNet.toLocaleString('en-IN')}</div>
           </div>
         </div>
 
         {/* Toolbar */}
         <div className="toolbar">
+          {/* Status Tabs */}
           <div className="filter-tabs">
             {[
-              { label: 'All',     val: '' },
-              { label: '⏳ Pending',  val: 'pending' },
+              { label: 'All', val: '' },
+              { label: '⏳ Pending', val: 'pending' },
               { label: '🔴 Overdue', val: 'overdue' },
               { label: '✅ Released', val: 'released' },
             ].map(f => (
-              <button key={f.val} className={`filter-tab${filter === f.val ? ' active' : ''}`} onClick={() => { setFilter(f.val); setSelected(new Set()); }}>
+              <button
+                key={f.val}
+                className={`filter-tab${filter === f.val ? ' active' : ''}`}
+                onClick={() => { setFilter(f.val); setSelected(new Set()); setSearch(''); }}
+              >
                 {f.label}
               </button>
             ))}
           </div>
+
+          {/* Search Box */}
+          <div className="search-wrap">
+            <span className="search-icon">🔍</span>
+            <input
+              className="inp"
+              placeholder="Search seller, product, or order ID…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Multi-Select Bulk Actions */}
           {selected.size > 0 && (
-            <button className="release-btn" onClick={() => handleRelease([...selected])} disabled={releasing}>
-              {releasing ? '⏳ Releasing...' : `✅ Release ${selected.size} Selected`}
+            <button
+              className={`release-btn ${confirmBulk ? 'warning' : ''}`}
+              onClick={() => {
+                if (!confirmBulk) {
+                  setConfirmBulk(true);
+                  setTimeout(() => setConfirmBulk(false), 5000);
+                } else {
+                  handleRelease([...selected]);
+                }
+              }}
+              disabled={releasing}
+            >
+              {releasing ? '⏳ Releasing...' : (confirmBulk ? '⚠️ Confirm Bulk Release?' : `✓ Release ${selected.size} Selected`)}
             </button>
           )}
+
+          {/* Overdue Release All Actions */}
           {overdueList.length > 0 && selected.size === 0 && (
-            <button className="release-btn" onClick={() => handleRelease()} disabled={releasing}>
-              {releasing ? '⏳ Releasing...' : `🚀 Release All Overdue (${overdueList.length})`}
+            <button
+              className={`release-btn ${confirmAllOverdue ? 'warning' : ''}`}
+              onClick={() => {
+                if (!confirmAllOverdue) {
+                  setConfirmAllOverdue(true);
+                  setTimeout(() => setConfirmAllOverdue(false), 5000);
+                } else {
+                  handleRelease();
+                }
+              }}
+              disabled={releasing}
+            >
+              {releasing ? '⏳ Releasing...' : (confirmAllOverdue ? '⚠️ Confirm Release All Overdue?' : `🚀 Release All Overdue (${overdueList.length})`)}
             </button>
           )}
         </div>
 
-        {/* Table */}
+        {/* Table View */}
         <div className="table-card">
           {loading ? (
-            <div style={{padding:24}}>
-              {[...Array(5)].map((_, i) => <div key={i} className="shimmer" style={{height:54,marginBottom:8}} />)}
+            <div style={{ padding: 24 }}>
+              {[...Array(5)].map((_, i) => <div key={i} className="shimmer" style={{ height: 54, marginBottom: 8 }} />)}
             </div>
-          ) : payouts.length === 0 ? (
+          ) : filteredPayouts.length === 0 ? (
             <div className="empty">
               <div className="empty-icon">💸</div>
               <div className="empty-title">No payouts found</div>
-              <div style={{fontSize:13,color:'var(--t3)',marginTop:6}}>
-                {filter ? 'Try a different filter' : 'Completed deals will appear here'}
+              <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 6 }}>
+                {search ? 'Try adjusting your search query' : 'Settlement entries will appear here once products sell'}
               </div>
             </div>
           ) : (
@@ -232,66 +470,96 @@ export default function PayoutsPage() {
               <table>
                 <thead>
                   <tr>
-                    <th style={{width:40}}>
-                      <input type="checkbox" style={{cursor:'pointer'}}
-                        checked={selected.size === payouts.filter(p=>p.status==='pending').length && payouts.filter(p=>p.status==='pending').length > 0}
+                    <th style={{ width: 44 }}>
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
                         onChange={e => {
-                          if (e.target.checked) setSelected(new Set(payouts.filter(p=>p.status==='pending').map(p=>p.id)));
-                          else setSelected(new Set());
-                        }} />
+                          if (e.target.checked) {
+                            setSelected(new Set(pendingFiltered.map(p => p.id)));
+                          } else {
+                            setSelected(new Set());
+                          }
+                        }}
+                      />
                     </th>
                     <th>Seller</th>
                     <th>Product</th>
-                    <th>Gross (₹)</th>
-                    <th>Platform Cut</th>
-                    <th>Net Payout</th>
+                    <th style={{ textAlign: 'right' }}>Gross</th>
+                    <th style={{ textAlign: 'right' }}>Platform Fee</th>
+                    <th style={{ textAlign: 'right' }}>Net Payout</th>
                     <th>Status</th>
-                    <th>Release After</th>
-                    <th>Action</th>
+                    <th>Release Term</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payouts.map(p => (
+                  {filteredPayouts.map(p => (
                     <tr key={p.id}>
                       <td>
                         {p.status === 'pending' && (
-                          <input type="checkbox" style={{cursor:'pointer'}}
+                          <input
+                            type="checkbox"
                             checked={selected.has(p.id)}
-                            onChange={() => toggleSelect(p.id)} />
+                            onChange={() => toggleSelect(p.id)}
+                          />
                         )}
                       </td>
                       <td>
-                        <div className="seller-name">{p.seller.name || 'Unknown'}</div>
-                        <div className="seller-email">{p.seller.email}</div>
+                        <div className="seller-wrap">
+                          <div className="seller-avatar" style={{ background: avatarColor(p.seller.name) }}>
+                            {initials(p.seller.name)}
+                          </div>
+                          <div>
+                            <div className="seller-name">{p.seller.name || 'Unknown'}</div>
+                            <div className="seller-email">{p.seller.email}</div>
+                          </div>
+                        </div>
                         <span className="college-tag">{p.seller.college?.name}</span>
                       </td>
                       <td>
-                        <div className="product-ttl">{p.order?.product?.title || '—'}</div>
-                        <div className="product-type">{p.order?.product?.productType === 'digital' ? '🖥 Digital' : '📦 Physical'}</div>
+                        <div className="product-ttl" title={p.order?.product?.title}>{p.order?.product?.title || '—'}</div>
+                        <div className="product-type">
+                          {p.order?.product?.productType === 'digital' ? '🖥 Digital' : '📦 Physical'}
+                        </div>
                       </td>
-                      <td><span className="amt">₹{p.grossAmount.toLocaleString('en-IN')}</span></td>
-                      <td><span className="amt red">−₹{p.platformCut.toLocaleString('en-IN')}</span></td>
-                      <td><span className="amt green">₹{p.netAmount.toLocaleString('en-IN')}</span></td>
+                      <td style={{ textAlign: 'right' }}><span className="amt">₹{p.grossAmount.toLocaleString('en-IN')}</span></td>
+                      <td style={{ textAlign: 'right' }}><span className="amt red">−₹{p.platformCut.toLocaleString('en-IN')}</span></td>
+                      <td style={{ textAlign: 'right' }}><span className="amt green">₹{p.netAmount.toLocaleString('en-IN')}</span></td>
                       <td>
-                        {p.isOverdue
-                          ? <span className="badge overdue">🔴 Overdue</span>
-                          : p.status === 'released'
-                            ? <span className="badge released">✅ Released</span>
-                            : <span className="badge pending">⏳ Pending</span>
-                        }
+                        {p.isOverdue ? (
+                          <span className="badge overdue">🚨 Overdue</span>
+                        ) : p.status === 'released' ? (
+                          <span className="badge released">✓ Released</span>
+                        ) : (
+                          <span className="badge pending">⏳ Pending</span>
+                        )}
                       </td>
                       <td>
-                        <div className="date-str">{new Date(p.releaseAfter).toLocaleDateString('en-IN', { day:'numeric',month:'short',year:'numeric' })}</div>
+                        <div className="date-str">
+                          {new Date(p.releaseAfter).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
                         {p.releasedAt && (
-                          <div className="date-str" style={{color:'var(--emerald)'}}>
-                            Released {new Date(p.releasedAt).toLocaleDateString('en-IN')}
+                          <div className="date-str" style={{ color: 'var(--green)', fontSize: 10, marginTop: 2 }}>
+                            Cleared {new Date(p.releasedAt).toLocaleDateString('en-IN')}
                           </div>
                         )}
                       </td>
                       <td>
-                        {(p.status === 'pending') && (
-                          <button className="row-release-btn" onClick={() => handleRelease([p.id])} disabled={releasing}>
-                            Release
+                        {p.status === 'pending' && (
+                          <button
+                            className={`row-release-btn ${confirmPayoutId === p.id ? 'warning' : ''}`}
+                            onClick={() => {
+                              if (confirmPayoutId !== p.id) {
+                                setConfirmPayoutId(p.id);
+                                setTimeout(() => setConfirmPayoutId(prev => prev === p.id ? null : prev), 4000);
+                              } else {
+                                handleRelease([p.id]);
+                              }
+                            }}
+                            disabled={releasing}
+                          >
+                            {confirmPayoutId === p.id ? "⚠️ Confirm?" : "💸 Release"}
                           </button>
                         )}
                       </td>
@@ -304,7 +572,13 @@ export default function PayoutsPage() {
         </div>
       </div>
 
-      {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className="toast-container">
+          <span>🔔</span>
+          <span>{toast}</span>
+        </div>
+      )}
     </>
   );
 }

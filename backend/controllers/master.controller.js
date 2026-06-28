@@ -402,6 +402,284 @@ async function releasePayouts(req, res) {
   }
 }
 
+// ─── Get Single College Detail (students, products, revenue) ──────────
+async function getCollegeDetail(req, res) {
+  try {
+    const { collegeId } = req.params;
+
+    const college = await prisma.college.findUnique({
+      where: { id: collegeId },
+      include: {
+        admins: {
+          select: { id: true, name: true, email: true, isApproved: true, isEmailVerified: true, createdAt: true },
+        },
+        _count: { select: { students: true, products: true } },
+      },
+    });
+
+    if (!college) {
+      return res.status(404).json({ message: 'College not found' });
+    }
+
+    // ── Students ──────────────────────────────────────────────────────────
+    const students = await prisma.student.findMany({
+      where: { collegeId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        enrollmentId: true,
+        phone: true,
+        isApproved: true,
+        createdAt: true,
+        _count: { select: { products: true, purchases: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // ── Products ──────────────────────────────────────────────────────────
+    const products = await prisma.product.findMany({
+      where: { collegeId },
+      include: {
+        seller: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // ── Revenue breakdown ─────────────────────────────────────────────────
+    const ordersAgg = await prisma.order.aggregate({
+      _sum: { amount: true, platformFee: true, sellerCut: true, netSellerAmt: true },
+      _count: { id: true },
+      where: { status: 'COMPLETED', product: { collegeId } },
+    });
+
+    const grossRevenue   = ordersAgg._sum.amount       || 0;
+    const platformFees   = ordersAgg._sum.platformFee  || 0;
+    const sellerCuts     = ordersAgg._sum.sellerCut    || 0;
+    const netSellerTotal = ordersAgg._sum.netSellerAmt || 0;
+    const completedOrders = ordersAgg._count.id        || 0;
+
+    // Platform total revenue for % contribution
+    const platformTotalAgg = await prisma.order.aggregate({
+      _sum: { amount: true },
+      where: { status: 'COMPLETED' },
+    });
+    const platformTotal = platformTotalAgg._sum.amount || 0;
+    const revPct = platformTotal > 0 ? Math.round((grossRevenue / platformTotal) * 100) : 0;
+
+    // ── Listing fee revenue ───────────────────────────────────────────────
+    const listingFeesAgg = await prisma.listingPayment.aggregate({
+      _sum: { amount: true },
+      _count: { id: true },
+      where: { product: { collegeId }, status: 'completed' },
+    });
+    const listingFeeRevenue = listingFeesAgg._sum.amount || 0;
+
+    return res.json({
+      college: {
+        id: college.id,
+        name: college.name,
+        code: college.code,
+        city: college.city || 'Unknown',
+        type: college.type || 'Unknown',
+        emailDomain: college.emailDomain,
+        isApproved: college.isApproved,
+        joined: college.createdAt,
+        updatedAt: college.updatedAt,
+        totalStudents: college._count.students,
+        totalProducts: college._count.products,
+      },
+      admins: college.admins.map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        isApproved: a.isApproved,
+        isEmailVerified: a.isEmailVerified,
+        joined: a.createdAt,
+      })),
+      students: students.map(s => ({
+        id: s.id,
+        name: s.name || 'Unknown',
+        email: s.email,
+        enrollmentId: s.enrollmentId || '—',
+        phone: s.phone || '—',
+        isApproved: s.isApproved,
+        status: s.isApproved ? 'Active' : 'Pending',
+        products: s._count.products,
+        purchases: s._count.purchases,
+        joined: s.createdAt,
+      })),
+      products: products.map(p => ({
+        id: p.id,
+        title: p.title,
+        type: p.productType,
+        subType: p.digitalSubType || null,
+        price: `₹${p.price.toLocaleString('en-IN')}`,
+        priceRaw: p.price,
+        seller: p.seller?.name || 'Unknown',
+        sellerEmail: p.seller?.email || '',
+        status: p.status,
+        isApproved: p.isApproved,
+        category: p.category || '—',
+        date: new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      })),
+      revenue: {
+        grossRevenue,
+        grossRevenueFormatted: `₹${Math.round(grossRevenue).toLocaleString('en-IN')}`,
+        platformFees,
+        platformFeesFormatted: `₹${Math.round(platformFees).toLocaleString('en-IN')}`,
+        sellerCuts,
+        sellerCutsFormatted: `₹${Math.round(sellerCuts).toLocaleString('en-IN')}`,
+        netSellerTotal,
+        netSellerTotalFormatted: `₹${Math.round(netSellerTotal).toLocaleString('en-IN')}`,
+        listingFeeRevenue,
+        listingFeeRevenueFormatted: `₹${Math.round(listingFeeRevenue).toLocaleString('en-IN')}`,
+        completedOrders,
+        revPct,
+        platformTotal,
+        platformTotalFormatted: `₹${Math.round(platformTotal).toLocaleString('en-IN')}`,
+      },
+    });
+  } catch (err) {
+    console.error('[MasterController.getCollegeDetail]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// ─── Get Platform Business Accounting ────────────────────────────────
+async function getPlatformAccounting(req, res) {
+  try {
+    const [listingPayments, orders, ads, payoutsAgg] = await Promise.all([
+      prisma.listingPayment.findMany({
+        where: { status: 'completed' },
+        include: {
+          student: { select: { name: true, email: true } },
+          product: { select: { title: true, productType: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.order.findMany({
+        where: { status: 'COMPLETED' },
+        include: {
+          buyer: { select: { name: true, email: true } },
+          seller: { select: { name: true, email: true } },
+          product: { select: { title: true, productType: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.advertisement.findMany({
+        include: {
+          admin: { select: { name: true, email: true } },
+          college: { select: { name: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.sellerPayout.groupBy({
+        by: ['status'],
+        _sum: { netAmount: true }
+      })
+    ]);
+
+    const totalListingFees = listingPayments.reduce((s, p) => s + p.amount, 0);
+    const totalBuyerFees   = orders.reduce((s, o) => s + (o.platformFee || 0), 0);
+    const totalSellerCuts  = orders.reduce((s, o) => s + (o.sellerCut || 0), 0);
+    const totalAdRevenue   = ads.reduce((s, a) => s + (a.cost || 0), 0);
+    const totalPlatformRevenue = totalListingFees + totalBuyerFees + totalSellerCuts + totalAdRevenue;
+
+    let pendingPayoutsVal = 0;
+    let releasedPayoutsVal = 0;
+    payoutsAgg.forEach(p => {
+      if (p.status === 'pending') pendingPayoutsVal = p._sum.netAmount || 0;
+      if (p.status === 'released') releasedPayoutsVal = p._sum.netAmount || 0;
+    });
+
+    const totalSalesVolume = orders.reduce((s, o) => s + o.amount, 0);
+
+    const ledger = [];
+
+    listingPayments.forEach(p => {
+      ledger.push({
+        id: p.id,
+        type: 'LISTING_FEE',
+        description: `Listing fee: "${p.product?.title || 'Digital Product'}"`,
+        party: p.student?.name || 'Seller',
+        email: p.student?.email || '',
+        inflow: p.amount,
+        listingFee: p.amount,
+        buyerFee: 0,
+        sellerCut: 0,
+        adCost: 0,
+        method: p.method || 'upi',
+        reference: p.transactionId || `TXN-${p.id.substring(0, 8).toUpperCase()}`,
+        date: p.createdAt
+      });
+    });
+
+    orders.forEach(o => {
+      const platformShare = (o.platformFee || 0) + (o.sellerCut || 0);
+      if (platformShare > 0) {
+        ledger.push({
+          id: o.id,
+          type: 'TRANSACTION_FEE',
+          description: `Order cut/surcharges: "${o.product?.title || 'Product'}"`,
+          party: `B: ${o.buyer?.name || 'Student'} | S: ${o.seller?.name || 'Student'}`,
+          email: `${o.buyer?.email || ''} / ${o.seller?.email || ''}`,
+          inflow: platformShare,
+          listingFee: 0,
+          buyerFee: o.platformFee || 0,
+          sellerCut: o.sellerCut || 0,
+          adCost: 0,
+          method: 'upi',
+          reference: `ORD-${o.id.substring(0, 8).toUpperCase()}`,
+          date: o.createdAt
+        });
+      }
+    });
+
+    ads.forEach(a => {
+      if (a.cost > 0) {
+        ledger.push({
+          id: a.id,
+          type: 'AD_REVENUE',
+          description: `Ad campaign: "${a.title}" (${a.scope} scope, ${a.duration} days)`,
+          party: a.admin?.name || 'Admin',
+          email: a.admin?.email || '',
+          inflow: a.cost,
+          listingFee: 0,
+          buyerFee: 0,
+          sellerCut: 0,
+          adCost: a.cost,
+          method: 'upi',
+          reference: `AD-${a.id.substring(0, 8).toUpperCase()}`,
+          date: a.createdAt
+        });
+      }
+    });
+
+    // Sort chronologically (newest first)
+    ledger.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return res.json({
+      summary: {
+        totalListingFees,
+        totalBuyerFees,
+        totalSellerCuts,
+        totalAdRevenue,
+        totalPlatformRevenue,
+        pendingPayoutsVal,
+        releasedPayoutsVal,
+        totalSalesVolume
+      },
+      ledger: ledger.slice(0, 100)
+    });
+  } catch (err) {
+    console.error('[MasterController.getPlatformAccounting]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
 module.exports = {
   getColleges,
   approveCollege,
@@ -409,8 +687,10 @@ module.exports = {
   getDashboardStats,
   getStudents,
   getActiveColleges,
+  getCollegeDetail,
   getPlatformPricing,
   updatePlatformPricing,
   getSellerPayouts,
   releasePayouts,
+  getPlatformAccounting,
 };

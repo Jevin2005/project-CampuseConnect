@@ -531,35 +531,35 @@ export default function AdminRegisterPage() {
                 <div className="form-group full">
                   <label className="form-label" htmlFor="college-name">College Full Name</label>
                   <input id="college-name" type="text" className="form-input" placeholder="MIT College of Engineering"
-                    value={step1.collegeName} onChange={e => setStep1({...step1, collegeName: e.target.value})} required />
+                    value={step1.collegeName} onChange={e => setStep1({ ...step1, collegeName: e.target.value })} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="college-city">College City</label>
                   <input id="college-city" type="text" className="form-input" placeholder="Mumbai, Maharashtra"
-                    value={step1.city} onChange={e => setStep1({...step1, city: e.target.value})} required />
+                    value={step1.city} onChange={e => setStep1({ ...step1, city: e.target.value })} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="college-type">College Type</label>
                   <select id="college-type" className="form-input"
-                    value={step1.collegeType} onChange={e => setStep1({...step1, collegeType: e.target.value})} required>
+                    value={step1.collegeType} onChange={e => setStep1({ ...step1, collegeType: e.target.value })} required>
                     <option value="">Select type...</option>
                     {COLLEGE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="form-group full">
-                  <label className="form-label" htmlFor="email-domain">Student Email Domain <span style={{color:'#6B7280',fontSize:10,fontWeight:500,textTransform:'none',letterSpacing:0}}>(for student verification)</span></label>
+                  <label className="form-label" htmlFor="email-domain">Student Email Domain <span style={{ color: '#6B7280', fontSize: 10, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>(for student verification)</span></label>
                   <input id="email-domain" type="text" className="form-input" placeholder="college.edu"
-                    value={step1.emailDomain} onChange={e => setStep1({...step1, emailDomain: e.target.value})} required />
+                    value={step1.emailDomain} onChange={e => setStep1({ ...step1, emailDomain: e.target.value })} required />
                   <p className="helper-text">Optional domain used to identify your college's student emails (e.g. @ssit.edu). Students can use any email but this helps associate them.</p>
                 </div>
                 <div className="form-group full">
                   <label className="form-label" htmlFor="college-code">
                     Unique College Code
-                    <span style={{marginLeft:8,display:'inline-flex',alignItems:'center',background:'rgba(247,201,72,0.12)',color:'#F7C948',borderRadius:9999,padding:'2px 8px',fontSize:10,fontWeight:700,letterSpacing:'0.5px'}}>VERY IMPORTANT</span>
+                    <span style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', background: 'rgba(247,201,72,0.12)', color: '#F7C948', borderRadius: 9999, padding: '2px 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.5px' }}>VERY IMPORTANT</span>
                   </label>
                   <input id="college-code" type="text" className="form-input mono" placeholder="SSVEC2024"
                     value={step1.collegeCode}
-                    onChange={e => { setStep1({...step1, collegeCode: e.target.value.toUpperCase()}); setCodeAvailable(null); }}
+                    onChange={e => { setStep1({ ...step1, collegeCode: e.target.value.toUpperCase() }); setCodeAvailable(null); }}
                     onBlur={handleCodeBlur}
                     required />
                   {checkingCode && <p className="helper-text">Checking availability…</p>}
@@ -585,12 +585,12 @@ export default function AdminRegisterPage() {
                 <div className="form-group">
                   <label className="form-label" htmlFor="admin-name">Admin Full Name</label>
                   <input id="admin-name" type="text" className="form-input" placeholder="Dr. Priya Mehta"
-                    value={step2.adminName} onChange={e => setStep2({...step2, adminName: e.target.value})} required />
+                    value={step2.adminName} onChange={e => setStep2({ ...step2, adminName: e.target.value })} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="admin-email">Your Personal Email</label>
                   <input id="admin-email" type="email" className="form-input" placeholder="any.valid@gmail.com"
-                    value={step2.adminEmail} onChange={e => setStep2({...step2, adminEmail: e.target.value})} required />
+                    value={step2.adminEmail} onChange={e => setStep2({ ...step2, adminEmail: e.target.value })} required />
                   <p className="helper-text">Use any valid personal or professional email — no restriction</p>
                 </div>
                 <div className="form-group full">
@@ -598,7 +598,7 @@ export default function AdminRegisterPage() {
                   <div className="password-wrapper">
                     <input id="reg-password" type={showPwd ? 'text' : 'password'} className="form-input"
                       placeholder="Create a strong password" style={{ paddingRight: '44px' }}
-                      value={step2.password} onChange={e => setStep2({...step2, password: e.target.value})} required />
+                      value={step2.password} onChange={e => setStep2({ ...step2, password: e.target.value })} required />
                     <button type="button" className="eye-btn" onClick={() => setShowPwd(!showPwd)} aria-label="Toggle password">{showPwd ? '🙈' : '👁️'}</button>
                   </div>
                   {step2.password && (
@@ -615,7 +615,7 @@ export default function AdminRegisterPage() {
                   <div className="password-wrapper">
                     <input id="confirm-password" type={showConfirmPwd ? 'text' : 'password'} className="form-input"
                       placeholder="Repeat password" style={{ paddingRight: '44px' }}
-                      value={step2.confirmPassword} onChange={e => setStep2({...step2, confirmPassword: e.target.value})} required />
+                      value={step2.confirmPassword} onChange={e => setStep2({ ...step2, confirmPassword: e.target.value })} required />
                     <button type="button" className="eye-btn" onClick={() => setShowConfirmPwd(!showConfirmPwd)} aria-label="Toggle confirm password">{showConfirmPwd ? '🙈' : '👁️'}</button>
                   </div>
                   {step2.confirmPassword && step2.password !== step2.confirmPassword && (
@@ -625,7 +625,7 @@ export default function AdminRegisterPage() {
                 <div className="form-group full">
                   <div className="checkbox-row">
                     <input id="authorized" type="checkbox" className="checkbox-input"
-                      checked={step2.authorized} onChange={e => setStep2({...step2, authorized: e.target.checked})} required />
+                      checked={step2.authorized} onChange={e => setStep2({ ...step2, authorized: e.target.checked })} required />
                     <label htmlFor="authorized" className="checkbox-label">
                       I confirm I am an authorized representative of this institution and have permission to register it on CampusConnect
                     </label>

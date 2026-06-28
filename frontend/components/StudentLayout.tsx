@@ -84,7 +84,7 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
       const past = new Date(dateStr);
       const diffMs = now.getTime() - past.getTime();
       if (diffMs < 0) return "just now";
-      
+
       const diffSec = Math.floor(diffMs / 1000);
       const diffMin = Math.floor(diffSec / 60);
       const diffHr = Math.floor(diffMin / 60);
@@ -138,7 +138,7 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
 
   useEffect(() => {
     setMounted(true);
-    
+
     // Fetch profile stats
     api.get("/api/marketplace/me")
       .then(res => {
@@ -310,18 +310,25 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
 
         {/* ── Logo ── */}
         <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e2d45" }}>
-          <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 10,
-              background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              boxShadow: "0 4px 12px rgba(79,142,247,0.3)",
-            }}>
-              <span style={{ fontSize: 16 }}>🎓</span>
-            </div>
-            <div>
-              <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#F0F4FF" }}>Campus</span>
-              <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#4F8EF7" }}>Connect</span>
+          <Link href="/" style={{ textDecoration: "none", display: "block", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 10px rgba(79,142,247,0.25)",
+                flexShrink: 0,
+              }}>
+                <span style={{ fontSize: 15 }}>🎓</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#4F8EF7", letterSpacing: "-0.5px" }}>Connect</span>
+              </div>
             </div>
           </Link>
 
@@ -500,9 +507,25 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
               />
             </div>
           </Link>
-          <Link href="/marketplace" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
-            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
-            <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 800, color: "#4F8EF7", letterSpacing: "-0.5px" }}>Connect</span>
+          <Link href="/marketplace" style={{ textDecoration: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <span style={{ fontSize: 13 }}>🎓</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#4F8EF7", letterSpacing: "-0.5px" }}>Connect</span>
+              </div>
+            </div>
           </Link>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -566,9 +589,23 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
         <div className="sl-mobile-drawer-overlay" onClick={() => setDrawerOpen(false)}>
           <div className="sl-mobile-drawer" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#F0F4FF" }}>Campus</span>
-                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#4F8EF7" }}>Connect</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: 13 }}>🎓</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
+                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#4F8EF7", letterSpacing: "-0.5px" }}>Connect</span>
+                </div>
               </div>
               <button
                 onClick={() => setDrawerOpen(false)}
@@ -669,7 +706,7 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
           <LayoutDashboard size={19} style={{ color: isBrowseActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }} />
           <span style={{ fontSize: 10, fontWeight: isBrowseActive ? 700 : 500, color: isBrowseActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }}>Browse</span>
         </Link>
-        
+
         <Link href="/marketplace/requests" className={`sl-bnav-item${isRequestsActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1, position: "relative" }}>
           <Bell size={19} style={{ color: isRequestsActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }} />
           <span style={{ fontSize: 10, fontWeight: isRequestsActive ? 700 : 500, color: isRequestsActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }}>Requests</span>
@@ -686,8 +723,8 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
         <Link href="/marketplace/sell" className={`sl-bnav-item${isSellActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1 }}>
           <div style={{
             width: 42, height: 42, borderRadius: "50%",
-            background: isSellActive 
-              ? "linear-gradient(135deg, #10B981, #059669)" 
+            background: isSellActive
+              ? "linear-gradient(135deg, #10B981, #059669)"
               : "linear-gradient(135deg, #1F2937, #111827)",
             border: isSellActive ? "2.5px solid #0d1120" : "2.5px solid #1e2d45",
             display: "flex", alignItems: "center", justifyContent: "center",

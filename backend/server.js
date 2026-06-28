@@ -36,6 +36,7 @@ const authRoutes        = require('./routes/auth.routes');
 const masterRoutes      = require('./routes/master.routes');
 const adminRoutes       = require('./routes/admin.routes');
 const marketplaceRoutes = require('./routes/marketplace.routes');
+const paymentRoutes     = require('./routes/payment.routes');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -90,6 +91,7 @@ app.use('/api/auth',        authRoutes);
 app.use('/api/master',      masterRoutes);
 app.use('/api/admin',       adminRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/payments',    paymentRoutes);
 
 console.log(`   Marketplace API: http://localhost:${process.env.PORT||5000}/api/marketplace/*`);
 

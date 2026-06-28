@@ -103,27 +103,15 @@ export default function Footer() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{
-                width: 34,
-                height: 34,
-                borderRadius: 10,
+                width: 30, height: 30, borderRadius: 8,
                 background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 12px rgba(79,142,247,0.3)",
-                flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center"
               }}>
-                <span style={{ fontSize: 16 }}>🎓</span>
+                <span style={{ fontSize: 14 }}>🎓</span>
               </div>
               <div style={{ display: "flex", alignItems: "center" }}>
-                <span style={{
-                  fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800,
-                  color: "#F0F4FF", letterSpacing: "-0.5px",
-                }}>Campus</span>
-                <span style={{
-                  fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800,
-                  color: "#4F8EF7", letterSpacing: "-0.5px",
-                }}>Connect</span>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800, color: "#4F8EF7", letterSpacing: "-0.5px" }}>Connect</span>
               </div>
             </div>
             <p style={{

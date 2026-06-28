@@ -117,16 +117,18 @@ model Product {
 }
 
 model ListingPayment {
-  id            String   @id @default(cuid())
-  amount        Float
-  method        String
-  status        String   @default("completed")
-  transactionId String?
-  createdAt     DateTime @default(now())
-  studentId     String
-  productId     String   @unique
-  student       Student  @relation(fields: [studentId], references: [id])
-  product       Product  @relation(fields: [productId], references: [id])
+  id                String   @id @default(cuid())
+  amount            Float
+  method            String
+  status            String   @default("completed")
+  transactionId     String?
+  razorpayOrderId   String?  // Razorpay order_id for audit
+  razorpayPaymentId String?  // Razorpay payment_id after success
+  createdAt         DateTime @default(now())
+  studentId         String
+  productId         String   @unique
+  student           Student  @relation(fields: [studentId], references: [id])
+  product           Product  @relation(fields: [productId], references: [id])
 }
 
 model BuyRequest {
@@ -165,21 +167,23 @@ model ChatMessage {
 }
 
 model Order {
-  id             String        @id @default(cuid())
-  amount         Float
-  status         String        @default("PENDING")
-  platformFee    Float?        // platform fee collected from buyer (digital only)
-  sellerCut      Float?        // amount deducted from seller
-  netSellerAmt   Float?        // what seller actually receives
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  buyerId        String
-  sellerId       String
-  productId      String
-  buyer          Student       @relation("BuyerOrders",  fields: [buyerId],  references: [id])
-  product        Product       @relation(fields: [productId], references: [id])
-  seller         Student       @relation("SellerOrders", fields: [sellerId], references: [id])
-  sellerPayout   SellerPayout?
+  id                String        @id @default(cuid())
+  amount            Float
+  status            String        @default("PENDING")
+  platformFee       Float?        // platform fee collected from buyer (digital only)
+  sellerCut         Float?        // amount deducted from seller
+  netSellerAmt      Float?        // what seller actually receives
+  razorpayOrderId   String?       // Razorpay order_id for audit
+  razorpayPaymentId String?       // Razorpay payment_id after success
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  buyerId           String
+  sellerId          String
+  productId         String
+  buyer             Student       @relation("BuyerOrders",  fields: [buyerId],  references: [id])
+  product           Product       @relation(fields: [productId], references: [id])
+  seller            Student       @relation("SellerOrders", fields: [sellerId], references: [id])
+  sellerPayout      SellerPayout?
 }
 
 model SellerPayout {

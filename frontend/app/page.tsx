@@ -160,7 +160,7 @@ function StatsRow() {
     >
       {stats.map((s, i) => (
         <div key={s.label} className="stat-item" style={{ display: "flex", alignItems: "center" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 36px" }}>
+          <div className="stat-item-inner">
             <span className="stat-number" style={{
               fontFamily: "'Sora', sans-serif",
               fontSize: 30, fontWeight: 800,
@@ -178,7 +178,7 @@ function StatsRow() {
             </span>
           </div>
           {i < 2 && (
-            <div style={{ width: 1, height: 36, background: "#1e2d45", flexShrink: 0 }} />
+            <div className="stat-divider" />
           )}
         </div>
       ))}
@@ -653,11 +653,10 @@ function ProductTypeCard({
         background: "linear-gradient(#111827, #111827) padding-box, " + borderGradient + " border-box",
         border: "1px solid transparent", borderRadius: 14,
         padding: "28px", display: "flex", flexDirection: "column", gap: 20,
-        transition: "transform 0.22s, box-shadow 0.22s",
         transform: hov ? "translateY(-4px)" : "translateY(0)",
         boxShadow: hov ? `0 16px 40px ${accentGlow}` : "0 4px 24px rgba(0,0,0,0.25)",
         opacity: visible ? 1 : 0,
-        transition2: `opacity 0.6s ease ${delay}s, transform 0.22s, box-shadow 0.22s`,
+        transition: `opacity 0.6s ease ${delay}s, transform 0.22s, box-shadow 0.22s`,
       } as React.CSSProperties}
     >
       {/* header */}

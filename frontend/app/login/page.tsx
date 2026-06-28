@@ -262,7 +262,7 @@ function AuthLeftPanel() {
         {[
           { num: "1,470", label: "Students" },
           { num: "2,840", label: "Products" },
-          { num: "12+",   label: "Colleges" },
+          { num: "12+", label: "Colleges" },
         ].map((s, i) => (
           <div key={s.label} style={{ display: "flex", alignItems: "center" }}>
             <div style={{ textAlign: "center", padding: "0 20px" }}>
@@ -283,15 +283,15 @@ export default function StudentLoginPage() {
   const { setPendingEmail, setAuth } = useAuthStore();
 
   const [loginMode, setLoginMode] = useState<"password" | "otp">("password");
-  const [pwForm, setPwForm]       = useState({ email: "", password: "" });
+  const [pwForm, setPwForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
-  const [pwError, setPwError]     = useState("");
+  const [pwError, setPwError] = useState("");
   const [isPending, setIsPending] = useState(false);
 
-  const [otpEmail, setOtpEmail]   = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError]   = useState("");
+  const [otpError, setOtpError] = useState("");
 
   const [showVerification, setShowVerification] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
@@ -537,9 +537,9 @@ export default function StudentLoginPage() {
                   {resendTimer > 0
                     ? <span>Resend in <strong style={{ color: "#F0F4FF" }}>{resendTimer}s</strong></span>
                     : <button type="button" onClick={handleResendOtp} disabled={!canResend}
-                        style={{ background: "none", border: "none", color: "#4F8EF7", cursor: "pointer", fontWeight: 600 }}>
-                        Resend Code
-                      </button>
+                      style={{ background: "none", border: "none", color: "#4F8EF7", cursor: "pointer", fontWeight: 600 }}>
+                      Resend Code
+                    </button>
                   }
                 </div>
                 <div style={{ textAlign: "center", marginTop: 16 }}>

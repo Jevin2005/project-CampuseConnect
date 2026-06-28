@@ -30,9 +30,9 @@ function AuthLeftPanel() {
       {/* stacked cards */}
       <div style={{ position: "relative", height: 220, marginBottom: 48 }}>
         {[
-          { icon: "🎥", label: "Video Lecture",     color: "#A78BFA", border: "rgba(124,58,237,0.3)", rotate: "-4deg",  left: 24, top: 30 },
-          { icon: "📄", label: "Notes PDF",          color: "#10B981", border: "rgba(16,185,129,0.3)", rotate: "-1.5deg", left: 52, top: 16 },
-          { icon: "💻", label: "Laptop — ₹28,000",  color: "#4F8EF7", border: "rgba(79,142,247,0.4)", rotate: "1.5deg",  left: 80, top: 0 },
+          { icon: "🎥", label: "Video Lecture", color: "#A78BFA", border: "rgba(124,58,237,0.3)", rotate: "-4deg", left: 24, top: 30 },
+          { icon: "📄", label: "Notes PDF", color: "#10B981", border: "rgba(16,185,129,0.3)", rotate: "-1.5deg", left: 52, top: 16 },
+          { icon: "💻", label: "Laptop — ₹28,000", color: "#4F8EF7", border: "rgba(79,142,247,0.4)", rotate: "1.5deg", left: 80, top: 0 },
         ].map(c => (
           <div key={c.icon} style={{
             position: "absolute", top: c.top, left: c.left,
@@ -70,7 +70,7 @@ function AuthLeftPanel() {
         {[
           { num: "1,470", label: "Students" },
           { num: "2,840", label: "Products" },
-          { num: "12+",   label: "Colleges" },
+          { num: "12+", label: "Colleges" },
         ].map((s, i) => (
           <div key={s.label} style={{ display: "flex", alignItems: "center" }}>
             <div style={{ textAlign: "center", padding: "0 20px" }}>

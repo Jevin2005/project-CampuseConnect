@@ -12,6 +12,7 @@ import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import { usePlatformPricing } from "@/lib/usePlatformPricing";
+import { openRazorpayCheckout } from "@/lib/razorpay";
 
 interface Product {
   id: string;
@@ -74,9 +75,9 @@ export default function DigitalProductPage() {
   const [wishlisted, setWishlisted] = useState(false);
   const [toast, setToast] = useState("");
   const [buyModal, setBuyModal] = useState(false);
-  const [buyStep, setBuyStep] = useState<"confirm" | "pay" | "done">("confirm");
+  const [buyStep, setBuyStep] = useState<"confirm" | "done">("confirm");
   const [buyLoading, setBuyLoading] = useState(false);
-  const [selectedUpi, setSelectedUpi] = useState("");
+  const [buyError, setBuyError] = useState("");
   const [isPurchased, setIsPurchased] = useState(false);
   const user = useAuthStore(s => s.user);
   const { pricing } = usePlatformPricing();
@@ -146,31 +147,70 @@ export default function DigitalProductPage() {
     showToast("Link copied to clipboard! 🔗");
   }
 
-  async function confirmPurchase(method: string) {
+  async function handleBuyNow() {
     if (!product) return;
     setBuyLoading(true);
+    setBuyError("");
     try {
-      // Buyer pays product price + platform fee (billing-only fee)
-      const platformFeeAmt = parseFloat(((pricing.digitalBuyerFeePercent / 100) * product.price).toFixed(2));
-      const totalBuyerAmt  = parseFloat((product.price + platformFeeAmt).toFixed(2));
-
-      const res = await api.post("/api/marketplace/orders", {
+      // Step 1: Create Razorpay order on backend
+      const orderRes = await api.post("/api/payments/create-order", {
+        type: "digital_purchase",
         productId: product.id,
-        amount: totalBuyerAmt,
-        method,
       });
-      if (res.status === 200 || res.status === 201 || res.data.orderId) {
-        setBuyStep("done");
-      } else {
-        showToast(res.data.message || "Purchase failed");
-        setBuyModal(false);
-      }
+      const { razorpayOrderId, amount, currency } = orderRes.data;
+
+      setBuyModal(false); // close our modal; Razorpay modal will open
+
+      // Step 2: Open Razorpay Checkout
+      await openRazorpayCheckout({
+        orderId:     razorpayOrderId,
+        amount,
+        currency,
+        name:        "CampusConnect Marketplace",
+        description: product.title,
+        prefill: {
+          name:  user?.name  ?? "",
+          email: user?.email ?? "",
+        },
+        themeColor: themeColor.startsWith("var") ? "#7C3AED" : themeColor,
+        onSuccess: async (response) => {
+          setBuyLoading(true);
+          setBuyModal(true);
+          try {
+            // Step 3: Verify HMAC signature + create order in DB
+            await api.post("/api/payments/verify", {
+              type:                 "digital_purchase",
+              razorpayOrderId:     response.razorpay_order_id,
+              razorpayPaymentId:   response.razorpay_payment_id,
+              razorpaySignature:   response.razorpay_signature,
+              productId:           product.id,
+            });
+            setIsPurchased(true);
+            setBuyStep("done");
+          } catch (err: any) {
+            setBuyError(err?.response?.data?.message || "Payment verification failed. Contact support.");
+          } finally {
+            setBuyLoading(false);
+          }
+        },
+        onDismiss: () => {
+          // User closed Razorpay without paying
+          setBuyLoading(false);
+          showToast("Payment cancelled.");
+        },
+      });
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Failed to process transaction. Try again.";
-      showToast(msg);
-      setBuyModal(false);
+      const msg = err?.response?.data?.message || "Could not initiate payment. Try again.";
+      if (err?.response?.status === 409) {
+        showToast("You already own this product!");
+        setIsPurchased(true);
+        setBuyModal(false);
+      } else {
+        setBuyError(msg);
+      }
+    } finally {
+      setBuyLoading(false);
     }
-    setBuyLoading(false);
   }
 
   // ── Loading state
@@ -374,44 +414,32 @@ export default function DigitalProductPage() {
                   );
                 })()}
 
-                <button
-                  onClick={() => setBuyStep("pay")}
-                  style={{ width: "100%", height: 48, borderRadius: 9999, background: themeColor, border: "none", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 16px ${themeGlow}` }}
-                >
-                  💳 Proceed to Payment
-                </button>
-                <button onClick={() => setBuyModal(false)} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid var(--border)", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "var(--text-soft)"} onMouseOut={e => e.currentTarget.style.borderColor = "var(--border)"}>Cancel</button>
-              </>
-            )}
-
-            {buyStep === "pay" && (
-              <>
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text-primary)", marginBottom: 16 }}>Choose Secured Method</h2>
-                {buyLoading ? (
-                  <div style={{ textAlign: "center", padding: "28px 0" }}>
-                    <Loader2 size={36} style={{ color: themeColor, animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
-                    <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", marginTop: 12 }}>Securing transaction channel...</p>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {[
-                      { icon: "📱", label: "Google Pay / PhonePe / UPI", method: "upi" },
-                      { icon: "💳", label: "Debit or Credit Cards", method: "card" },
-                      { icon: "🏦", label: "Instant Netbanking", method: "netbanking" }
-                    ].map(m => (
-                      <div
-                        key={m.label}
-                        onClick={() => confirmPurchase(m.method)}
-                        className="pay-option"
-                        style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(0,0,0,0.25)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", transition: "all 0.2s" }}
-                      >
-                        <span style={{ fontSize: 22 }}>{m.icon}</span>
-                        <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)", fontWeight: 600 }}>{m.label}</span>
-                      </div>
-                    ))}
-                    <button onClick={() => setBuyStep("confirm")} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid var(--border)", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", cursor: "pointer", marginTop: 6 }}>← Back to Review</button>
+                {/* Error message */}
+                {buyError && (
+                  <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 8, alignItems: "center" }}>
+                    <AlertTriangle size={14} style={{ color: "#EF4444", flexShrink: 0 }} />
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#EF4444" }}>{buyError}</span>
                   </div>
                 )}
+
+                <button
+                  onClick={handleBuyNow}
+                  disabled={buyLoading}
+                  style={{ width: "100%", height: 48, borderRadius: 9999, background: buyLoading ? "rgba(79,142,247,0.5)" : themeColor, border: "none", fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 700, color: "#fff", cursor: buyLoading ? "not-allowed" : "pointer", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 16px ${themeGlow}`, transition: "all 0.2s" }}
+                >
+                  {buyLoading ? (
+                    <><Loader2 size={18} style={{ animation: "spin 0.8s linear infinite" }} /> Processing...</>
+                  ) : (
+                    <>💳 Pay with Razorpay</>
+                  )}
+                </button>
+                <button onClick={() => { setBuyModal(false); setBuyError(""); }} style={{ width: "100%", height: 38, borderRadius: 9999, background: "transparent", border: "1px solid var(--border)", fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-soft)", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.borderColor = "var(--text-soft)"} onMouseOut={e => e.currentTarget.style.borderColor = "var(--border)"}>Cancel</button>
+
+                {/* Razorpay trust badge */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12 }}>
+                  <ShieldCheck size={12} style={{ color: "var(--text-muted)" }} />
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "var(--text-muted)" }}>Secured by Razorpay · UPI · Cards · Netbanking</span>
+                </div>
               </>
             )}
 

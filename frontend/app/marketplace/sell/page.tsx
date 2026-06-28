@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
+import { openRazorpayCheckout } from "@/lib/razorpay";
+import { useAuthStore } from "@/store/authStore";
 
 type ProdType = "physical" | "digital" | null;
 type DigSub = "notes" | "video" | "both" | "bundle" | null;
@@ -73,8 +75,10 @@ export default function SellProductPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [payModal, setPayModal] = useState(false);
-  const [payStep, setPayStep] = useState<"choose" | "done">("choose");
+  const [payError, setPayError] = useState("");
   const [errorToast, setErrorToast] = useState("");
+
+  const user = useAuthStore(s => s.user);
 
   const physicalImgRef = useRef<HTMLInputElement>(null);
   const notesDocRef = useRef<HTMLInputElement>(null);
@@ -303,8 +307,8 @@ export default function SellProductPage() {
     return true;
   }
 
-  // POST Submission
-  async function submitToAPI() {
+  // POST Submission — called AFTER Razorpay payment is verified
+  async function submitToAPI(razorpayOrderId?: string, razorpayPaymentId?: string) {
     setSubmitting(true);
     const fd = new FormData();
     fd.append("title", title.trim());
@@ -379,15 +383,73 @@ export default function SellProductPage() {
       await api.post("/api/marketplace/products", fd, {
         headers: { "Content-Type": "multipart/form-data" }
       });
-      setPayStep("done");
-      setTimeout(() => {
-        setPayModal(false);
-        setSubmitted(true);
-      }, 1500);
+      setPayModal(false);
+      setSubmitted(true);
     } catch (err) {
       console.error("Submitting listing failed:", err);
       showNotification("Network or system failure while submitting product. Please try again.");
       setPayModal(false);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Opens Razorpay checkout for the listing fee, then submits the product on success
+  async function handleListingFeePayment() {
+    setPayError("");
+    setSubmitting(true);
+    try {
+      // Step 1: Create Razorpay order for listing fee
+      const orderRes = await api.post("/api/payments/create-order", {
+        type:        "listing_fee",
+        productType: prodType,
+        price:       calculatedSellPrice,
+      });
+      const { razorpayOrderId, amount, currency } = orderRes.data;
+
+      setPayModal(false); // close our modal before Razorpay opens
+
+      // Step 2: Open Razorpay Checkout
+      await openRazorpayCheckout({
+        orderId:     razorpayOrderId,
+        amount,
+        currency,
+        name:        "CampusConnect Marketplace",
+        description: `Listing Fee — ${prodType === "digital" ? "Digital" : "Physical"} Product`,
+        prefill: {
+          name:  user?.name  ?? "",
+          email: user?.email ?? "",
+        },
+        themeColor: "#3B82F6",
+        onSuccess: async (response) => {
+          setSubmitting(true);
+          setPayModal(true);
+          try {
+            // Step 3: Verify HMAC signature
+            await api.post("/api/payments/verify", {
+              type:               "listing_fee",
+              razorpayOrderId:    response.razorpay_order_id,
+              razorpayPaymentId:  response.razorpay_payment_id,
+              razorpaySignature:  response.razorpay_signature,
+            });
+            // Step 4: Create the product listing
+            await submitToAPI(response.razorpay_order_id, response.razorpay_payment_id);
+          } catch (err: any) {
+            setPayError(err?.response?.data?.message || "Payment verification failed. Please contact support.");
+            setPayModal(true);
+          } finally {
+            setSubmitting(false);
+          }
+        },
+        onDismiss: () => {
+          setSubmitting(false);
+          showNotification("Payment cancelled. Your form data is saved — try again when ready.");
+        },
+      });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Could not initiate payment. Try again.";
+      setPayError(msg);
+      setPayModal(true);
     } finally {
       setSubmitting(false);
     }
@@ -540,106 +602,100 @@ export default function SellProductPage() {
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
               animation: "scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
             }}>
-              {payStep === "choose" ? (
-                <>
-                  <div style={{ textAlign: "center", marginBottom: 24 }}>
-                    <div style={{ display: "inline-flex", padding: 14, background: "rgba(59, 130, 246, 0.1)", borderRadius: 16, color: "#3B82F6", marginBottom: 12 }}>
-                      <ShieldCheck size={36} />
-                    </div>
-                    <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Pay Listing Fee</h2>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>
-                      One-time fee to review and activate your listed items inside the campus network.
-                    </p>
-                  </div>
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <div style={{ display: "inline-flex", padding: 14, background: "rgba(59, 130, 246, 0.1)", borderRadius: 16, color: "#3B82F6", marginBottom: 12 }}>
+                  <ShieldCheck size={36} />
+                </div>
+                <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Pay Listing Fee</h2>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", lineHeight: 1.5 }}>
+                  One-time fee to review and activate your listed items inside the campus network.
+                </p>
+              </div>
 
-                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid #334155", borderRadius: 16, padding: "18px", marginBottom: 24 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>
-                        Category: <strong style={{ color: "#F1F5F9" }}>{prodType === "digital" ? "Digital Product" : "Physical Product"}</strong>
-                      </span>
-                      <span style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10B981", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>Active</span>
-                    </div>
+              <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid #334155", borderRadius: 16, padding: "18px", marginBottom: 24 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>
+                    Category: <strong style={{ color: "#F1F5F9" }}>{prodType === "digital" ? "Digital Product" : "Physical Product"}</strong>
+                  </span>
+                  <span style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10B981", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>Active</span>
+                </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12 }}>
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>Base Listing Fee:</span>
-                      <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#F1F5F9" }}>₹{listFee}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12 }}>
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>GST (18%):</span>
-                      <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#94A3B8" }}>+₹{listFeeGst}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, fontSize: 12 }}>
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>Gateway Charge (2%):</span>
-                      <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#94A3B8" }}>+₹{listFeeGateway}</span>
-                    </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12 }}>
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>Base Listing Fee:</span>
+                  <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#F1F5F9" }}>₹{listFee}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, fontSize: 12 }}>
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>GST (18%):</span>
+                  <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#94A3B8" }}>+₹{listFeeGst}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, fontSize: 12 }}>
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#94A3B8" }}>Gateway Charge (2%):</span>
+                  <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, color: "#94A3B8" }}>+₹{listFeeGateway}</span>
+                </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1.5px solid #334155", paddingTop: 10 }}>
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#fff", fontWeight: 600 }}>Grand Total to Pay:</span>
-                      <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFeeTotal}</span>
-                    </div>
-                  </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1.5px solid #334155", paddingTop: 10 }}>
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#fff", fontWeight: 600 }}>Grand Total to Pay:</span>
+                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#3B82F6" }}>₹{listFeeTotal}</span>
+                </div>
+              </div>
 
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: "#64748B", textTransform: "uppercase", marginBottom: 12 }}>Select Secure Payment Mode</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
-                    {[
-                      { icon: "📱", label: "Instant UPI (GPay, PhonePe, Paytm)" },
-                      { icon: "💳", label: "Credit / Debit Card (Visa, RuPay)" },
-                      { icon: "🏦", label: "NetBanking Support" }
-                    ].map(method => (
-                      <button
-                        key={method.label}
-                        onClick={submitToAPI}
-                        disabled={submitting}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 14,
-                          background: "#1E293B", border: "1.5px solid #334155", borderRadius: 14,
-                          padding: "14px 18px", cursor: "pointer", transition: "all 0.2s",
-                          textAlign: "left", width: "100%"
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = "#3B82F6";
-                          e.currentTarget.style.background = "#1e293b80";
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = "#334155";
-                          e.currentTarget.style.background = "#1E293B";
-                        }}
-                      >
-                        <span style={{ fontSize: 20 }}>{method.icon}</span>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: "#F1F5F9" }}>{method.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => setPayModal(false)}
-                    style={{
-                      width: "100%", height: 40, borderRadius: 10,
-                      background: "transparent", border: "1.5px solid #334155",
-                      fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8",
-                      cursor: "pointer", fontWeight: 600, transition: "colors 0.2s"
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#F1F5F9"}
-                    onMouseLeave={e => e.currentTarget.style.color = "#94A3B8"}
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <div style={{ textAlign: "center", padding: "24px 0" }}>
-                  <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-                  <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#10B981", marginBottom: 6 }}>Payment Completed!</h2>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8" }}>
-                    ₹{listFeeTotal} successfully processed. Uploading documents and metadata...
-                  </p>
+              {/* Error Message */}
+              {payError && (
+                <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
+                  <AlertCircle size={14} style={{ color: "#EF4444", flexShrink: 0 }} />
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#EF4444" }}>{payError}</span>
                 </div>
               )}
+
+              {/* Razorpay Pay Button */}
+              <button
+                onClick={handleListingFeePayment}
+                disabled={submitting}
+                style={{
+                  width: "100%", height: 50, borderRadius: 14,
+                  background: submitting ? "rgba(59,130,246,0.4)" : "linear-gradient(90deg,#3B82F6,#2563EB)",
+                  border: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 14,
+                  fontWeight: 700, color: "#fff", cursor: submitting ? "not-allowed" : "pointer",
+                  marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  boxShadow: submitting ? "none" : "0 4px 20px rgba(59,130,246,0.35)",
+                  transition: "all 0.2s"
+                }}
+              >
+                {submitting ? (
+                  <><span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Processing...</>
+                ) : (
+                  <>💳 Pay ₹{listFeeTotal} with Razorpay</>
+                )}
+              </button>
+
+              <button
+                onClick={() => { setPayModal(false); setPayError(""); }}
+                style={{
+                  width: "100%", height: 40, borderRadius: 10,
+                  background: "transparent", border: "1.5px solid #334155",
+                  fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8",
+                  cursor: "pointer", fontWeight: 600, transition: "colors 0.2s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = "#F1F5F9"}
+                onMouseLeave={e => e.currentTarget.style.color = "#94A3B8"}
+              >
+                Cancel
+              </button>
+
+              {/* Trust badge */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 14 }}>
+                <ShieldCheck size={11} style={{ color: "#475569" }} />
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#475569" }}>Secured by Razorpay · UPI · Cards · Netbanking</span>
+              </div>
             </div>
           </div>
         )}
 
+
+
         {/* Success / Finished Screen */}
         {submitted ? (
+
           <div style={{
             maxWidth: 640, margin: "60px auto", textAlign: "center",
             background: "rgba(15, 23, 42, 0.4)", border: "1.5px solid #1E293B",
@@ -1738,7 +1794,6 @@ export default function SellProductPage() {
                   <button
                     onClick={() => {
                       if (listFeeTotal > 0) {
-                        setPayStep("choose");
                         setPayModal(true);
                       } else {
                         submitToAPI();
