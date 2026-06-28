@@ -37,33 +37,45 @@ Unlike generic classified sites, CampusConnect provides:
 
 ## ✨ Core Product Features
 
-### 1. Student Commerce & Digital Rights Management (💙 Student Panel)
-* **Domain-Verified Onboarding**: Dynamic registration pipeline checking student email domains against university registers (e.g., `@university.edu`) prior to tenant onboarding.
-* **Secure Document Rendering**: Interactive study notes and slides are processed in-memory as buffers, projecting directly to a custom HTML5 canvas to defeat DevTools inspections, inspect-element URL sniffing, and standard download options.
-* **Active Screen/Capture Blocking**: Real-time event hooks that intercept screen-recording software (OBS, ShareX) and screenshot utilities (Windows Snipping Tool). Detecting focus loss blackouts the viewer instantly.
-* **Hardware Interception & Clipboard Sanitization**: Hooks that block right-clicks, selection, copying, `Ctrl+P` (printing), and `Ctrl+S` (saving). Intercepting the `PrintScreen` key triggers an instant layout wipe and replaces the OS clipboard with security symbols (`🔒`).
-* **Dynamic Digital Watermarking**: Diagonally prints transaction metadata (buyer ID, buyer IP, email, and timestamp) in rotating opacity positions to neutralize external camera recording.
-* **Interactive Negotiation Inbox**: Real-time bidding and communication channels driven by `Socket.io` websockets. Includes custom transaction status tracking (Negotiating, Sold, Completed, Cancelled) and unread notification alerts.
+### 👨‍🎓 Student Panel & DRM Security Engine (Blue 💙)
 
-### 2. Moderation & Native Advertising (💚 College Admin Panel)
-* **Onboarding Moderation**: Administrative queue to vet student enrollment numbers and verify pending campus profiles.
-* **Dynamic Listing Control**: Moderation systems for flag reviews, inappropriate content filtering, and active listings management.
-* **Campus Revenue Analytics**: Real-time dashboard charting transaction counts, total local listing fees, platform commission cuts, and active user metrics.
-* **Self-Serve Advertising Layer**: Native banner and listing promotion systems. Enables admins to schedule local ad campaigns and tracks ad impressions, click metrics, and CTR (Click-Through-Rate) statistics automatically.
+| Feature | Technical Implementation | Core Functionality |
+| :--- | :--- | :--- |
+| **Domain-Verified Onboarding** | Dynamic regex check against college email registries | Verifies student matching domains before granting access to isolated campus. |
+| **Secure Canvas Document Reader** | Dynamic in-memory PDF/video projection directly to HTML5 canvas | Neutralizes URL sniffing, DevTools inspection, copy-paste, and standard save options. |
+| **Active Screen Capture Defense** | Browser window blur & focus tracking event handlers | Blackouts reader screen instantly if screen-capture tools or Snip is opened. |
+| **Hardware & Clipboard Interceptor** | PrintScreen listener & clipboard buffer sanitizer | Prevents Ctrl+C, Ctrl+P, Ctrl+S; overwrites OS clipboard with `🔒` on PrintScreen. |
+| **Dynamic Watermark Renderer** | Multi-row diagonal overlays of user metadata (IP, time, email) | Decouples mobile camera leakage by tagging the buyer's credentials to the stream. |
+| **Interactive Negotiation Inbox** | Real-time bi-directional messaging with Socket.io | Automates negotiation chats, transaction statuses, and updates. |
 
-### 3. Network Infrastructure Management (💛 Master Admin Panel)
-* **Tenant Provisioning**: Simple UI for onboarding new universities, mapping approved domains, and assigning initial configurations.
-* **Global Fee Controls**: Live configurations managing global seller listing fees, checkout processing rates, and payout release cooling periods.
-* **Platform Audit & Compliance**: System-wide access to search audit trails, manage system bans, and instantly blacklist bad actors across all colleges.
+### 🏫 College Admin Panel & Local Ad Manager (Green 💚)
 
-### 4. Advanced System & Infrastructure Implementations
-* **Escrow Ledger & Wallet Services**: Dual-tier transaction fee splitting. Integrated Razorpay processing charges listing fees from sellers and transactions fees from buyers, routing payouts through an automated ledger with customizable cooling releases (e.g., 7-day dispute window).
-* **Multi-Format Asset Pipeline**: Optimized file handlers utilising Multer buffers to process and cache multi-format items (images up to 10 files, videos up to 5, and PDF guides up to 10). Private files are securely kept in Cloudflare R2 / AWS S3 buckets and accessed using 15-minute time-locked presigned tokens.
-* **Double-Guard Session Security**: Clean JWT structure combining short-lived Access Tokens (15-min expiry) with sliding-window, HTTP-only Refresh Cookies (7-day expiry). Verified dynamically against version indices stored in a Redis cache, enabling rapid global logouts and session terminations.
-* **Platform Business Ledger & Ledger Engine**: Comprehensive database-driven financial logs tracking all platform cash inflows (listings fees, checkout fees, seller commissions, ad campaigns) mapped to distinct tags (`TXN-`, `ORD-`, `AD-`) with real-time Gross Sales Volume and Pending/Released asset bookkeeping.
-* **Dynamic Tiered Pricing & Tax Calculators**: Configurable JSON tiered rate structures for physical goods. Built-in calculators automatically inject standard GST overrides (18%) and payment processing fees (2%) on top of base transaction amounts during Razorpay order formulation.
-* **Advanced Aggregation Analytics**: Live statistics engine querying PostgreSQL databases using Prisma `groupBy` aggregates to compute top-performing sellers, active product inventories, catalog breakdown ratios, and weekly revenue trendlines.
-* **Escrow Release Automation**: Chronological release system checking payout status flags against active date limits (`releaseAfter`). Provides administration controllers to batch-release overdue payout records seamlessly.
+| Feature | Technical Implementation | Core Functionality |
+| :--- | :--- | :--- |
+| **Student Access Moderation** | Interactive vetting queue & registration status switches | Vets enrollment details, approves profiles, and manages student status controls. |
+| **Listing Control Board** | Flag reviews and approval state toggles via DB operations | Approves digital listing catalog updates and flags questionable listings. |
+| **Campus Revenue Dashboard** | Statistical tracking metrics with localized aggregations | Charts transaction frequency, listing fees gathered, and total platform cut. |
+| **Self-Serve Ad Placements** | Campaign scheduling interface & media upload handles | Places banner/sponsored cards within target college and tracks views/clicks/CTR. |
+
+### 👑 Master Admin Panel & Global Settings (Gold 💛)
+
+| Feature | Technical Implementation | Core Functionality |
+| :--- | :--- | :--- |
+| **Tenant Provisioning** | Dynamic institution onboarding & domain config forms | Provisions new colleges, defines valid email domains, and generates keys. |
+| **Platform Revenue Config** | Dynamic settings overrides adjusting global fee ratios | Modifies seller upload costs, checkout surcharges, and release lockouts. |
+| **Compliance Audit Logs** | Comprehensive audit registers matching logs to admin keys | Audits master actions, tracks configuration revisions, and manages system bans. |
+
+### ⚙️ Core Fintech & Infrastructure Engine (Purple 💜)
+
+| Feature | Technical Implementation | Core Functionality |
+| :--- | :--- | :--- |
+| **Escrow Payout Ledger** | Automatic split checkout fees + Razorpay webhook logic | Splits payments between seller cuts and platform margins; locks funds under escrow. |
+| **Automated Escrow Releases** | Time checks against `releaseAfter` constraints | Auto-releases ledger assets after the dispute window (e.g. 7 days). |
+| **Dynamic Physical Pricing** | JSON price-tier mapping configuration | Calculates listing fees dynamically based on item prices (e.g. 5% cut). |
+| **Double-Guard Session Security** | JWT (15-min) + secure HTTP-only Refresh Cookies (7-day) | Rotates tokens; integrates with Redis cache database to support instant global logouts. |
+| **Multi-Format Asset Handling** | Multer buffer uploads with Cloudflare R2 security | Uploads images, videos, and PDFs; delivers them via 15-minute TTL signed URLs. |
+| **Live Aggregates Engine** | PostgreSQL database aggregates (`groupBy` on Prisma models) | Evaluates sales figures, catalog distributions, and top merchants. |
+
 
 
 
@@ -156,88 +168,9 @@ erDiagram
 * **`AuditLog`**: Dedicated ledger tracking Master Admin security controls, parameter changes, and user bans.
 
 
----
-
-## ⚙️ Setup & Development Guide
-
-### Prerequisites
-* **Node.js** v18+
-* **npm** v9+
-* **PostgreSQL** & **Redis** active instances
-
-### 1. Database & Environment Configuration
-
-Navigate to the `backend/` directory:
-```bash
-cd backend
-npm install
-```
-
-Create a `.env` configuration:
-```env
-PORT=5000
-FRONTEND_URL=http://localhost:3000
-
-# Database & Caching
-DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/campusconnect?schema=public"
-REDIS_URL="redis://localhost:6379"
-
-# Security & Tokens
-JWT_SECRET="CC_Sec_Key_Student_2026_#"
-JWT_REFRESH_SECRET="CC_Sec_Refresh_Student_2026_$"
-BCRYPT_ROUNDS=12
-
-# Mailer Gateway
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
-
-# Initial Master Admin Credentials
-MASTER_EMAIL=admin@campusconnect.in
-MASTER_PASSWORD=MasterAdmin@2024!
-```
-
-### 2. Database Initialization
-```bash
-# Push schemas & apply PostgreSQL indexing
-npx prisma db push
-
-# Generate optimized Prisma Engine
-npx prisma generate
-
-# Seed the master tenant configurations
-node seed.js
-```
-> The database seed generates a default Sandbox College tenant (`demo.edu`, access code `DEMO2024`) and sets up the primary Master Admin (`admin@campusconnect.in`).
-
-### 3. Booting Servers
-
-**Start Backend Service:**
-```bash
-npm run dev
-```
-
-**Start Next.js Client App:**
-In a separate terminal, navigate to `frontend/`:
-```bash
-cd frontend
-npm install
-```
-
-Create `.env.local`:
-```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
-```
-
-Run Next.js with Turbopack:
-```bash
-npm run dev
-```
-
-Open `http://localhost:3000` to launch the platform locally.
 
 ---
+
 
 ## 👥 Co-Founders & Core Engineers
 
