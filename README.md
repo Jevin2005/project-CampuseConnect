@@ -60,6 +60,11 @@ Unlike generic classified sites, CampusConnect provides:
 * **Escrow Ledger & Wallet Services**: Dual-tier transaction fee splitting. Integrated Razorpay processing charges listing fees from sellers and transactions fees from buyers, routing payouts through an automated ledger with customizable cooling releases (e.g., 7-day dispute window).
 * **Multi-Format Asset Pipeline**: Optimized file handlers utilising Multer buffers to process and cache multi-format items (images up to 10 files, videos up to 5, and PDF guides up to 10). Private files are securely kept in Cloudflare R2 / AWS S3 buckets and accessed using 15-minute time-locked presigned tokens.
 * **Double-Guard Session Security**: Clean JWT structure combining short-lived Access Tokens (15-min expiry) with sliding-window, HTTP-only Refresh Cookies (7-day expiry). Verified dynamically against version indices stored in a Redis cache, enabling rapid global logouts and session terminations.
+* **Platform Business Ledger & Ledger Engine**: Comprehensive database-driven financial logs tracking all platform cash inflows (listings fees, checkout fees, seller commissions, ad campaigns) mapped to distinct tags (`TXN-`, `ORD-`, `AD-`) with real-time Gross Sales Volume and Pending/Released asset bookkeeping.
+* **Dynamic Tiered Pricing & Tax Calculators**: Configurable JSON tiered rate structures for physical goods. Built-in calculators automatically inject standard GST overrides (18%) and payment processing fees (2%) on top of base transaction amounts during Razorpay order formulation.
+* **Advanced Aggregation Analytics**: Live statistics engine querying PostgreSQL databases using Prisma `groupBy` aggregates to compute top-performing sellers, active product inventories, catalog breakdown ratios, and weekly revenue trendlines.
+* **Escrow Release Automation**: Chronological release system checking payout status flags against active date limits (`releaseAfter`). Provides administration controllers to batch-release overdue payout records seamlessly.
+
 
 
 ---
@@ -108,21 +113,48 @@ Unlike generic classified sites, CampusConnect provides:
 
 ## 🗄️ Multi-Tenant Domain Schema
 
-Every resource maps to a specific college instance to guarantee database level multi-tenancy.
+Every resource maps to a specific college instance to guarantee database level multi-tenancy. This ensures that student accounts, chat threads, listings, and local advertisements remain isolated within their own campus boundaries.
 
 ```mermaid
 erDiagram
-    College ||--o{ Student : "has"
-    College ||--o{ Admin : "manages"
-    College ||--o{ Product : "contains"
-    Student ||--o{ Product : "sells"
-    Student ||--o{ Order : "buys/sells"
+    College ||--o{ Student : "onboards"
+    College ||--o{ Admin : "allocates"
+    College ||--o{ Product : "isolates"
+    College ||--o{ Advertisement : "hosts"
+    
+    Admin ||--o{ Advertisement : "publishes"
+    
+    Student ||--o{ Product : "lists"
+    Student ||--o{ Order : "transacts"
+    Student ||--o{ BuyRequest : "submits"
+    Student ||--o{ ListingPayment : "pays"
+    Student ||--o{ WishlistItem : "saves"
+    Student ||--o{ Notification : "receives"
+    Student ||--o{ SellerPayout : "earns"
+    Student ||--o{ ChatMessage : "sends"
+    
     Product ||--|| ListingPayment : "requires"
-    Product ||--o{ BuyRequest : "receives"
+    Product ||--o{ BuyRequest : "requests"
+    Product ||--o{ WishlistItem : "linked"
+    Product ||--o{ Order : "ordered"
+    
     BuyRequest ||--|| ChatThread : "initiates"
-    ChatThread ||--o{ ChatMessage : "holds"
-    MasterAdmin ||--o{ AuditLog : "tracks"
+    ChatThread ||--o{ ChatMessage : "contains"
+    
+    Order ||--|| SellerPayout : "triggers"
+    MasterAdmin ||--o{ AuditLog : "creates"
 ```
+
+### Database Entity Architecture:
+* **`College`**: The primary tenant model. Scopes all listings, student registrations, admin managers, and localized ad campaigns by matching email domains (e.g., `@columbia.edu`).
+* **`Student` & `Admin`**: Role-isolated user tables. Admins moderate content locally and publish advertising campaigns. Students lists goods and trade peer-to-peer. Both feature token version tracking to handle forced global sign-out checks.
+* **`Product` & `ListingPayment`**: Items categorized as physical or digital. Digital listings require verification via a `ListingPayment` order using Razorpay before showing up in local searches.
+* **`BuyRequest`, `ChatThread` & `ChatMessage`**: P2P communication workflow. Triggering a request automatically instantiates a `ChatThread` room synchronized over Socket.io, persisting messaging histories locally.
+* **`Order` & `SellerPayout`**: Purchases split platform transaction commissions. Digital sales trigger a `SellerPayout` record on a temporary lock state, releasing net earnings after the configuration cooling period.
+* **`WishlistItem` & `Notification`**: Personalization features. Tracks individual student saved lists and broadcasts instant system updates (listings approved, chats received) to users.
+* **`Advertisement`**: Managed by local college admins to broadcast internal student notifications, banner listings, or cross-tenant campaigns.
+* **`AuditLog`**: Dedicated ledger tracking Master Admin security controls, parameter changes, and user bans.
+
 
 ---
 
