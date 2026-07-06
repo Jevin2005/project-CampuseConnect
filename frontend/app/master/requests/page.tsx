@@ -41,6 +41,50 @@ const S = `
 .modal-title{font-family:'Sora',sans-serif;font-size:19px;font-weight:700;color:#F0F4FF;margin-bottom:8px;}
 .modal-text{font-size:13px;color:#9CA3AF;line-height:1.65;margin-bottom:20px;}
 .modal-close{background:#10B981;border:none;color:#fff;border-radius:9999px;padding:10px 28px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+
+@media (max-width: 768px) {
+  .m3 { padding: 20px 16px; }
+  .m3 h1 { font-size: 22px; }
+  .req-card { padding: 16px; }
+  .req-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .req-name { font-size: 16px; }
+  .req-actions { flex-direction: column; gap: 8px; }
+  .btn-reject, .btn-approve { width: 100%; text-align: center; }
+  
+  .table-card { border: none; background: none; }
+  .tbl, .tbl thead, .tbl tbody, .tbl th, .tbl td, .tbl tr { display: block; }
+  .tbl thead { display: none; }
+  .tbl tr {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+  }
+  .tbl td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(30,45,69,0.5);
+    padding: 8px 0;
+    font-size: 13px;
+    text-align: right;
+  }
+  .tbl td:last-child {
+    border-bottom: none;
+  }
+  .tbl td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--t3);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    float: left;
+    margin-right: 15px;
+  }
+}
+
 `;
 
 export default function CollegeRequestsPage() {
@@ -158,14 +202,14 @@ export default function CollegeRequestsPage() {
             <tbody>
               {active.map(a => (
                 <tr key={a.id}>
-                  <td style={{ color: '#F0F4FF', fontWeight: 600 }}>{a.name}</td>
-                  <td>{a.city}</td>
-                  <td style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{a.code}</td>
-                  <td style={{ color: '#4F8EF7' }}>{a.students?.toLocaleString()}</td>
-                  <td style={{ color: '#10B981' }}>{a.products?.toLocaleString()}</td>
-                  <td style={{ color: '#F7C948', fontWeight: 700 }}>{a.revenue}</td>
-                  <td><span className="badge-active">✅ Active</span></td>
-                  <td>{new Date(a.joined).toLocaleDateString()}</td>
+                  <td data-label="College" style={{ color: '#F0F4FF', fontWeight: 600 }}>{a.name}</td>
+                  <td data-label="City">{a.city}</td>
+                  <td data-label="Code" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{a.code}</td>
+                  <td data-label="Students" style={{ color: '#4F8EF7' }}>{a.students?.toLocaleString()}</td>
+                  <td data-label="Products" style={{ color: '#10B981' }}>{a.products?.toLocaleString()}</td>
+                  <td data-label="Revenue" style={{ color: '#F7C948', fontWeight: 700 }}>{a.revenue}</td>
+                  <td data-label="Status"><span className="badge-active">✅ Active</span></td>
+                  <td data-label="Joined">{new Date(a.joined).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>

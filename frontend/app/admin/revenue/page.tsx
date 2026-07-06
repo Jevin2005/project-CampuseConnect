@@ -90,6 +90,46 @@ export default function RevenueAdminPage() {
         .cut{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--green)}
         .dt{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mut)}
         .empty{text-align:center;padding:48px;color:var(--mut)}
+
+        @media (max-width: 768px) {
+          .page { padding: 20px 16px; }
+          h1 { font-size: 22px; }
+          .stat-cards { grid-template-columns: 1fr; }
+          .chart-card { padding: 14px; }
+          .chart-title { font-size: 15px; }
+          .tx-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+          .export-btn { width: 100%; text-align: center; }
+          
+          /* Transaction table to cards conversion */
+          .th { display: none; }
+          .tx-card { background: none; border: none; border-radius: 0; }
+          .tr {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 12px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          }
+          .tr:hover { background: var(--card); }
+          .tr > div { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+          
+          .tr > .pname { order: 1; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; justify-content: flex-start; font-weight: 700; }
+          .tr > :nth-child(2) { order: 2; }
+          .tr > :nth-child(2)::before { content: 'Buyer'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > :nth-child(3) { order: 3; }
+          .tr > :nth-child(3)::before { content: 'Seller'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > .price { order: 4; }
+          .tr > .price::before { content: 'Sale Price'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > .cut { order: 5; }
+          .tr > .cut::before { content: 'Platform Cut'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > .dt { order: 6; }
+          .tr > .dt::before { content: 'Date'; font-size: 11px; color: var(--mut); font-weight: 500; }
+        }
       `}</style>
 
       <div className="page">

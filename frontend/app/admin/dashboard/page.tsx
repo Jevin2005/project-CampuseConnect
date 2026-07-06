@@ -97,7 +97,7 @@ const STYLES = `
   .qa-purple{background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3);color:var(--purple)}
 
   /* ── Stat Grid ── */
-  .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
   .sc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;text-decoration:none;display:block;transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
   .sc::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.02) 0%,transparent 60%);pointer-events:none}
   .sc:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
@@ -105,8 +105,7 @@ const STYLES = `
   .sc-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--t3);margin-bottom:6px}
   .sc-val{font-family:'Sora',sans-serif;font-size:26px;font-weight:700;margin-bottom:4px;line-height:1}
   .sc-sub{font-size:11px;color:var(--t3);display:flex;align-items:center;gap:5px}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-  .pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--org);animation:pulse 1.5s ease-in-out infinite;flex-shrink:0}
+  .pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--org);flex-shrink:0}
 
   /* ── Breakdown Bar ── */
   .bk-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:22px}
@@ -173,9 +172,19 @@ const STYLES = `
   .empty{color:var(--t3);font-size:13px;padding:20px 0;text-align:center}
 
   /* ── Responsive ── */
-  @media(max-width:1200px){.stat-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:1200px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:900px){.stat-grid{grid-template-columns:repeat(2,1fr)}.mid{grid-template-columns:1fr}.bot{grid-template-columns:1fr}}
-  @media(max-width:640px){.dp{padding:20px 16px}.stat-grid{grid-template-columns:1fr}}
+  @media(max-width:640px){
+    .dp{padding:20px 16px}
+    .stat-grid{grid-template-columns:repeat(2,1fr) !important;gap:10px !important}
+    .sc{padding:12px 14px !important}
+    .sc-icon{font-size:20px !important;margin-bottom:6px !important}
+    .sc-val{font-size:18px !important}
+    .sc-lbl{font-size:9px !important;letter-spacing:0.8px !important;margin-bottom:4px !important}
+    .sc-sub{font-size:10px !important}
+    .hdr { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .greeting { font-size: 22px; }
+  }
 `;
 
 export default function AdminDashboardPage() {
@@ -258,24 +267,15 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* ── Quick Actions ── */}
-        <div className="qa-row">
-          <Link href="/admin/requests" className="qa-btn qa-green">👥 Student Requests</Link>
-          <Link href="/admin/products" className="qa-btn qa-blue">📦 Manage Products</Link>
-          <Link href="/admin/revenue" className="qa-btn qa-gold">💰 Revenue Report</Link>
-          <Link href="/admin/settings" className="qa-btn qa-purple">⚙️ Settings</Link>
-        </div>
-
-        {/* ── Stat Cards (5) ── */}
+        {/* ── Stat Cards (4) ── */}
         <div className="stat-grid">
-          {loading ? Array(5).fill(0).map((_, i) => (
+          {loading ? Array(4).fill(0).map((_, i) => (
             <div key={i} className="sc"><div className="skeleton" style={{ height: 90 }} /></div>
           )) : [
             { icon: '👥', label: 'APPROVED STUDENTS', value: s?.totalStudents ?? 0, sub: `${s?.pendingStudents ?? 0} pending approval`, color: C.green, href: '/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
             { icon: '📦', label: 'ACTIVE LISTINGS', value: s?.totalProducts ?? 0, sub: `${s?.pendingProducts ?? 0} pending review`, color: C.blue, href: '/admin/products', pulse: (s?.pendingProducts ?? 0) > 0 },
-            { icon: '✅', label: 'SOLD PRODUCTS', value: s?.soldProducts ?? 0, sub: `${s?.totalOrders ?? 0} total orders`, color: C.purple, href: '/admin/revenue' },
-            { icon: '💰', label: 'PLATFORM REVENUE', value: `₹${(s?.revenue ?? 0).toLocaleString('en-IN')}`, sub: '5% platform cut', color: C.gold, href: '/admin/revenue' },
-            { icon: '⏳', label: 'PENDING REQUESTS', value: s?.pendingStudents ?? 0, sub: 'Needs attention', color: C.orange, href: '/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
+            { icon: '💰', label: 'PLATFORM REVENUE', value: `₹${(s?.revenue ?? 0).toLocaleString('en-IN')}`, sub: `${s?.soldProducts ?? 0} sold · ${s?.totalOrders ?? 0} orders`, color: C.gold, href: '/admin/revenue' },
+            { icon: '⏳', label: 'PENDING REGISTRATIONS', value: s?.pendingStudents ?? 0, sub: 'Requires review', color: C.orange, href: '/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
           ].map(card => (
             <Link key={card.label} href={card.href} className="sc" style={{ borderColor: `${card.color}28` }}>
               <span className="sc-icon">{card.icon}</span>

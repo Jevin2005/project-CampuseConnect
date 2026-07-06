@@ -87,16 +87,15 @@ export default function ProductManagementPage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
         :root{--bg:#0A0E1A;--card:#111827;--card2:#1a2235;--border:#1e2d45;--green:#10B981;--blue:#4F8EF7;--org:#F59E0B;--red:#EF4444;--txt:#F0F4FF;--mut:#6B7280;--soft:#9CA3AF}
-        .page{background:var(--bg);min-height:100vh;padding:36px 40px;animation:fi .35s ease}
+        .page{background:var(--bg);min-height:100vh;padding:36px 40px;max-width:1200px;margin:0 auto;width:100%;box-sizing:border-box;animation:fi .35s ease}
         @keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         h1{font-family:'Sora',sans-serif;font-size:28px;font-weight:700;margin-bottom:4px;color:var(--txt)}
         .sub{font-size:14px;color:var(--mut);margin-bottom:22px}
-        .stat-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+        .stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
         .sc-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:8px}
         .sn{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;color:var(--txt)}
         .sl{font-size:12px;color:var(--mut)}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-        .dot{width:8px;height:8px;border-radius:50%;background:var(--org);animation:pulse 1.5s ease-in-out infinite}
+        .dot{width:8px;height:8px;border-radius:50%;background:var(--org)}
         .fbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
         .pills{display:flex;gap:6px}
         .pill{border:1px solid var(--border);border-radius:9999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;background:var(--card2);color:var(--soft);font-family:'DM Sans',sans-serif;transition:all .18s}
@@ -107,7 +106,7 @@ export default function ProductManagementPage() {
         .sinput{width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:9px;color:var(--txt);padding:9px 12px 9px 34px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
         .sinput::placeholder{color:var(--mut)}
         .sinput:focus{border-color:var(--green)}
-        .tbl{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+        .tbl{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;width:100%}
         .th{display:grid;grid-template-columns:2.1fr 1fr 1fr .8fr .8fr 1fr 1.8fr;background:var(--card2);padding:11px 18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--mut);border-bottom:1px solid var(--border)}
         .tr{display:grid;grid-template-columns:2.1fr 1fr 1fr .8fr .8fr 1fr 1.8fr;padding:13px 18px;align-items:center;border-bottom:1px solid rgba(30,45,69,.5);transition:background .15s}
         .tr:last-child{border-bottom:none}
@@ -140,6 +139,76 @@ export default function ProductManagementPage() {
         .bcrs{background:var(--blue);color:#fff;border:none;padding:9px 18px;border-radius:9999px;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif}
         .toast{position:fixed;top:24px;right:28px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:var(--green);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:700;z-index:2000;animation:slideIn .3s ease}
         @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+        @media (max-width: 1024px) {
+          .stat-row {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .page { padding: 20px 16px; }
+          h1 { font-size: 22px; }
+          .stat-row {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+          }
+          .stat-row > :last-child {
+            grid-column: span 2 !important;
+          }
+          .fbar { flex-direction: column; align-items: stretch; gap: 12px; }
+          .sw { max-width: none; }
+          .pills {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+          }
+          .pills::-webkit-scrollbar {
+            display: none;
+          }
+          .pill {
+            flex-shrink: 0;
+            white-space: nowrap;
+          }
+          
+          /* Table to Cards Conversion */
+          .th { display: none; }
+          .tbl { background: none; border: none; border-radius: 0; }
+          .tr {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 12px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          }
+          .tr:hover { background: var(--card); }
+          .tr > div { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+          
+          .tr > .pcell { order: 1; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; justify-content: flex-start; }
+          .tr > .sname { order: 2; display: flex; justify-content: space-between; }
+          .tr > .sname::before { content: 'Seller'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > :nth-child(3) { order: 3; display: flex; justify-content: space-between; }
+          .tr > :nth-child(3)::before { content: 'Category'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > .price { order: 4; display: flex; justify-content: space-between; }
+          .tr > .price::before { content: 'Price'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > .dt { order: 5; display: flex; justify-content: space-between; }
+          .tr > .dt::before { content: 'Listed Date'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > :nth-child(6) { order: 6; display: flex; justify-content: space-between; }
+          .tr > :nth-child(6)::before { content: 'Status'; font-size: 11px; color: var(--mut); font-weight: 500; }
+          .tr > .acts { order: 7; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: 4px; }
+          
+          /* Modals responsive optimization */
+          .mb { padding: 20px 16px; max-height: 90vh; overflow-y: auto; }
+          .mo { padding: 10px; }
+        }
       `}</style>
 
       {toast && <div className="toast">{toast}</div>}
@@ -150,7 +219,7 @@ export default function ProductManagementPage() {
 
         <div className="stat-row">
           <div className="sc-stat"><span className="sn">{cnt.all}</span><span className="sl">Total</span></div>
-          <div className="sc-stat"><div className="dot" /><span className="sn" style={{ color: 'var(--org)' }}>{cnt.pending}</span><span className="sl">Pending</span></div>
+          <div className="sc-stat">{cnt.pending > 0 && <div className="dot" />}{loading ? <div className="skeleton" style={{ height: 24, width: 24 }} /> : <span className="sn" style={{ color: 'var(--org)' }}>{cnt.pending}</span>}<span className="sl">Pending</span></div>
           <div className="sc-stat"><span className="sn" style={{ color: 'var(--green)' }}>{cnt.active}</span><span className="sl">Active</span></div>
           <div className="sc-stat"><span className="sn" style={{ color: 'var(--red)' }}>{cnt.removed}</span><span className="sl">Removed</span></div>
           <div className="sc-stat"><span className="sn" style={{ color: 'var(--blue)' }}>{cnt.sold}</span><span className="sl">Sold Out</span></div>

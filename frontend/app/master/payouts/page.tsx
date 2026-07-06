@@ -91,14 +91,45 @@ const S = `
 .filter-tab:hover:not(.active) { color: var(--t2); }
 
 /* Search Wrap */
-.search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
-.search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--t3); pointer-events: none; }
-.inp {
-  width: 100%; background: var(--card2); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 13px 10px 38px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--t1); outline: none; transition: border-color .2s, box-shadow .2s;
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
 }
-.inp::placeholder { color: #3d4f6b; }
-.inp:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(247,201,72,.1); }
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--t3);
+  pointer-events: none;
+  transition: color 0.2s;
+}
+.inp {
+  width: 100%;
+  background: var(--card2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px 10px 40px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--t1);
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.inp::placeholder {
+  color: var(--t3);
+}
+.inp:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.12);
+  background: rgba(26, 34, 53, 0.8);
+}
+.inp:focus + .search-icon {
+  color: var(--gold);
+}
 
 /* Buttons */
 .release-btn {
@@ -252,6 +283,99 @@ input[type="checkbox"]:focus {
   from { transform: translateY(20px) scale(0.95); opacity: 0; }
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
+
+@media (max-width: 768px) {
+  .po-wrap { padding: 20px 16px; }
+  .po-title { font-size: 22px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .stat-card { padding: 14px 16px; }
+  .stat-val { font-size: 20px; }
+  .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .filter-tabs { overflow-x: auto; padding-bottom: 2px; }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+  .filter-tab { padding: 8px 14px; font-size: 11px; }
+  .search-wrap { max-width: none; }
+  .release-btn { width: 100%; justify-content: center; }
+  
+  .table-card { border: none; background: none; }
+  .table-scroll { overflow: visible; }
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+  tr {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    padding: 16px;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+  td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(99,130,190,.1);
+    padding: 10px 0;
+    font-size: 13px;
+  }
+  td.chk-td { display: none !important; }
+  td:last-child {
+    border-bottom: none;
+  }
+  td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--t3);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    float: left;
+  }
+  
+  /* Seller Header Block */
+  td[data-label="Seller"] {
+    display: block;
+    text-align: left;
+    padding-bottom: 14px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  td[data-label="Seller"]::before {
+    display: none !important;
+  }
+  .seller-wrap {
+    justify-content: flex-start !important;
+  }
+  
+  /* Status Badge Block */
+  td[data-label="Status"] {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    border-bottom: none !important;
+    padding: 0 !important;
+    background: none !important;
+  }
+  td[data-label="Status"]::before {
+    display: none !important;
+  }
+  
+  /* Action row styling */
+  td[data-label="Action"] {
+    border-bottom: none !important;
+    justify-content: stretch !important;
+    padding-top: 12px;
+  }
+  td[data-label="Action"]::before {
+    display: none !important;
+  }
+  .row-release-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 10px !important;
+  }
+}
+
 `;
 
 export default function PayoutsPage() {
@@ -405,13 +529,13 @@ export default function PayoutsPage() {
 
           {/* Search Box */}
           <div className="search-wrap">
-            <span className="search-icon">🔍</span>
             <input
               className="inp"
               placeholder="Search seller, product, or order ID…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            <span className="search-icon">🔍</span>
           </div>
 
           {/* Multi-Select Bulk Actions */}
@@ -496,7 +620,7 @@ export default function PayoutsPage() {
                 <tbody>
                   {filteredPayouts.map(p => (
                     <tr key={p.id}>
-                      <td>
+                      <td className="chk-td">
                         {p.status === 'pending' && (
                           <input
                             type="checkbox"
@@ -505,7 +629,7 @@ export default function PayoutsPage() {
                           />
                         )}
                       </td>
-                      <td>
+                      <td data-label="Seller">
                         <div className="seller-wrap">
                           <div className="seller-avatar" style={{ background: avatarColor(p.seller.name) }}>
                             {initials(p.seller.name)}
@@ -517,16 +641,16 @@ export default function PayoutsPage() {
                         </div>
                         <span className="college-tag">{p.seller.college?.name}</span>
                       </td>
-                      <td>
+                      <td data-label="Product">
                         <div className="product-ttl" title={p.order?.product?.title}>{p.order?.product?.title || '—'}</div>
                         <div className="product-type">
                           {p.order?.product?.productType === 'digital' ? '🖥 Digital' : '📦 Physical'}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right' }}><span className="amt">₹{p.grossAmount.toLocaleString('en-IN')}</span></td>
-                      <td style={{ textAlign: 'right' }}><span className="amt red">−₹{p.platformCut.toLocaleString('en-IN')}</span></td>
-                      <td style={{ textAlign: 'right' }}><span className="amt green">₹{p.netAmount.toLocaleString('en-IN')}</span></td>
-                      <td>
+                      <td data-label="Gross" style={{ textAlign: 'right' }}><span className="amt">₹{p.grossAmount.toLocaleString('en-IN')}</span></td>
+                      <td data-label="Fee" style={{ textAlign: 'right' }}><span className="amt red">−₹{p.platformCut.toLocaleString('en-IN')}</span></td>
+                      <td data-label="Net" style={{ textAlign: 'right' }}><span className="amt green">₹{p.netAmount.toLocaleString('en-IN')}</span></td>
+                      <td data-label="Status">
                         {p.isOverdue ? (
                           <span className="badge overdue">🚨 Overdue</span>
                         ) : p.status === 'released' ? (
@@ -535,7 +659,7 @@ export default function PayoutsPage() {
                           <span className="badge pending">⏳ Pending</span>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Release Term">
                         <div className="date-str">
                           {new Date(p.releaseAfter).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </div>
@@ -545,7 +669,7 @@ export default function PayoutsPage() {
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Action">
                         {p.status === 'pending' && (
                           <button
                             className={`row-release-btn ${confirmPayoutId === p.id ? 'warning' : ''}`}

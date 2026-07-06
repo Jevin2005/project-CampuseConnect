@@ -36,6 +36,20 @@ const S = `
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .pending-pill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#F59E0B;font-size:10px;font-weight:700;padding:2px 8px;border-radius:9999px;}
 .active-pill{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#10B981;font-size:10px;font-weight:700;padding:2px 8px;border-radius:9999px;}
+
+@media (max-width: 768px) {
+  .m2 { padding: 20px 16px; }
+  .m2 h1 { font-size: 22px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .stat-card { padding: 14px 16px; }
+  .stat-val { font-size: 22px; }
+  .charts-row { grid-template-columns: 1fr; gap: 16px; }
+  .act-item { flex-wrap: wrap; gap: 8px; }
+  .act-msg { min-width: 100%; order: 1; }
+  .act-icon { order: 2; }
+  .act-badge { order: 3; }
+  .act-time { order: 4; margin-left: auto; }
+}
 `;
 
 interface DashStats {

@@ -279,6 +279,59 @@ export default function StudentRequestsPage() {
         .empty-state { text-align: center; padding: 60px 24px; color: var(--t3); }
         .empty-icon { font-size: 52px; margin-bottom: 16px; }
         .empty-title { font-family: 'Sora',sans-serif; font-size: 18px; font-weight: 700; color: var(--t1); margin-bottom: 8px; }
+
+        @media (max-width: 768px) {
+          .rp { padding: 20px 16px; }
+          .rp-title { font-size: 22px; }
+          .req-meta { grid-template-columns: 1fr; }
+          .req-top { flex-direction: column; align-items: flex-start; gap: 12px; }
+          .req-top > div:last-child { align-self: flex-start; }
+          .req-actions { flex-direction: column; width: 100%; }
+          .req-actions button { width: 100%; margin-right: 0 !important; }
+
+          /* Table to Cards for Approved Students */
+          .tbl-card { background: none; border: none; border-radius: 0; }
+          .tbl thead { display: none; }
+          .tbl tbody { display: flex; flex-direction: column; gap: 12px; }
+          .tbl tr {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 12px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          }
+          .tbl tr:hover td { background: none; }
+          .tbl td {
+            padding: 0;
+            border-bottom: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+          }
+          /* Custom layout for fields */
+          .tbl td:first-child { border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; justify-content: flex-start; }
+          .tbl td:nth-child(2) { order: 2; }
+          .tbl td:nth-child(2)::before { content: 'Enrollment ID'; font-size: 11px; color: var(--t3); font-weight: 500; }
+          .tbl td:nth-child(3) { order: 3; }
+          .tbl td:nth-child(3)::before { content: 'Approved Date'; font-size: 11px; color: var(--t3); font-weight: 500; }
+          .tbl td:nth-child(4) { order: 4; }
+          .tbl td:nth-child(4)::before { content: 'Products'; font-size: 11px; color: var(--t3); font-weight: 500; }
+          .tbl td:nth-child(5) { order: 5; }
+          .tbl td:nth-child(5)::before { content: 'Purchases'; font-size: 11px; color: var(--t3); font-weight: 500; }
+          .tbl td:nth-child(6) { order: 6; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: 4px; justify-content: flex-end; }
+          
+          /* Modals responsive optimization */
+          .modal-box { padding: 20px; }
+          .view-modal-box { padding: 20px 16px; max-height: 90vh; overflow-y: auto; }
+          .vm-grid { grid-template-columns: 1fr; gap: 10px; }
+          .vm-header { flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+          .vm-status-row { justify-content: center; }
+        }
       `}</style>
 
       <div className="rp">

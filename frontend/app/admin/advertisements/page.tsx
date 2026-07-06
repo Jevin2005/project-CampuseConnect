@@ -85,6 +85,7 @@ export default function AdvertisementManagerPage() {
   // Ad Campaign Format state
   const [selectedFormats, setSelectedFormats] = useState<FormatType[]>(['banner']);
   const [editingFormat, setEditingFormat] = useState<FormatType>('banner');
+  const [activeFormTab, setActiveFormTab] = useState<'editor' | 'preview'>('editor');
 
   // Preview interactive modal state
   interface PreviewData {
@@ -502,12 +503,26 @@ export default function AdvertisementManagerPage() {
           align-items: center;
           gap: 8px;
           box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
-          transition: all 0.2s ease;
+          transition: all 0.3s ease;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .launch-btn::before {
+          content: '';
+          position: absolute;
+          top: 0; left: -100%; width: 100%; height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+          transition: left 0.5s ease;
+        }
+
+        .launch-btn:hover::before {
+          left: 100%;
         }
 
         .launch-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
         }
 
         /* ─── Two-Column Creation Layout ───────────────────────────── */
@@ -1197,9 +1212,10 @@ export default function AdvertisementManagerPage() {
         }
 
         .filter-tab.selected {
-          background: var(--bg-input);
-          color: var(--text-primary);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          background: var(--blue);
+          color: #0A0E1A;
+          font-weight: 700;
+          box-shadow: 0 2px 10px rgba(79, 142, 247, 0.25);
         }
 
         .campaigns-stack {
@@ -1214,13 +1230,13 @@ export default function AdvertisementManagerPage() {
           border-radius: 20px;
           display: flex;
           overflow: hidden;
-          transition: all 0.25s ease;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .campaign-item:hover {
           transform: translateY(-2px);
-          border-color: rgba(79, 142, 247, 0.2);
-          box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+          border-color: rgba(79, 142, 247, 0.4);
+          box-shadow: 0 12px 30px rgba(0,0,0,0.45), 0 0 15px rgba(79, 142, 247, 0.08);
         }
 
         .campaign-banner-thumbnail {
@@ -1240,6 +1256,11 @@ export default function AdvertisementManagerPage() {
           object-fit: cover;
           position: absolute;
           inset: 0;
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .campaign-item:hover .campaign-banner-thumbnail img {
+          transform: scale(1.06);
         }
 
         .campaign-body {
@@ -1982,6 +2003,114 @@ export default function AdvertisementManagerPage() {
           font-weight: 800;
           color: var(--emerald);
         }
+
+        .mobile-form-tabs {
+          display: none;
+        }
+
+        @media (max-width: 1024px) {
+          .stats-grid { grid-template-columns: repeat(2, 1fr); }
+          .create-layout { grid-template-columns: 1fr; gap: 24px; }
+          .preview-sticky { position: static; }
+
+          /* Mobile form preview tabs */
+          .mobile-form-tabs {
+            display: flex;
+            background: #111827;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 4px;
+            margin-bottom: 20px;
+            gap: 4px;
+          }
+          .mobile-form-tab {
+            flex: 1;
+            border: none;
+            background: none;
+            color: var(--text-soft);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-family: inherit;
+          }
+          .mobile-form-tab.active {
+            background: var(--blue);
+            color: #0A0E1A;
+            box-shadow: 0 4px 14px rgba(79, 142, 247, 0.3);
+          }
+          .form-panel.mobile-hidden {
+            display: none !important;
+          }
+          .preview-sticky.mobile-hidden {
+            display: none !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .ad-container { padding: 20px 16px; }
+          .dash-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+          
+          /* Stats 2x2 Grid */
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+            margin-bottom: 20px !important;
+          }
+          .stat-card {
+            padding: 12px 14px !important;
+            gap: 10px !important;
+          }
+          .stat-icon-wrap {
+            width: 36px !important;
+            height: 36px !important;
+            font-size: 16px !important;
+            border-radius: 8px !important;
+          }
+          .stat-val {
+            font-size: 18px !important;
+          }
+          .stat-label {
+            font-size: 10px !important;
+          }
+
+          /* Campaign Item */
+          .campaign-item { flex-direction: column; }
+          .campaign-banner-thumbnail { width: 100%; height: 140px; }
+          .campaign-body { flex-direction: column; align-items: stretch; padding: 16px; gap: 14px; }
+          .campaign-actions {
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+            padding-top: 12px !important;
+            width: 100% !important;
+            margin-top: 4px;
+          }
+          .format-pill-row { grid-template-columns: repeat(2, 1fr); }
+          .section-bar { flex-direction: column; align-items: flex-start; gap: 12px; }
+          .filter-tabs { width: 100%; }
+          .filter-tab { flex: 1; text-align: center; }
+        }
+
+        @media (max-width: 480px) {
+          .scope-card-row { grid-template-columns: 1fr; }
+          .form-actions-row { flex-direction: column; }
+          .cancel-btn { order: 2; width: 100%; justify-content: center; }
+          .submit-btn { order: 1; width: 100%; justify-content: center; }
+        }
+
+        @media (max-width: 640px) {
+          .preview-modal-grid { grid-template-columns: 1fr; }
+          .modal-card { padding: 20px; }
+          .preview-modal-body { padding: 16px 20px; }
+        }
       `}</style>
 
       <div className="ad-container">
@@ -2060,9 +2189,25 @@ export default function AdvertisementManagerPage() {
         {/* ── CREATE FORM VIEW ─────────────────────────────────────── */}
         {showForm ? (
           <div className="create-layout">
+            <div className="mobile-form-tabs">
+              <button
+                type="button"
+                className={`mobile-form-tab ${activeFormTab === 'editor' ? 'active' : ''}`}
+                onClick={() => setActiveFormTab('editor')}
+              >
+                📝 Form Editor
+              </button>
+              <button
+                type="button"
+                className={`mobile-form-tab ${activeFormTab === 'preview' ? 'active' : ''}`}
+                onClick={() => setActiveFormTab('preview')}
+              >
+                👁 Live Preview
+              </button>
+            </div>
 
             {/* Form Column */}
-            <div className="form-panel">
+            <div className={`form-panel ${activeFormTab === 'editor' ? '' : 'mobile-hidden'}`}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                 <div className="form-section-title" style={{ margin: 0 }}>
                   <Megaphone size={20} style={{ color: 'var(--blue)' }} />
@@ -2502,7 +2647,7 @@ export default function AdvertisementManagerPage() {
             </div>
 
             {/* Live Preview Column */}
-            <div className="preview-sticky">
+            <div className={`preview-sticky ${activeFormTab === 'preview' ? '' : 'mobile-hidden'}`}>
               <div className="preview-panel-header">
                 <span><Sparkles size={13} /></span>
                 <span>Live Marketplace Preview</span>

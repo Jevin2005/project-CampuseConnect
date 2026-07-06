@@ -128,6 +128,10 @@ export default function AdminSettingsPage() {
         .toast-success{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:var(--green)}
         .toast-error{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:var(--red)}
         @media(max-width:900px){.cols{grid-template-columns:1fr}}
+        @media(max-width:768px){
+          .page { padding: 20px 16px; }
+          h1 { font-size: 22px; }
+        }
       `}</style>
 
       {toast && <div className={`toast ${toast.type === 'error' ? 'toast-error' : 'toast-success'}`}>{toast.msg}</div>}

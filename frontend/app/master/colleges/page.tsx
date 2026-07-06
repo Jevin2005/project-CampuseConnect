@@ -78,28 +78,81 @@ const S = `
 .sum-lbl { font-size: 12px; color: var(--t3); font-weight: 500; letter-spacing: .2px; }
 
 /* Filters */
-.filter-row { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
-.search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 360px; }
-.search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--t3); pointer-events: none; }
+.filter-row {
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  align-items: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+}
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--t3);
+  pointer-events: none;
+  transition: color 0.2s;
+}
 .inp {
-  width: 100%; background: var(--card2);
+  width: 100%;
+  background: var(--card2);
   border: 1.5px solid var(--border);
-  border-radius: 10px; padding: 10px 13px 10px 38px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px;
-  color: var(--t1); outline: none;
-  transition: border-color .2s, box-shadow .2s;
+  border-radius: 10px;
+  padding: 10px 14px 10px 40px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--t1);
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.inp::placeholder { color: #3d4f6b; }
-.inp:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(247,201,72,.1); }
+.inp::placeholder {
+  color: var(--t3);
+}
+.inp:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.12);
+  background: rgba(26, 34, 53, 0.8);
+}
+.inp:focus + .search-icon {
+  color: var(--gold);
+}
 .sel {
-  background: var(--card2); border: 1.5px solid var(--border);
-  border-radius: 10px; padding: 10px 14px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px;
-  color: var(--t2); outline: none; cursor: pointer;
-  transition: border-color .2s, box-shadow .2s;
+  background: var(--card2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--t2);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 160px;
 }
-.sel:hover { border-color: rgba(99,130,190,.4); }
-.sel:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(247,201,72,.1); }
+.sel:hover {
+  border-color: rgba(99, 130, 190, 0.35);
+  color: var(--t1);
+}
+.sel:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.12);
+  background: rgba(26, 34, 53, 0.8);
+  color: var(--t1);
+}
 .results-count {
   font-size: 12px; color: var(--t3); margin-left: auto;
   background: var(--card2); border: 1px solid var(--border);
@@ -219,6 +272,23 @@ const S = `
 .empty-icon { font-size: 52px; margin-bottom: 16px; opacity: .6; }
 .empty-title { font-family: 'Sora', sans-serif; font-size: 18px; color: var(--t1); margin-bottom: 6px; font-weight: 700; }
 .empty-sub { font-size: 13px; }
+
+@media (max-width: 768px) {
+  .pg { padding: 20px 16px; }
+  .hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .hdr-left h1 { font-size: 24px; }
+  .summary-strip { grid-template-columns: 1fr; gap: 12px; }
+  .sum-card { padding: 14px 18px; gap: 12px; }
+  .sum-val { font-size: 20px; }
+  .filter-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .search-wrap { max-width: none; }
+  .results-count { margin-left: 0; text-align: center; }
+  .grid { grid-template-columns: 1fr; gap: 16px; }
+  .ccard { padding: 16px; }
+  .stats-row { gap: 6px; }
+  .stat-item { padding: 8px; }
+  .stat-val { font-size: 14px; }
+}
 `;
 
 interface College {
@@ -311,13 +381,13 @@ export default function AllCollegesPage() {
         {/* Filters */}
         <div className="filter-row">
           <div className="search-wrap">
-            <span className="search-icon">🔍</span>
             <input
               className="inp"
               placeholder="Search by name, city, or code…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            <span className="search-icon">🔍</span>
           </div>
           <select className="sel" value={cityFilter} onChange={e => setCityFilter(e.target.value)}>
             <option value="">All Cities</option>

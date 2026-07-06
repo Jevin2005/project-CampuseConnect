@@ -199,6 +199,77 @@ const S = `
 
 /* No changes placeholder */
 .no-changes { text-align: center; color: var(--t3); font-size: 12px; padding: 10px 0; }
+
+@media (max-width: 1024px) {
+  .ps-layout { grid-template-columns: 1fr; }
+  .calc-card { position: static; margin-top: 16px; }
+}
+
+@media (max-width: 768px) {
+  .ps-wrap { padding: 20px 16px; }
+  .ps-title { font-size: 22px; }
+  .ps-tabs { overflow-x: auto; white-space: nowrap; width: 100%; }
+  .ps-tabs::-webkit-scrollbar { display: none; }
+  .ps-tab { padding: 8px 16px; font-size: 12px; }
+  
+  .ps-card-body { padding: 16px; }
+  .stepper { width: 100%; }
+  .stepper-val { flex: 1; min-width: 60px; }
+  .slider-wrap { gap: 10px; }
+  .slider-val { font-size: 16px; min-width: 44px; }
+  .save-section { padding: 16px; }
+  
+  .tiers-table, .tiers-table thead, .tiers-table tbody, .tiers-table th, .tiers-table td, .tiers-table tr {
+    display: block;
+  }
+  .tiers-table thead { display: none; }
+  .tiers-table tr {
+    background: var(--card2) !important;
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 14px;
+    position: relative;
+  }
+  .tiers-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(99,130,190,.1);
+    padding: 8px 0;
+    font-size: 13px;
+  }
+  .tiers-table td:first-child {
+    font-weight: 700;
+    color: var(--gold) !important;
+    border-bottom: 1px solid var(--bd);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+  }
+  .tiers-table td:first-child::before {
+    content: "Tier #";
+    font-size: 11px;
+    color: var(--t3);
+  }
+  .tiers-table td:last-child {
+    border-bottom: none;
+    justify-content: flex-end;
+    padding-top: 10px;
+  }
+  .tiers-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--t3);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    float: left;
+  }
+  .tier-input, .tier-pct {
+    text-align: right;
+  }
+}
+
 `;
 
 export default function PlatformSettingsPage() {
@@ -448,15 +519,15 @@ export default function PlatformSettingsPage() {
                           return (
                             <tr key={i} style={inRange ? { background: 'rgba(247,201,72,.04)' } : {}}>
                               <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--t3)', width: 30 }}>{i + 1}</td>
-                              <td>
+                              <td data-label="Min Price (₹)">
                                 <input className="tier-input" type="number" min={0} value={tier.min}
                                   onChange={e => updateTier(i, 'min', parseFloat(e.target.value) || 0)} />
                               </td>
-                              <td>
+                              <td data-label="Max Price (₹)">
                                 <input className="tier-input" type="number" min={0} value={tier.max}
                                   onChange={e => updateTier(i, 'max', parseFloat(e.target.value) || 0)} />
                               </td>
-                              <td>
+                              <td data-label="Fee Type">
                                 <select 
                                   value={type} 
                                   onChange={e => updateTier(i, 'type', e.target.value as any)}
@@ -475,14 +546,14 @@ export default function PlatformSettingsPage() {
                                   <option value="fixed">Fixed Flat (₹)</option>
                                 </select>
                               </td>
-                              <td>
+                              <td data-label="Value">
                                 <input className="tier-pct" type="number" min={0} step={0.5} value={val}
                                   onChange={e => updateTier(i, 'value', parseFloat(e.target.value) || 0)} />
                               </td>
-                              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: inRange ? 'var(--gold)' : 'var(--t3)', fontWeight: inRange ? 700 : 400 }}>
+                              <td data-label="Sample Fee" style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: inRange ? 'var(--gold)' : 'var(--t3)', fontWeight: inRange ? 700 : 400 }}>
                                 {inRange ? `₹${feeAmt.toLocaleString('en-IN')}` : '—'}
                               </td>
-                              <td>
+                              <td data-label="Remove">
                                 <button className="tier-del" onClick={() => removeTier(i)} title="Remove tier">✕</button>
                               </td>
                             </tr>

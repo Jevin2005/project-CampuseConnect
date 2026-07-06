@@ -113,22 +113,66 @@ tr:hover td { background: rgba(247,201,72,.02); }
 .amt-breakdown { font-size: 10px; color: var(--t3); margin-top: 2px; }
 
 /* Filter Inputs */
-.search-wrap { position: relative; width: 240px; }
-.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--t3); pointer-events: none; }
+.search-wrap {
+  position: relative;
+  width: 240px;
+}
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--t3);
+  pointer-events: none;
+  transition: color 0.2s;
+}
 .inp {
-  width: 100%; background: var(--card2); border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px 8px 34px;
-  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--t1); outline: none; transition: border-color .2s, box-shadow .2s;
+  width: 100%;
+  background: var(--card2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px 10px 40px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--t1);
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.inp::placeholder { color: #3d4f6b; }
-.inp:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(247,201,72,.1); }
-
+.inp::placeholder {
+  color: var(--t3);
+}
+.inp:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.12);
+  background: rgba(26, 34, 53, 0.8);
+}
+.inp:focus + .search-icon {
+  color: var(--gold);
+}
 .sel {
-  background: var(--card2); border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px;
-  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--t2); outline: none; cursor: pointer;
-  transition: border-color .2s, box-shadow .2s;
+  background: var(--card2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--t2);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 160px;
 }
-.sel:hover { border-color: rgba(99,130,190,.3); }
-.sel:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(247,201,72,.1); }
+.sel:hover {
+  border-color: rgba(99, 130, 190, 0.35);
+  color: var(--t1);
+}
+.sel:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.12);
+  background: rgba(26, 34, 53, 0.8);
+  color: var(--t1);
+}
 
 .btn-export {
   display: inline-flex; align-items: center; gap: 6px;
@@ -154,6 +198,67 @@ tr:hover td { background: rgba(247,201,72,.02); }
   from { transform: translateY(20px) scale(0.95); opacity: 0; }
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
+
+@media (max-width: 768px) {
+  .m6 { padding: 20px 16px; }
+  .m6 h1 { font-size: 22px; }
+  .nav-tabs { overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { padding: 10px 16px; font-size: 12px; }
+  
+  .hg { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .hg.three { grid-template-columns: repeat(2, 1fr) !important; }
+  .hg.three > :last-child { grid-column: span 2 !important; }
+  .hc { padding: 14px 16px; }
+  .hc-val { font-size: 20px; }
+  
+  .tbl-hd { flex-direction: column; align-items: stretch; gap: 12px; padding: 16px; }
+  .tbl-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+  .search-wrap { width: 100% !important; }
+  .sel { width: 100% !important; }
+  .btn-export { width: 100% !important; justify-content: center; }
+  
+  .tbl-card { border: none; background: none; }
+  table, thead, tbody, th, td, tr, tfoot { display: block; }
+  thead { display: none; }
+  tr {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+  }
+  td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(99,130,190,.1);
+    padding: 10px 0;
+    font-size: 13px;
+    text-align: right;
+    white-space: normal;
+  }
+  td:last-child {
+    border-bottom: none;
+  }
+  td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--t3);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    float: left;
+    margin-right: 15px;
+  }
+  .tfoot tr {
+    background: rgba(247,201,72,0.06);
+    border: 1px solid rgba(247,201,72,0.25);
+  }
+  
+  .bar-sm { width: 60px; }
+}
+
 `;
 
 interface CollegeRev { name: string; amount: number; pct: number; }
@@ -409,11 +514,11 @@ export default function PlatformRevenuePage() {
                       ))
                     : revenueBars.map((r, i) => (
                         <tr key={`${r.name}-${i}`}>
-                          <td style={{ fontWeight: 600, color: 'var(--t1)' }}>{r.name}</td>
-                          <td style={{ color: 'var(--gold)', fontFamily: 'JetBrains Mono,monospace', fontSize: 12, fontWeight: 700 }}>
+                          <td data-label="College" style={{ fontWeight: 600, color: 'var(--t1)' }}>{r.name}</td>
+                          <td data-label="Volume" style={{ color: 'var(--gold)', fontFamily: 'JetBrains Mono,monospace', fontSize: 12, fontWeight: 700 }}>
                             {fmt(r.amount)}
                           </td>
-                          <td>
+                          <td data-label="Share">
                             <span style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 12, color: 'var(--gold)' }}>{r.pct}%</span>
                             <div className="bar-sm"><div className="bar-fill" style={{ width: `${r.pct}%` }} /></div>
                           </td>
@@ -535,13 +640,13 @@ export default function PlatformRevenuePage() {
 
                   {/* Ledger Search */}
                   <div className="search-wrap">
-                    <span className="search-icon">🔍</span>
                     <input
                       className="inp"
                       placeholder="Search descriptions, parties, or refs..."
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                     />
+                    <span className="search-icon">🔍</span>
                   </div>
 
                   {/* CSV Exporter */}
@@ -582,10 +687,10 @@ export default function PlatformRevenuePage() {
                   ) : (
                     filteredLedger.map((item, idx) => (
                       <tr key={`${item.id}-${idx}`}>
-                        <td style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 11, color: 'var(--t3)' }}>
+                        <td data-label="Date" style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 11, color: 'var(--t3)' }}>
                           {new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
-                        <td>
+                        <td data-label="Source">
                           {item.type === 'LISTING_FEE' ? (
                             <span className="badge-type listing">Listing Fee</span>
                           ) : item.type === 'TRANSACTION_FEE' ? (
@@ -594,17 +699,17 @@ export default function PlatformRevenuePage() {
                             <span className="badge-type ad">Ad Promo</span>
                           )}
                         </td>
-                        <td style={{ fontWeight: 500, color: 'var(--t1)' }}>
+                        <td data-label="Description" style={{ fontWeight: 500, color: 'var(--t1)' }}>
                           {item.description}
                         </td>
-                        <td>
+                        <td data-label="Party">
                           <div style={{ fontWeight: 600, color: 'var(--t2)', fontSize: 13 }}>{item.party}</div>
                           <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>{item.email}</div>
                         </td>
-                        <td style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 11, color: 'var(--t3)' }}>
+                        <td data-label="Reference" style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 11, color: 'var(--t3)' }}>
                           {item.reference}
                         </td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td data-label="Inflow" style={{ textAlign: 'right' }}>
                           <span className="amt-inflow">+{fmt(item.inflow)}</span>
                           {item.type === 'TRANSACTION_FEE' && (
                             <div className="amt-breakdown">

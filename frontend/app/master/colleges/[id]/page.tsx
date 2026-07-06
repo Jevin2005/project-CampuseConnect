@@ -302,6 +302,117 @@ tr:hover td { background: rgba(247,201,72,.03); }
 
 /* Error */
 .err-box { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25); border-radius: 14px; padding: 24px 28px; color: var(--red); font-size: 14px; text-align: center; }
+
+@media (max-width: 768px) {
+  .pg { padding: 20px 16px; }
+  .hdr { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .hdr-left h1 { font-size: 24px; }
+  
+  .hcard { flex-direction: column; align-items: stretch; padding: 20px 24px; gap: 18px; }
+  .hcard-actions { align-items: stretch; width: 100%; }
+  .btn-contact, .btn-suspend, .btn-approve { width: 100%; justify-content: center; }
+  
+  .stat-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .stat-card { padding: 14px; }
+  .stat-val { font-size: 18px; }
+  
+  .tabs { overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { padding: 10px 16px; font-size: 12px; }
+  
+  .search-bar { width: 100%; }
+  .tbl-search-wrap { width: 100%; }
+  .tbl-search { width: 100% !important; }
+  
+  .rev-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .rev-card { padding: 14px; }
+  .rev-val { font-size: 18px; }
+  .rev-contribution { flex-direction: column; align-items: stretch; padding: 20px; gap: 16px; }
+  .rev-pct { text-align: center; font-size: 36px; }
+  
+  .tbl-wrap { overflow: visible; }
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+  tr {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    padding: 16px;
+    position: relative;
+  }
+  td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(99, 130, 190, 0.15);
+    padding: 10px 0;
+    font-size: 13px;
+    white-space: normal;
+  }
+  td:last-child {
+    border-bottom: none;
+  }
+  td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--t3);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    float: left;
+  }
+  
+  /* Mobile header for Student card */
+  td[data-label="Student"] {
+    display: block;
+    text-align: left;
+    padding-bottom: 14px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  td[data-label="Student"]::before { display: none !important; }
+  
+  /* Mobile header for Product card */
+  td[data-label="Title"] {
+    display: block;
+    text-align: left;
+    padding-bottom: 14px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    max-width: none !important;
+  }
+  td[data-label="Title"] span {
+    max-width: none !important;
+  }
+  td[data-label="Title"]::before { display: none !important; }
+  
+  /* Mobile status badge placement */
+  tr td[data-label="Status"] {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    border-bottom: none !important;
+    padding: 0 !important;
+    background: none !important;
+  }
+  tr td[data-label="Status"]::before { display: none !important; }
+  
+  /* Mobile action buttons placement */
+  td[data-label="Actions"] {
+    border-bottom: none !important;
+    justify-content: stretch !important;
+    gap: 8px;
+    padding-top: 12px;
+  }
+  td[data-label="Actions"]::before { display: none !important; }
+  .act-view, .act-sus, .act-app, .act-rem {
+    flex: 1;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 10px !important;
+  }
+}
 `;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -614,7 +725,7 @@ export default function CollegeDetailPage({ params }: { params: Promise<{ id: st
                     </td></tr>
                   ) : filteredStudents.map(s => (
                     <tr key={s.id}>
-                      <td>
+                      <td data-label="Student">
                         <div className="nc">
                           <div className="av" style={{ background: `linear-gradient(135deg, ${avatarColor(s.name)}, ${avatarColor(s.name)}99)` }}>{initials(s.name)}</div>
                           <div>
@@ -623,15 +734,15 @@ export default function CollegeDetailPage({ params }: { params: Promise<{ id: st
                           </div>
                         </div>
                       </td>
-                      <td><span className="mono" style={{ color: 'var(--t3)' }}>{s.enrollmentId}</span></td>
-                      <td><span className="mono" style={{ color: 'var(--t3)' }}>{s.phone}</span></td>
-                      <td><span className="pill p-blue">{s.products}</span></td>
-                      <td><span className="pill p-purple">{s.purchases}</span></td>
-                      <td style={{ fontSize: 12, color: 'var(--t3)' }}>
+                      <td data-label="ID"><span className="mono" style={{ color: 'var(--t3)' }}>{s.enrollmentId}</span></td>
+                      <td data-label="Phone"><span className="mono" style={{ color: 'var(--t3)' }}>{s.phone}</span></td>
+                      <td data-label="Listings"><span className="pill p-blue">{s.products}</span></td>
+                      <td data-label="Purchases"><span className="pill p-purple">{s.purchases}</span></td>
+                      <td data-label="Joined" style={{ fontSize: 12, color: 'var(--t3)' }}>
                         {new Date(s.joined).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
-                      <td><StatusPill s={s.status} /></td>
-                      <td>
+                      <td data-label="Status"><StatusPill s={s.status} /></td>
+                      <td data-label="Actions">
                         <button className="act-view" onClick={() => showToast(`Viewing profile of ${s.name} (Enrollment: ${s.enrollmentId}) 🎓`)}>👁 View</button>
                         {s.status === 'Active' || s.status === 'approved' ? (
                           <button 
@@ -687,29 +798,29 @@ export default function CollegeDetailPage({ params }: { params: Promise<{ id: st
                     </td></tr>
                   ) : filteredProducts.map(p => (
                     <tr key={p.id}>
-                      <td style={{ maxWidth: 200 }}>
+                      <td data-label="Title" style={{ maxWidth: 200 }}>
                         <span style={{ fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: 200 }}>
                           {p.title}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Type">
                         <span className={`pill ${p.type === 'digital' ? 'p-purple' : 'p-blue'}`}>
                           {p.type === 'digital' ? '📱' : '📦'} {p.type}
                         </span>
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--t3)' }}>{p.category}</td>
-                      <td>
+                      <td data-label="Category" style={{ fontSize: 12, color: 'var(--t3)' }}>{p.category}</td>
+                      <td data-label="Price">
                         <span className="mono" style={{ color: 'var(--green)', fontWeight: 700 }}>{p.price}</span>
                       </td>
-                      <td>
+                      <td data-label="Seller">
                         <div>
                           <div style={{ fontWeight: 600, color: 'var(--t1)', fontSize: 13 }}>{p.seller}</div>
                           <div className="ne">{p.sellerEmail}</div>
                         </div>
                       </td>
-                      <td><StatusPill s={p.status} /></td>
-                      <td style={{ fontSize: 12, color: 'var(--t3)' }}>{p.date}</td>
-                      <td>
+                      <td data-label="Status"><StatusPill s={p.status} /></td>
+                      <td data-label="Date" style={{ fontSize: 12, color: 'var(--t3)' }}>{p.date}</td>
+                      <td data-label="Actions">
                         <button className="act-view" onClick={() => showToast(`Viewing listing: "${p.title}" by ${p.seller} 📦`)}>👁 View</button>
                         {p.status !== 'removed' && p.status !== 'sold' && (
                           <button 
@@ -794,11 +905,11 @@ export default function CollegeDetailPage({ params }: { params: Promise<{ id: st
                   { stream: '👤 Net Seller Payouts', amt: revenue.netSellerTotalFormatted, note: 'What sellers actually receive', color: '#EC4899' },
                 ].map(r => (
                   <tr key={r.stream}>
-                    <td style={{ color: 'var(--t1)', fontWeight: 600 }}>{r.stream}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td data-label="Stream" style={{ color: 'var(--t1)', fontWeight: 600 }}>{r.stream}</td>
+                    <td data-label="Amount" style={{ textAlign: 'right' }}>
                       <span className="mono" style={{ color: r.color, fontWeight: 700 }}>{r.amt}</span>
                     </td>
-                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--t3)' }}>{r.note}</td>
+                    <td data-label="Notes" style={{ textAlign: 'right', fontSize: 12, color: 'var(--t3)' }}>{r.note}</td>
                   </tr>
                 ))}
               </tbody>

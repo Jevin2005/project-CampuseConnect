@@ -10,10 +10,85 @@ const S = `
 .m8{padding:32px;min-height:100vh;background:var(--bg);}
 .m8 h1{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;color:var(--t1);margin-bottom:4px;}
 .sub{font-size:13px;color:var(--t3);margin-bottom:20px;}
-.filter-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;}
-.filter-l{display:flex;gap:10px;flex-wrap:wrap;}
-.sel{padding:8px 14px;background:var(--c2);border:1px solid var(--bd);border-radius:8px;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;}
-.search{padding:8px 14px;background:var(--c2);border:1px solid var(--bd);border-radius:8px;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:240px;}
+.filter-card {
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--bd);
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+.filter-l {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.search-wrap {
+  position: relative;
+  width: 300px;
+}
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--t3);
+  pointer-events: none;
+  transition: color 0.2s;
+}
+.search-input {
+  width: 100%;
+  background: var(--c2);
+  border: 1.5px solid var(--bd);
+  border-radius: 10px;
+  padding: 10px 14px 10px 40px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--t1);
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.search-input::placeholder {
+  color: var(--t3);
+}
+.search-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.12);
+  background: rgba(26, 34, 53, 0.8);
+}
+.search-input:focus + .search-icon {
+  color: var(--gold);
+}
+.sel {
+  background: var(--c2);
+  border: 1.5px solid var(--bd);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--t2);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 160px;
+}
+.sel:hover {
+  border-color: rgba(99, 130, 190, 0.35);
+  color: var(--t1);
+}
+.sel:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.12);
+  background: rgba(26, 34, 53, 0.8);
+  color: var(--t1);
+}
 .tbl-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;overflow:hidden;}
 table{width:100%;border-collapse:collapse;}
 th{padding:12px 16px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--t3);border-bottom:1px solid var(--bd);}
@@ -36,10 +111,29 @@ tr:hover td{background:rgba(247,201,72,.025);cursor:pointer;}
 .pgbtn.active{background:var(--gold);color:#0A0E1A;border-color:var(--gold);}
 .pgbtn:not(.active):hover{border-color:rgba(247,201,72,.4);color:var(--t1);}
 .pgbtn:disabled{opacity:.4;cursor:not-allowed;}
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;backdrop-filter:blur(4px);}
-.drawer{position:fixed;top:0;right:0;height:100vh;width:340px;background:var(--card);border-left:3px solid var(--gold);z-index:50;padding:28px 24px;overflow-y:auto;box-shadow:-8px 0 32px rgba(0,0,0,.4);}
-.dr-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px;}
-.dr-close:hover{color:var(--t1);}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:120;backdrop-filter:blur(4px);}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:340px;background:var(--card);border-left:3px solid var(--gold);z-index:130;padding:28px 24px;overflow-y:auto;box-shadow:-8px 0 32px rgba(0,0,0,.4);}
+.dr-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--bd);
+  color: var(--t2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dr-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+  border-color: rgba(239, 68, 68, 0.3);
+}
 .dr-av{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#0A0E1A;margin:0 auto 16px;}
 .dr-name{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:var(--t1);text-align:center;margin-bottom:8px;}
 .dr-pills{display:flex;gap:8px;justify-content:center;margin-bottom:20px;flex-wrap:wrap;}
@@ -53,6 +147,95 @@ tr:hover td{background:rgba(247,201,72,.025);cursor:pointer;}
 .dr-stat-l{font-size:11px;color:var(--t3);}
 .skeleton{background:linear-gradient(90deg,var(--c2) 25%,#202d42 50%,var(--c2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px;}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+@media (max-width: 768px) {
+  .m8 { padding: 20px 16px; }
+  .m8 h1 { font-size: 22px; }
+  .filter-card { flex-direction: column; align-items: stretch; gap: 10px; }
+  .filter-l { flex-direction: column; align-items: stretch; gap: 8px; width: 100%; }
+  .sel { width: 100%; }
+  .search-wrap { width: 100% !important; }
+  
+  .tbl-card { border: none; background: none; }
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+  tr {
+    background: var(--card);
+    border: 1px solid var(--bd);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    display: block;
+  }
+  tr:hover {
+    border-color: var(--gold) !important;
+    background: rgba(247, 201, 72, 0.025) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+  td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(30, 45, 69, 0.3);
+    padding: 10px 0;
+    font-size: 13px;
+  }
+  td:last-child {
+    border-bottom: none;
+  }
+  td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--t3);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    float: left;
+  }
+  td[data-label="Student"] {
+    display: block;
+    text-align: left;
+    padding-bottom: 14px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--bd);
+  }
+  td[data-label="Student"]::before {
+    display: none !important;
+  }
+  .nc {
+    justify-content: flex-start !important;
+  }
+  td[data-label="Status"] {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    border-bottom: none !important;
+    padding: 0 !important;
+  }
+  td[data-label="Status"]::before {
+    display: none !important;
+  }
+  td[data-label="Action"] {
+    display: none !important;
+  }
+  .drawer {
+    width: 90% !important;
+    height: auto !important;
+    max-height: 85vh !important;
+    inset: 50% auto auto 50% !important;
+    transform: translate(-50%, -50%) !important;
+    border-left: none !important;
+    border: 1px solid var(--bd) !important;
+    border-radius: 18px !important;
+    padding: 24px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+  }
+}
+
 `;
 
 const AVATAR_COLORS = ['#F7C948','#4F8EF7','#7C3AED','#10B981','#F59E0B','#EF4444','#06B6D4','#EC4899'];
@@ -145,12 +328,15 @@ export default function AllStudentsPage() {
               <option value="pending">Pending</option>
             </select>
           </div>
-          <input
-            className="search"
-            placeholder="🔍 Search by name, email, enroll ID…"
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-          />
+          <div className="search-wrap">
+            <input
+              className="search-input"
+              placeholder="Search by name, email, enrollment ID…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+            />
+            <span className="search-icon">🔍</span>
+          </div>
         </div>
 
         <div className="tbl-card">
@@ -171,7 +357,7 @@ export default function AllStudentsPage() {
                     const color = avatarColor(st.name);
                     return (
                       <tr key={st.id} onClick={() => setDrawer(st)}>
-                        <td>
+                        <td data-label="Student">
                           <div className="nc">
                             <div className="av" style={{ background: color }}>{initials(st.name)}</div>
                             <div>
@@ -180,20 +366,20 @@ export default function AllStudentsPage() {
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="College">
                           <span className="cpill" style={{ background: 'rgba(79,142,247,.12)', color: 'var(--blue)' }}>
                             {st.college}
                           </span>
                         </td>
-                        <td style={{ fontSize: 12, color: 'var(--t3)' }}>
+                        <td data-label="Enrolled" style={{ fontSize: 12, color: 'var(--t3)' }}>
                           {new Date(st.joined).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                         </td>
-                        <td><span className="num-badge" style={{ background: 'rgba(79,142,247,.12)', color: 'var(--blue)' }}>{st.products}</span></td>
-                        <td><span className="num-badge" style={{ background: 'rgba(16,185,129,.12)', color: 'var(--green)' }}>{st.purchases}</span></td>
-                        <td>
+                        <td data-label="Products"><span className="num-badge" style={{ background: 'rgba(79,142,247,.12)', color: 'var(--blue)' }}>{st.products}</span></td>
+                        <td data-label="Purchases"><span className="num-badge" style={{ background: 'rgba(16,185,129,.12)', color: 'var(--green)' }}>{st.purchases}</span></td>
+                        <td data-label="Status">
                           <span className={`pill ${st.status === 'Active' ? 'pg' : 'pnd'}`}>{st.status}</span>
                         </td>
-                        <td onClick={e => e.stopPropagation()}>
+                        <td data-label="Action" onClick={e => e.stopPropagation()}>
                           <button className="av2" onClick={() => setDrawer(st)}>View</button>
                         </td>
                       </tr>
