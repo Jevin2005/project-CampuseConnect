@@ -4,6 +4,7 @@ import "./globals.css";
 import { useEffect } from "react";
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // NOTE: metadata export must live in a Server Component.
 // We handle that via a separate server wrapper; for now the layout itself
@@ -63,7 +64,10 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body className="bg-main antialiased">{children}</body>
+      <body className="bg-main antialiased">
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
