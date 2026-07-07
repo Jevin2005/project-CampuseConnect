@@ -108,6 +108,34 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/* ─── TEMP Seed endpoint — DELETE after use ─────────────────────────── */
+app.get('/api/seed-now', async (req, res) => {
+  const secret = req.query.secret;
+  // Uses first 12 chars of JWT_SECRET as the access key
+  const expected = (process.env.JWT_SECRET || '').slice(0, 12);
+  if (!secret || secret !== expected) {
+    return res.status(403).json({ error: 'Forbidden — wrong secret' });
+  }
+  try {
+    const bcrypt = require('bcryptjs');
+    const { PrismaClient } = require('@prisma/client');
+    const db = new PrismaClient();
+    const masterEmail = process.env.MASTER_EMAIL || 'admin@campusconnect.in';
+    const masterPassword = process.env.MASTER_PASSWORD || 'MasterAdmin@2024!';
+    const hashed = await bcrypt.hash(masterPassword, 12);
+    const master = await db.masterAdmin.upsert({
+      where: { email: masterEmail },
+      update: { password: hashed, name: 'Platform Admin' },
+      create: { email: masterEmail, password: hashed, name: 'Platform Admin', tokenVersion: 0 },
+    });
+    await db.$disconnect();
+    return res.json({ success: true, email: master.email, message: '✅ Master admin seeded!' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+/* ─── END TEMP ───────────────────────────────────────────────────────── */
+
 
 
 /* ─── API routes ───────────────────────────────────────────────────── */
