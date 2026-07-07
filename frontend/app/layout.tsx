@@ -39,12 +39,22 @@ export default function RootLayout({
         };
         setAuth(accessToken, user, r, collegeId);
       } catch (err: any) {
-        // Only destroy the session if the server explicitly says the token is invalid (401)
-        // For 500s, network errors, or CORS issues — just stop loading, keep the cookie
-        if (err?.response?.status === 401) {
-          clearAuth();
+        const status = err?.response?.status;
+        const currentToken = useAuthStore.getState().accessToken;
+
+        if (status === 401) {
+          // Only clear auth if there is NO valid in-memory token already
+          // (i.e. user was NOT just logged in — this is a cold page load)
+          if (!currentToken) {
+            clearAuth();
+          } else {
+            // User just logged in — they have a valid accessToken in memory.
+            // The refresh cookie may not be working (cross-domain issue) but
+            // the user is authenticated. Don't destroy their session.
+            setLoading(false);
+          }
         } else {
-          // Transient error — session may still be valid, just unlock the UI
+          // Transient error (network, 500) — keep session alive
           setLoading(false);
         }
       }
