@@ -22,10 +22,11 @@ function signRefreshToken(payload) {
 }
 
 function setRefreshCookie(res, refreshToken) {
+  const isProd = process.env.NODE_ENV === 'production';
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProd,                      // must be true when sameSite='none'
+    sameSite: isProd ? 'none' : 'lax',  // 'none' = cross-domain; 'lax' = local dev
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/',
   });
