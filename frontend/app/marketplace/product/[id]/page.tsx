@@ -446,7 +446,9 @@ export default function PhysicalProductPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px", borderBottom: "1px solid var(--border)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Seller Listing Fee</span>
-                        <span style={{ fontSize: 10, background: "rgba(247,201,72,0.1)", color: "#F7C948", padding: "2px 7px", borderRadius: 99, fontWeight: 700 }}>{tier.percent}%</span>
+                        <span style={{ fontSize: 10, background: "rgba(247,201,72,0.1)", color: "#F7C948", padding: "2px 7px", borderRadius: 99, fontWeight: 700 }}>
+                          {tier.type === "fixed" ? `₹${tier.value}` : `${tier.value}%`}
+                        </span>
                       </div>
                       <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#F7C948", fontWeight: 600 }}>₹{listingFee.toLocaleString("en-IN")}</span>
                     </div>
