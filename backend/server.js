@@ -45,17 +45,26 @@ const PORT = process.env.PORT || 5000;
 /* ─── CORS ─────────────────────────────────────────────────────────── */
 const ALLOWED_ORIGINS = [
   process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL_ALT,
   'http://localhost:3000',
+  'http://localhost:3001',
 ].filter(Boolean);
+
+// Also allow any Vercel preview URL for this project
+const VERCEL_PROJECT_PATTERN = /^https:\/\/project-campuse-connect.*\.vercel\.app$/;
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, server-side)
+    // Allow requests with no origin (Render health checks, curl, server-side)
     if (!origin) return callback(null, true);
+    // Exact match
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    // Allow any vercel preview URL for this project
+    if (VERCEL_PROJECT_PATTERN.test(origin)) return callback(null, true);
+    console.warn(`[CORS] Blocked origin: ${origin}`);
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
-  credentials: true, // needed for HTTP-only cookie
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -75,11 +84,11 @@ const uploadsPath = path.join(__dirname, 'uploads');
 });
 app.use('/uploads', (req, res, next) => {
   const reqOrigin = req.headers.origin;
-  if (reqOrigin && ALLOWED_ORIGINS.includes(reqOrigin)) {
-    res.setHeader('Access-Control-Allow-Origin', reqOrigin);
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
-  }
+  const isAllowed = reqOrigin && (
+    ALLOWED_ORIGINS.includes(reqOrigin) ||
+    VERCEL_PROJECT_PATTERN.test(reqOrigin)
+  );
+  res.setHeader('Access-Control-Allow-Origin', isAllowed ? reqOrigin : (process.env.FRONTEND_URL || 'http://localhost:3000'));
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
