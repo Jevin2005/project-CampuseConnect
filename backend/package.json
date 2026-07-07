@@ -19,7 +19,8 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "prisma": "^6.19.3"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",
