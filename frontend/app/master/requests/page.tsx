@@ -93,9 +93,11 @@ export default function CollegeRequestsPage() {
   const [modal, setModal] = useState<string | null>(null);
   const { accessToken } = useAuthStore();
 
+  const BASE = process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com';
+
   const fetchColleges = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/master/colleges', {
+      const res = await fetch(`${BASE}/api/master/colleges`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       if (res.ok) {
@@ -114,7 +116,7 @@ export default function CollegeRequestsPage() {
 
   const handleApprove = async (id: string, name: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/master/colleges/${id}/approve`, {
+      const res = await fetch(`${BASE}/api/master/colleges/${id}/approve`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -129,7 +131,7 @@ export default function CollegeRequestsPage() {
 
   const handleReject = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/master/colleges/${id}/reject`, {
+      const res = await fetch(`${BASE}/api/master/colleges/${id}/reject`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` }
       });

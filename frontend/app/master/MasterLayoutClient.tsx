@@ -34,7 +34,7 @@ export default function MasterLayoutClient({ children }: { children: React.React
   const fetchPendingRequests = async () => {
     if (!accessToken) return;
     try {
-      const res = await fetch('http://localhost:5000/api/master/stats', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com'}/api/master/stats`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.ok) {

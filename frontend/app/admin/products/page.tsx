@@ -317,7 +317,7 @@ export default function ProductManagementPage() {
                 background: 'var(--card2)'
               }}>
                 {viewModal.images.map((img, idx) => {
-                  const API_URL = 'http://localhost:5000';
+                  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com';
                   const fullImgUrl = img.startsWith('http') ? img : `${API_URL}${img}`;
                   
                   if (isVideo(img)) {
