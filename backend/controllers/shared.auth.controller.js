@@ -21,7 +21,8 @@ async function refresh(req, res) {
     try {
       decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     } catch {
-      res.clearCookie('refreshToken', { path: '/' });
+      const isProd = process.env.NODE_ENV === 'production';
+      res.clearCookie('refreshToken', { httpOnly: true, secure: isProd, sameSite: isProd ? 'none' : 'lax', path: '/' });
       return res.status(401).json({ message: 'Invalid or expired refresh token' });
     }
 
@@ -75,19 +76,22 @@ async function refresh(req, res) {
         };
       }
     } else {
-      res.clearCookie('refreshToken', { path: '/' });
+      const isProdRole = process.env.NODE_ENV === 'production';
+      res.clearCookie('refreshToken', { httpOnly: true, secure: isProdRole, sameSite: isProdRole ? 'none' : 'lax', path: '/' });
       return res.status(401).json({ message: 'Invalid token role' });
     }
 
     if (!dbUser) {
-      res.clearCookie('refreshToken', { path: '/' });
+      const isProd = process.env.NODE_ENV === 'production';
+      res.clearCookie('refreshToken', { httpOnly: true, secure: isProd, sameSite: isProd ? 'none' : 'lax', path: '/' });
       return res.status(401).json({ message: 'User not found' });
     }
 
     // Check tokenVersion to support instant session invalidation
     // All models have tokenVersion field, so this check is always valid
     if (dbUser.tokenVersion !== tokenVersion) {
-      res.clearCookie('refreshToken', { path: '/' });
+      const isProdVer = process.env.NODE_ENV === 'production';
+      res.clearCookie('refreshToken', { httpOnly: true, secure: isProdVer, sameSite: isProdVer ? 'none' : 'lax', path: '/' });
       return res.status(401).json({ message: 'Session invalidated. Please log in again.' });
     }
 
@@ -116,7 +120,13 @@ async function refresh(req, res) {
 
 /* ─── POST /api/auth/logout ───────────────────────────────────────── */
 async function logout(req, res) {
-  res.clearCookie('refreshToken', { path: '/' });
+  const isProd = process.env.NODE_ENV === 'production';
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/',
+  });
   return res.json({ message: 'Logged out successfully' });
 }
 

@@ -110,7 +110,13 @@ async function logout(req, res) {
     }).catch(() => {});
   }
 
-  res.clearCookie('refreshToken', { path: '/' });
+  const isProd = process.env.NODE_ENV === 'production';
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/',
+  });
   return res.json({ message: 'Logged out successfully' });
 }
 
