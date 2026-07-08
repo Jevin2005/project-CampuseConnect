@@ -118,20 +118,57 @@ app.get('/api/run-migration', async (req, res) => {
   }
 
   const report = { steps: [], errors: [] };
+  const { execSync } = require('child_process');
 
-  // ── 1. Run prisma migrate deploy ─────────────────────────────────────
+  // All migration names in order
+  const MIGRATIONS = [
+    '20260506175927_init',
+    '20260511185004_add_student_password',
+    '20260512123636_add_student_auth_fields',
+    '20260519162355_add_wishlist_and_orders_v2',
+  ];
+
+  const runCmd = (cmd) => execSync(cmd, { cwd: __dirname, stdio: 'pipe' }).toString();
+
+  // ── 1. prisma migrate deploy (auto-baselines on P3005) ──────────────
   try {
-    const { execSync } = require('child_process');
-    execSync('npx prisma migrate deploy', { cwd: __dirname, stdio: 'pipe' });
+    runCmd('npx prisma migrate deploy');
     report.steps.push('✅ prisma migrate deploy — success');
   } catch (e) {
-    report.errors.push('❌ prisma migrate deploy failed: ' + e.message);
+    const output = (e.stderr?.toString() || '') + (e.stdout?.toString() || '') + e.message;
+
+    if (output.includes('P3005')) {
+      report.steps.push('⚠️  P3005 detected — DB exists without migration history. Baselining...');
+
+      for (const migration of MIGRATIONS) {
+        try {
+          runCmd(`npx prisma migrate resolve --applied "${migration}"`);
+          report.steps.push(`  ✅ Baselined: ${migration}`);
+        } catch (be) {
+          const beText = (be.stderr?.toString() || '') + be.message;
+          if (beText.includes('already') || beText.includes('recorded')) {
+            report.steps.push(`  ✅ Already applied: ${migration}`);
+          } else {
+            report.errors.push(`  ❌ Baseline failed for ${migration}: ${beText}`);
+          }
+        }
+      }
+
+      // Retry deploy after baseline
+      try {
+        runCmd('npx prisma migrate deploy');
+        report.steps.push('✅ prisma migrate deploy — success after baseline');
+      } catch (retryErr) {
+        report.errors.push('❌ prisma migrate deploy failed after baseline: ' + retryErr.message);
+      }
+    } else {
+      report.errors.push('❌ prisma migrate deploy failed: ' + output.slice(0, 500));
+    }
   }
 
-  // ── 2. Run prisma generate ───────────────────────────────────────────
+  // ── 2. prisma generate ───────────────────────────────────────────────
   try {
-    const { execSync } = require('child_process');
-    execSync('npx prisma generate', { cwd: __dirname, stdio: 'pipe' });
+    runCmd('npx prisma generate');
     report.steps.push('✅ prisma generate — success');
   } catch (e) {
     report.errors.push('❌ prisma generate failed: ' + e.message);
