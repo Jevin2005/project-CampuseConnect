@@ -3,8 +3,9 @@ services:
     name: campusconnect-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm install && npx prisma generate
+    startCommand: node startup.js
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production

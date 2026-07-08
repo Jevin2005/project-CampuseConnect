@@ -108,10 +108,89 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-/* ─── TEMP Seed endpoint — DELETE after use ─────────────────────────── */
+/* ─── /api/run-migration — secure DB setup endpoint ────────────────── */
+/* Access: GET /api/run-migration?secret=<first-12-chars-of-JWT_SECRET> */
+app.get('/api/run-migration', async (req, res) => {
+  const secret   = req.query.secret;
+  const expected = (process.env.JWT_SECRET || '').slice(0, 12);
+  if (!secret || secret !== expected) {
+    return res.status(403).json({ error: 'Forbidden — wrong secret' });
+  }
+
+  const report = { steps: [], errors: [] };
+
+  // ── 1. Run prisma migrate deploy ─────────────────────────────────────
+  try {
+    const { execSync } = require('child_process');
+    execSync('npx prisma migrate deploy', { cwd: __dirname, stdio: 'pipe' });
+    report.steps.push('✅ prisma migrate deploy — success');
+  } catch (e) {
+    report.errors.push('❌ prisma migrate deploy failed: ' + e.message);
+  }
+
+  // ── 2. Run prisma generate ───────────────────────────────────────────
+  try {
+    const { execSync } = require('child_process');
+    execSync('npx prisma generate', { cwd: __dirname, stdio: 'pipe' });
+    report.steps.push('✅ prisma generate — success');
+  } catch (e) {
+    report.errors.push('❌ prisma generate failed: ' + e.message);
+  }
+
+  // ── 3. Seed master admin ─────────────────────────────────────────────
+  try {
+    const bcrypt = require('bcryptjs');
+    const { PrismaClient } = require('@prisma/client');
+    const db = new PrismaClient();
+    const masterEmail    = process.env.MASTER_EMAIL    || 'admin@campusconnect.in';
+    const masterPassword = process.env.MASTER_PASSWORD || 'MasterAdmin@2024!';
+    const hashed = await bcrypt.hash(masterPassword, 12);
+    const master = await db.masterAdmin.upsert({
+      where:  { email: masterEmail },
+      update: { password: hashed, name: 'Platform Admin' },
+      create: { email: masterEmail, password: hashed, name: 'Platform Admin', tokenVersion: 0 },
+    });
+    await db.$disconnect();
+    report.steps.push(`✅ Master admin upserted — email: ${master.email}`);
+  } catch (e) {
+    report.errors.push('❌ Seed master admin failed: ' + e.message);
+  }
+
+  // ── 4. DB connectivity check ─────────────────────────────────────────
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const db = new PrismaClient();
+    await db.$queryRaw`SELECT 1`;
+    const adminCount  = await db.masterAdmin.count();
+    const tableCount  = await db.college.count();
+    await db.$disconnect();
+    report.steps.push(`✅ DB connected — masterAdmins: ${adminCount}, colleges: ${tableCount}`);
+  } catch (e) {
+    report.errors.push('❌ DB connectivity check failed: ' + e.message);
+  }
+
+  // ── 5. Env var presence check ────────────────────────────────────────
+  const REQUIRED = ['DATABASE_URL','JWT_SECRET','JWT_REFRESH_SECRET','MASTER_EMAIL','MASTER_PASSWORD'];
+  const OPTIONAL = ['REDIS_URL','R2_ACCOUNT_ID','RAZORPAY_KEY_ID','FRONTEND_URL','NODE_ENV'];
+  report.env = {
+    required: Object.fromEntries(REQUIRED.map(k => [k, !!process.env[k] ? '✅ set' : '❌ MISSING'])),
+    optional: Object.fromEntries(OPTIONAL.map(k => [k, !!process.env[k] ? '✅ set' : '⚠️ not set'])),
+  };
+
+  const status = report.errors.length === 0 ? 200 : 207;
+  return res.status(status).json({
+    success: report.errors.length === 0,
+    ...report,
+    message: report.errors.length === 0
+      ? '🎉 All steps completed. You can now login.'
+      : '⚠️ Some steps failed — check errors array.',
+  });
+});
+/* ─── END migration endpoint ─────────────────────────────────────────── */
+
+/* ─── TEMP Seed endpoint (kept for backward compat) ─────────────────── */
 app.get('/api/seed-now', async (req, res) => {
   const secret = req.query.secret;
-  // Uses first 12 chars of JWT_SECRET as the access key
   const expected = (process.env.JWT_SECRET || '').slice(0, 12);
   if (!secret || secret !== expected) {
     return res.status(403).json({ error: 'Forbidden — wrong secret' });
@@ -135,6 +214,7 @@ app.get('/api/seed-now', async (req, res) => {
   }
 });
 /* ─── END TEMP ───────────────────────────────────────────────────────── */
+
 
 
 
