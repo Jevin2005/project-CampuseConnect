@@ -548,7 +548,7 @@ export default function AdminLoginPage() {
             <div className="field">
               <div className="field-label">
                 <span className="label-text">Password</span>
-                <Link href="/admin/forgot-password" className="label-hint" style={{ textDecoration: 'none', color: 'var(--muted)', fontSize: '11px' }}>
+                <Link href="/forgot-password" className="label-hint" style={{ textDecoration: 'none', color: 'var(--muted)', fontSize: '11px' }}>
                   Forgot password?
                 </Link>
               </div>

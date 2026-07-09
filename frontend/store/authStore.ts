@@ -46,17 +46,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   pendingEmail: null,
   maskedEmail: null,
 
-  setAuth: (token, user, role, collegeId) =>
-    set({ accessToken: token, user, role, collegeId: collegeId ?? null, isLoading: false }),
+  setAuth: (token, user, role, collegeId) => {
+    if (typeof window !== "undefined") {
+      document.cookie = `accessToken=${token}; path=/; max-age=2592000; SameSite=Lax; Secure`;
+    }
+    set({ accessToken: token, user, role, collegeId: collegeId ?? null, isLoading: false });
+  },
 
-  clearAuth: () =>
+  clearAuth: () => {
+    if (typeof window !== "undefined") {
+      document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure";
+    }
     set({
       accessToken: null,
       user: null,
       role: null,
       collegeId: null,
       isLoading: false,
-    }),
+    });
+  },
 
   setLoading: (v) => set({ isLoading: v }),
 

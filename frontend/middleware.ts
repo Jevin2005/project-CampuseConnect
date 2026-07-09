@@ -82,7 +82,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const refreshToken = req.cookies.get('refreshToken')?.value;
+  const refreshToken = req.cookies.get('refreshToken')?.value || req.cookies.get('accessToken')?.value;
 
   // Decode the refresh token to get role (not verification — just presence + role)
   let role: string | null = null;
