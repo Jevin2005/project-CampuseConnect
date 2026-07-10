@@ -206,9 +206,30 @@ app.get('/api/run-migration', async (req, res) => {
     report.errors.push('❌ DB connectivity check failed: ' + e.message);
   }
 
-  // ── 5. Env var presence check ────────────────────────────────────────
+  // ── 5. SMTP Email connectivity check ─────────────────────────────────
+  try {
+    const nodemailer = require('nodemailer');
+    const testTransporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+    await testTransporter.verify();
+    report.steps.push('✅ SMTP Email Transport connected successfully');
+  } catch (e) {
+    report.errors.push('❌ SMTP Email connection failed: ' + e.message);
+  }
+
+  // ── 6. Env var presence check ────────────────────────────────────────
   const REQUIRED = ['DATABASE_URL','JWT_SECRET','JWT_REFRESH_SECRET','MASTER_EMAIL','MASTER_PASSWORD'];
-  const OPTIONAL = ['REDIS_URL','R2_ACCOUNT_ID','RAZORPAY_KEY_ID','FRONTEND_URL','NODE_ENV'];
+  const OPTIONAL = ['REDIS_URL','R2_ACCOUNT_ID','RAZORPAY_KEY_ID','FRONTEND_URL','NODE_ENV', 'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
   report.env = {
     required: Object.fromEntries(REQUIRED.map(k => [k, !!process.env[k] ? '✅ set' : '❌ MISSING'])),
     optional: Object.fromEntries(OPTIONAL.map(k => [k, !!process.env[k] ? '✅ set' : '⚠️ not set'])),
