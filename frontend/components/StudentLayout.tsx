@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Package, ShoppingBag, User,
   Plus, LogOut, Bell, Search,
   ChevronRight, Megaphone, HelpCircle, Heart, MessageCircle,
-  Menu, X, BookOpen,
+  Menu, X, BookOpen, GraduationCap, School, Check,
 } from "lucide-react";
 
 /* ─── Nav groups ──────────────────────────────────────────── */
@@ -19,18 +19,18 @@ const NAV = [
     items: [
       { href: "/marketplace", icon: <LayoutDashboard size={16} />, label: "Browse", badge: null },
       { href: "/marketplace/listings", icon: <Package size={16} />, label: "My Listings", badge: null },
-      { href: "/marketplace/requests", icon: <Bell size={16} />, label: "Requests", badge: "🔔" },
+      { href: "/marketplace/requests", icon: <Bell size={16} />, label: "Requests", badge: <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4F8EF7" }} /> },
       { href: "/marketplace/inbox", icon: <MessageCircle size={16} />, label: "Inbox", badge: null },
       { href: "/marketplace/purchases", icon: <ShoppingBag size={16} />, label: "My Purchases", badge: null },
       { href: "/marketplace/wishlist", icon: <Heart size={16} />, label: "Wishlist", badge: null },
       { href: "/marketplace/profile", icon: <User size={16} />, label: "My Profile", badge: null },
-      { href: "/marketplace/ads", icon: <Megaphone size={16} />, label: "Advertisements", badge: "📢" },
+      { href: "/marketplace/ads", icon: <Megaphone size={16} />, label: "Advertisements", badge: <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#F7C948" }} /> },
     ],
   },
 ];
 
 function NavItem({ href, icon, label, badge, active }: {
-  href: string; icon: React.ReactNode; label: string; badge: string | null; active: boolean;
+  href: string; icon: React.ReactNode; label: string; badge: React.ReactNode; active: boolean;
 }) {
   const [hov, setHov] = useState(false);
   return (
@@ -51,7 +51,7 @@ function NavItem({ href, icon, label, badge, active }: {
       >
         <span style={{ flexShrink: 0 }}>{icon}</span>
         <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, flex: 1 }}>{label}</span>
-        {badge && <span style={{ fontSize: 11 }}>{badge}</span>}
+        {badge && <span style={{ display: "inline-flex", alignItems: "center" }}>{badge}</span>}
         {active && <ChevronRight size={12} style={{ opacity: 0.5 }} />}
       </div>
     </Link>
@@ -321,9 +321,9 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                 alignItems: "center",
                 justifyContent: "center",
                 boxShadow: "0 4px 10px rgba(79,142,247,0.25)",
-                flexShrink: 0,
+                color: "#F0F4FF",
               }}>
-                <span style={{ fontSize: 15 }}>🎓</span>
+                <GraduationCap size={16} />
               </div>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
@@ -341,8 +341,9 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
             <div style={{
               width: 22, height: 22, borderRadius: 6,
               background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0,
-            }}>🏛</div>
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              color: "#fff",
+            }}><School size={11} /></div>
             <div style={{ minWidth: 0 }}>
               <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.collegeName || "Your College"}</p>
               <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 700, color: "#10B981", letterSpacing: "0.5px" }}>✓ VERIFIED STUDENT</p>
@@ -518,8 +519,9 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
+                color: "#fff",
               }}>
-                <span style={{ fontSize: 13 }}>🎓</span>
+                <GraduationCap size={14} />
               </div>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
@@ -599,8 +601,9 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
+                  color: "#fff",
                 }}>
-                  <span style={{ fontSize: 13 }}>🎓</span>
+                  <GraduationCap size={14} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 800, color: "#F0F4FF", letterSpacing: "-0.5px" }}>Campus</span>
@@ -631,8 +634,8 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                   <p style={{ fontSize: 10, color: "#10B981", fontWeight: 700, margin: "2px 0 0" }}>✓ VERIFIED STUDENT</p>
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "#6B7280", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                🏛 {user?.collegeName || "Your College"}
+              <p style={{ fontSize: 11, color: "#6B7280", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
+                <School size={12} style={{ color: '#4F8EF7' }} /> {user?.collegeName || "Your College"}
               </p>
             </div>
 
@@ -659,7 +662,7 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                           }}>
                             <span>{item.icon}</span>
                             <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, flex: 1 }}>{item.label}</span>
-                            {item.badge && <span style={{ fontSize: 11 }}>{item.badge}</span>}
+                            {item.badge && <span style={{ display: "inline-flex", alignItems: "center" }}>{item.badge}</span>}
                           </div>
                         </Link>
                       );

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/axios';
+import { ArrowLeft, Check, AlertTriangle, Cpu, HardDrive, Percent, Landmark, Trash2, Plus, Info, CheckCircle2, AlertCircle, Sparkles, X, Calculator, CircleDollarSign, Calendar } from 'lucide-react';
 
 interface PhysicalTier {
   min: number;
@@ -372,7 +373,7 @@ export default function PlatformSettingsPage() {
         {/* Header */}
         <div className="ps-header">
           <div className="ps-breadcrumb">Master Admin · <span>Platform Settings</span></div>
-          <h1 className="ps-title">💰 Platform Pricing</h1>
+          <h1 className="ps-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CircleDollarSign size={28} /> Platform Pricing</h1>
           <div className="ps-sub">
             Configure global fee structures for all marketplace transactions
             <span className="ps-badge">Live System</span>
@@ -380,17 +381,17 @@ export default function PlatformSettingsPage() {
         </div>
 
         {/* Alert */}
-        <div className="ps-alert">
-          ⚠️ <span>Changes apply <strong>immediately</strong> to all new transactions across <strong>all colleges</strong>. Existing orders are not affected. Buyer platform fees are shown only in the <strong>billing / invoice</strong> section — not on product pages.</span>
+        <div className="ps-alert" style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2, color: '#F59E0B' }} /> <span>Changes apply <strong>immediately</strong> to all new transactions across <strong>all colleges</strong>. Existing orders are not affected. Buyer platform fees are shown only in the <strong>billing / invoice</strong> section — not on product pages.</span>
         </div>
 
         {/* Tabs */}
         <div className="ps-tabs">
-          <button className={`ps-tab${tab === 'digital' ? ' active' : ''}`} onClick={() => setTab('digital')}>
-            🖥 Digital Products
+          <button className={`ps-tab${tab === 'digital' ? ' active' : ''}`} onClick={() => setTab('digital')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Cpu size={14} /> Digital Products
           </button>
-          <button className={`ps-tab${tab === 'physical' ? ' active' : ''}`} onClick={() => setTab('physical')}>
-            📦 Physical Products
+          <button className={`ps-tab${tab === 'physical' ? ' active' : ''}`} onClick={() => setTab('physical')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <HardDrive size={14} /> Physical Products
           </button>
         </div>
 
@@ -405,7 +406,7 @@ export default function PlatformSettingsPage() {
                 {/* Digital: Listing fee */}
                 <div className="ps-card">
                   <div className="ps-card-head">
-                    <div className="ps-card-icon gold">📋</div>
+                    <div className="ps-card-icon gold"><Info size={15} style={{ color: 'var(--gold)' }} /></div>
                     <div>
                       <div className="ps-card-ttl">Listing Fee</div>
                       <div className="ps-card-desc">One-time fee seller pays to publish a digital product</div>
@@ -428,7 +429,7 @@ export default function PlatformSettingsPage() {
                 {/* Digital: Platform fees */}
                 <div className="ps-card">
                   <div className="ps-card-head">
-                    <div className="ps-card-icon gold">🏷</div>
+                    <div className="ps-card-icon gold"><Percent size={15} style={{ color: 'var(--gold)' }} /></div>
                     <div>
                       <div className="ps-card-ttl">Platform Transaction Fees</div>
                       <div className="ps-card-desc">Applied on every completed digital product sale</div>
@@ -463,7 +464,7 @@ export default function PlatformSettingsPage() {
                 {/* Digital: Payout */}
                 <div className="ps-card">
                   <div className="ps-card-head">
-                    <div className="ps-card-icon blue">⏱</div>
+                    <div className="ps-card-icon blue"><Calendar size={15} style={{ color: 'var(--blue)' }} /></div>
                     <div>
                       <div className="ps-card-ttl">Seller Payout Hold Period</div>
                       <div className="ps-card-desc">Days to hold seller revenue after a deal completes</div>
@@ -488,7 +489,7 @@ export default function PlatformSettingsPage() {
                 {/* Physical: Tier builder */}
                 <div className="ps-card">
                   <div className="ps-card-head">
-                    <div className="ps-card-icon emerald">📊</div>
+                    <div className="ps-card-icon emerald"><Sparkles size={15} style={{ color: 'var(--emerald)' }} /></div>
                     <div>
                       <div className="ps-card-ttl">Price Range Fee Tiers</div>
                       <div className="ps-card-desc">Define listing fee % based on product price range. Sellers pay this upfront when listing.</div>
@@ -554,15 +555,15 @@ export default function PlatformSettingsPage() {
                                 {inRange ? `₹${feeAmt.toLocaleString('en-IN')}` : '—'}
                               </td>
                               <td data-label="Remove">
-                                <button className="tier-del" onClick={() => removeTier(i)} title="Remove tier">✕</button>
+                                <button className="tier-del" onClick={() => removeTier(i)} title="Remove tier" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Trash2 size={13} /></button>
                               </td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
-                    <button className="add-tier-btn" onClick={addTier}>
-                      + Add Price Tier
+                    <button className="add-tier-btn" onClick={addTier} style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                      <Plus size={14} /> Add Price Tier
                     </button>
                   </div>
                 </div>
@@ -570,7 +571,7 @@ export default function PlatformSettingsPage() {
                 {/* Physical: Info box */}
                 <div className="ps-card">
                   <div className="ps-card-head">
-                    <div className="ps-card-icon blue">ℹ️</div>
+                    <div className="ps-card-icon blue"><Info size={15} style={{ color: 'var(--blue)' }} /></div>
                     <div>
                       <div className="ps-card-ttl">How Physical Fees Work</div>
                       <div className="ps-card-desc">Reference guide for the fee structure</div>
@@ -579,14 +580,14 @@ export default function PlatformSettingsPage() {
                   <div className="ps-card-body">
                     <div style={{display:'grid', gap:10}}>
                       {[
-                        ['📋 Listing Fee', 'Seller pays a one-time fee based on their product price tier when listing'],
-                        ['🏷 No Buyer Surcharge', 'Physical products have NO extra platform fee added to the buyer price'],
-                        ['💸 Revenue', 'Seller receives full product price after deal — listing fee was the platform cut'],
-                        ['⚡ Instant Payout', 'Physical deals settle immediately — no hold period'],
-                      ].map(([icon, text]) => (
-                        <div key={icon} style={{ display:'flex', gap:12, alignItems:'flex-start', padding:'10px 14px', background:'var(--card2)', borderRadius:9 }}>
-                          <span style={{fontSize:16}}>{icon}</span>
-                          <span style={{fontSize:13, color:'var(--t2)', lineHeight:1.5}}>{text}</span>
+                        [<Info size={16} style={{ color: 'var(--gold)' }} />, 'Listing Fee', 'Seller pays a one-time fee based on their product price tier when listing'],
+                        [<Percent size={16} style={{ color: 'var(--blue)' }} />, 'No Buyer Surcharge', 'Physical products have NO extra platform fee added to the buyer price'],
+                        [<CircleDollarSign size={16} style={{ color: 'var(--emerald)' }} />, 'Revenue', 'Seller receives full product price after deal — listing fee was the platform cut'],
+                        [<Sparkles size={16} style={{ color: 'var(--gold)' }} />, 'Instant Payout', 'Physical deals settle immediately — no hold period'],
+                      ].map(([icon, label, text]) => (
+                        <div key={label as string} style={{ display:'flex', gap:12, alignItems:'flex-start', padding:'10px 14px', background:'var(--card2)', borderRadius:9 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', marginTop: 2 }}>{icon}</span>
+                          <span style={{fontSize:13, color:'var(--t2)', lineHeight:1.5}}><strong>{label as string}</strong> — {text as string}</span>
                         </div>
                       ))}
                     </div>
@@ -597,8 +598,8 @@ export default function PlatformSettingsPage() {
 
             {/* Save section */}
             <div className="save-section">
-              <div className="save-title">
-                💾 Pending Changes
+              <div className="save-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <HardDrive size={15} style={{ color: 'var(--gold)' }} /> Pending Changes
                 {diffItems.length > 0 && (
                   <span style={{marginLeft:'auto', fontSize:11, background:'rgba(247,201,72,.15)', color:'var(--gold)', padding:'3px 10px', borderRadius:99, fontWeight:700}}>
                     {diffItems.length} change{diffItems.length > 1 ? 's' : ''}
@@ -624,7 +625,7 @@ export default function PlatformSettingsPage() {
               <div className="save-actions">
                 <button className="btn-cancel" onClick={handleCancel} disabled={saving}>Cancel</button>
                 <button className="btn-save" onClick={handleSave} disabled={saving || diffItems.length === 0}>
-                  {saving ? '⏳ Saving...' : '💾 Save Settings'}
+                  {saving ? 'Saving...' : 'Save Settings'}
                 </button>
               </div>
               {saved.updatedAt && (
@@ -638,8 +639,8 @@ export default function PlatformSettingsPage() {
 
           {/* Right column — Calculator */}
           <div className="calc-card">
-            <div className="calc-head">
-              <span style={{fontSize:16}}>🧮</span>
+            <div className="calc-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--gold)' }}><Calculator size={16} /></span>
               <div className="calc-ttl">Fee Calculator</div>
             </div>
             <div className="calc-body">
@@ -703,7 +704,7 @@ export default function PlatformSettingsPage() {
                   </div>
 
                   <div className="calc-total" style={{marginTop:14}}>
-                    <div className="calc-total-label">🏦 Platform Revenue</div>
+                    <div className="calc-total-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Landmark size={12} /> Platform Revenue</div>
                     <div className="calc-total-val">₹{(buyerFee + sellerCut + settings.digitalListingFee).toLocaleString('en-IN')}</div>
                     <div style={{fontSize:11,color:'var(--t3)',marginTop:3}}>
                       Listing ₹{settings.digitalListingFee} + Buyer ₹{buyerFee} + Seller Cut ₹{sellerCut}

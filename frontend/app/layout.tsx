@@ -21,7 +21,7 @@ export default function RootLayout({
    * Silent refresh on every page load / tab re-focus.
    * IMPORTANT: Only call clearAuth() on definitive 401 (invalid/expired token).
    * For network errors or 500s, just stop the loading spinner — the refreshToken
-   * cookie is still valid and middleware will keep the user on their page.
+   * cookie is still valid and proxy will keep the user on their page.
    */
   useEffect(() => {
     const tryRefresh = async () => {

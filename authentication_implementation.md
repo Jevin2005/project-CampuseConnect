@@ -23,7 +23,7 @@
 ### Frontend (`/frontend/`)
 | File | Change |
 |------|--------|
-| `middleware.ts` | **NEW** — Route protection via refresh token cookie |
+| `proxy.ts` | **NEW** — Route protection via refresh token cookie |
 | `app/login/page.tsx` | Already wired ✅ |
 | `app/verify-otp/page.tsx` | Already wired ✅ |
 | `app/pending-approval/page.tsx` | Already wired ✅ |

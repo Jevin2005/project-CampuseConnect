@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
 import api from '@/lib/axios';
+import { BookOpen, Laptop, Smartphone, FileText, Video, Package, Check, Trash2, RotateCcw, Eye, Search, AlertTriangle } from 'lucide-react';
 
 type PS = 'pending' | 'active' | 'removed' | 'sold';
 
@@ -11,8 +12,15 @@ interface Product {
   date: string; images?: string[]; imageUrl?: string; description?: string;
 }
 
-const CAT_ICON: Record<string, string> = {
-  BOOK: '📕', LAPTOP: '💻', PHONE: '📱', NOTE: '📄', VIDEO: '🎥', OTHER: '📦',
+const CAT_ICON = (cat: string, size = 16) => {
+  switch (cat) {
+    case 'BOOK': return <BookOpen size={size} style={{ color: 'var(--blue)' }} />;
+    case 'LAPTOP': return <Laptop size={size} style={{ color: 'var(--green)' }} />;
+    case 'PHONE': return <Smartphone size={size} style={{ color: 'var(--org)' }} />;
+    case 'NOTE': return <FileText size={size} style={{ color: 'var(--blue)' }} />;
+    case 'VIDEO': return <Video size={size} style={{ color: 'var(--red)' }} />;
+    default: return <Package size={size} style={{ color: 'var(--mut)' }} />;
+  }
 };
 
 const isImage = (url: string) => /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url);
@@ -57,9 +65,9 @@ export default function ProductManagementPage() {
     setActionLoading(id);
     try {
       await api.post(`/api/admin/products/${id}/${action}`);
-      showToast(action === 'approve' ? '✅ Product approved!' : action === 'remove' ? '🗑 Product removed.' : '↩ Product restored!');
+      showToast(action === 'approve' ? 'Product approved!' : action === 'remove' ? 'Product removed.' : 'Product restored!');
       await fetchProducts();
-    } catch (e) { console.error(e); showToast('❌ Action failed'); }
+    } catch (e) { console.error(e); showToast('Action failed'); }
     finally { setActionLoading(null); setRmModal(null); setRsModal(null); }
   };
 
@@ -234,7 +242,7 @@ export default function ProductManagementPage() {
             ))}
           </div>
           <div className="sw">
-            <span className="si">🔍</span>
+            <span className="si" style={{ display: 'inline-flex', alignItems: 'center' }}><Search size={14} /></span>
             <input className="sinput" placeholder="Search products or sellers…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
@@ -246,13 +254,13 @@ export default function ProductManagementPage() {
               <div key={i} className="tr">{Array(7).fill(0).map((_, j) => <div key={j}><div className="skeleton" style={{ height: 14, width: j === 0 ? 160 : 80 }} /></div>)}</div>
             ))
           ) : rows.length === 0 ? (
-            <div className="empty">📦 No products found</div>
+            <div className="empty" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Package size={18} /> No products found</div>
           ) : rows.map(p => {
             const ss = SC[p.status];
             return (
               <div key={p.id} className="tr">
                 <div className="pcell">
-                  <div className="pib">{CAT_ICON[p.category] || '📦'}</div>
+                  <div className="pib" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{CAT_ICON(p.category, 18)}</div>
                   <div className="ptitle" title={p.title}>{p.title}</div>
                 </div>
                 <div className="sname">{p.seller}</div>
@@ -261,13 +269,13 @@ export default function ProductManagementPage() {
                 <div className="dt">{fmtDate(p.date)}</div>
                 <div><span className="sbadge" style={{ background: ss.bg, color: ss.c }}>{ss.l}</span></div>
                 <div className="acts">
-                  <button className="brs" style={{ border: '1.5px solid rgba(79,142,247,.35)', color: 'var(--blue)', padding: '5px 11px' }} onClick={() => setViewModal(p)}>👁 View</button>
+                  <button className="brs" style={{ border: '1.5px solid rgba(79,142,247,.35)', color: 'var(--blue)', padding: '5px 11px', display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => setViewModal(p)}><Eye size={12} /> View</button>
                   {p.status === 'pending' && !p.isApproved && <>
-                    <button className="bap" disabled={actionLoading === p.id} onClick={() => doAction(p.id, 'approve')}>Approve ✓</button>
-                    <button className="brm" onClick={() => setRmModal(p.id)}>Remove ✗</button>
+                    <button className="bap" disabled={actionLoading === p.id} onClick={() => doAction(p.id, 'approve')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Approve <Check size={12} /></button>
+                    <button className="brm" onClick={() => setRmModal(p.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Remove <Trash2 size={12} /></button>
                   </>}
-                  {(p.status === 'active' || (p.status === 'pending' && p.isApproved)) && <button className="brm" onClick={() => setRmModal(p.id)}>Remove ✗</button>}
-                  {p.status === 'removed' && <button className="brs" onClick={() => setRsModal(p.id)}>↩ Restore</button>}
+                  {(p.status === 'active' || (p.status === 'pending' && p.isApproved)) && <button className="brm" onClick={() => setRmModal(p.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Remove <Trash2 size={12} /></button>}
+                  {p.status === 'removed' && <button className="brs" onClick={() => setRsModal(p.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><RotateCcw size={12} /> Restore</button>}
                   {p.status === 'sold' && <span style={{ color: 'var(--mut)', padding: '5px 10px' }}>—</span>}
                 </div>
               </div>
@@ -277,7 +285,7 @@ export default function ProductManagementPage() {
       </div>
 
       {rmModal && <div className="mo" onClick={() => setRmModal(null)}><div className="mb" onClick={e => e.stopPropagation()}>
-        <div className="mt">⚠️ Remove Product?</div>
+        <div className="mt" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={18} style={{ color: 'var(--red)' }} /> Remove Product?</div>
         <p className="ms">This listing will be hidden from students. You can restore it later.</p>
         <div className="macts">
           <button className="bcnl" onClick={() => setRmModal(null)}>Cancel</button>
@@ -286,7 +294,7 @@ export default function ProductManagementPage() {
       </div></div>}
  
       {rsModal && <div className="mo" onClick={() => setRsModal(null)}><div className="mb" onClick={e => e.stopPropagation()}>
-        <div className="mt">↩️ Restore Product?</div>
+        <div className="mt" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><RotateCcw size={18} style={{ color: 'var(--blue)' }} /> Restore Product?</div>
         <p className="ms">This product will become Active and visible to students again.</p>
         <div className="macts">
           <button className="bcnl" onClick={() => setRsModal(null)}>Cancel</button>
@@ -331,7 +339,7 @@ export default function ProductManagementPage() {
                   if (isPdf(img)) {
                     return (
                       <div key={idx} onClick={() => window.open(fullImgUrl, '_blank')} style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 8, border: '1.5px dashed rgba(167, 139, 250, 0.3)', background: 'rgba(167, 139, 250, 0.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 8, boxSizing: 'border-box' }} title="Click to view full PDF document">
-                        <span style={{ fontSize: '28px', marginBottom: '4px' }}>📄</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', marginBottom: '4px', color: 'var(--blue)' }}><FileText size={28} /></span>
                         <span style={{ fontSize: '10px', color: 'var(--soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>
                           {img.split('/').pop() || 'document.pdf'}
                         </span>
@@ -347,7 +355,8 @@ export default function ProductManagementPage() {
                 })}
               </div>
             ) : (
-              <div style={{ padding: '24px', background: 'var(--card2)', borderRadius: 10, border: '1px solid var(--border)', color: 'var(--mut)', marginBottom: 20, textAlign: 'center' }}>
+              <div style={{ padding: '24px', background: 'var(--card2)', borderRadius: 10, border: '1px solid var(--border)', color: 'var(--mut)', marginBottom: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <Package size={28} />
                 No product images/posters uploaded
               </div>
             )}
@@ -383,15 +392,15 @@ export default function ProductManagementPage() {
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                 {viewModal.status === 'pending' && !viewModal.isApproved && (
                   <>
-                    <button className="bcrm" style={{ background: 'transparent', border: '1.5px solid var(--red)', color: 'var(--red)' }} onClick={() => { setRmModal(viewModal.id); setViewModal(null); }}>Remove ✗</button>
-                    <button className="bap" onClick={() => { doAction(viewModal.id, 'approve'); setViewModal(null); }}>Approve ✓</button>
+                    <button className="bcrm" style={{ background: 'transparent', border: '1.5px solid var(--red)', color: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => { setRmModal(viewModal.id); setViewModal(null); }}>Remove <Trash2 size={12} /></button>
+                    <button className="bap" onClick={() => { doAction(viewModal.id, 'approve'); setViewModal(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Approve <Check size={12} /></button>
                   </>
                 )}
                 {(viewModal.status === 'active' || (viewModal.status === 'pending' && viewModal.isApproved)) && (
-                  <button className="bcrm" onClick={() => { setRmModal(viewModal.id); setViewModal(null); }}>Remove ✗</button>
+                  <button className="bcrm" onClick={() => { setRmModal(viewModal.id); setViewModal(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Remove <Trash2 size={12} /></button>
                 )}
                 {viewModal.status === 'removed' && (
-                  <button className="bcrs" onClick={() => { doAction(viewModal.id, 'restore'); setViewModal(null); }}>Restore</button>
+                  <button className="bcrs" onClick={() => { doAction(viewModal.id, 'restore'); setViewModal(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><RotateCcw size={12} /> Restore</button>
                 )}
               </div>
             </div>

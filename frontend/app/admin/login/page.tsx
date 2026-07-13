@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Users, Package, IndianRupee, Clock, AlertCircle, Key, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
@@ -449,15 +450,15 @@ export default function AdminLoginPage() {
 
             <div className="features">
               <div className="feature-row">
-                <div className="feature-icon">👥</div>
+                <div className="feature-icon"><Users size={14} style={{ color: 'var(--green)' }} /></div>
                 <p className="feature-text"><strong>Student Approvals</strong> — approve or reject registrations instantly</p>
               </div>
               <div className="feature-row">
-                <div className="feature-icon">📦</div>
+                <div className="feature-icon"><Package size={14} style={{ color: 'var(--green)' }} /></div>
                 <p className="feature-text"><strong>Product Moderation</strong> — review and manage all listings</p>
               </div>
               <div className="feature-row">
-                <div className="feature-icon">💰</div>
+                <div className="feature-icon"><IndianRupee size={14} style={{ color: 'var(--green)' }} /></div>
                 <p className="feature-text"><strong>Revenue Tracking</strong> — platform fees and transaction analytics</p>
               </div>
             </div>
@@ -486,7 +487,7 @@ export default function AdminLoginPage() {
             <span className="logo-rest">Connect</span>
           </div>
 
-          <h2 className="form-heading">Welcome back 👋</h2>
+          <h2 className="form-heading">Welcome back</h2>
           <p className="form-sub">Sign in to your admin dashboard</p>
 
           {isPending && (
@@ -498,12 +499,12 @@ export default function AdminLoginPage() {
               marginBottom: 16,
               display: 'flex', alignItems: 'flex-start', gap: 8,
             }}>
-              <span>⏳</span>
+              <Clock size={16} className="flex-shrink-0 mt-0.5" />
               <span>Your registration is under review by our team. You'll receive an email once approved (24–48 hours).</span>
             </div>
           )}
           {error && (
-            <div className="error-box">⚠️ {error}</div>
+            <div className="error-box"><AlertCircle size={14} className="flex-shrink-0" /> {error}</div>
           )}
 
           <form onSubmit={handleSubmit} noValidate>
@@ -542,7 +543,7 @@ export default function AdminLoginPage() {
                   required
                 />
               </div>
-              <p className="helper">🔑 Assigned during college registration</p>
+              <p className="helper" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Key size={12} /> Assigned during college registration</p>
             </div>
 
             <div className="field">
@@ -569,7 +570,7 @@ export default function AdminLoginPage() {
                   onClick={() => setShowPassword(v => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>

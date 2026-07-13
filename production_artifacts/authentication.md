@@ -339,10 +339,10 @@ Create frontend/lib/axios.ts:
   })
 
 ═══════════════════════════════════════════════════════════
-NEXT.JS MIDDLEWARE (Route Protection)
+NEXT.JS PROXY (Route Protection)
 ═══════════════════════════════════════════════════════════
 
-Create frontend/middleware.ts:
+Create frontend/proxy.ts:
 
   Rules:
   - /marketplace, /product/*, /viewer/*, /sell/*, 
@@ -406,7 +406,7 @@ Follow this exact order to avoid dependency issues:
 11. Wire S1 + S2 + S3 pages (student auth)
 12. Wire A1 + A2 pages (admin auth)
 13. Wire M1 page (master auth)
-14. Implement Next.js middleware (route protection)
+14. Implement Next.js proxy (route protection)
 15. Test all 3 flows end-to-end
 
 ═══════════════════════════════════════════════════════════

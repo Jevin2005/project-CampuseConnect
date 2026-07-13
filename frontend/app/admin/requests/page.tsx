@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../store/authStore';
+import { CheckCircle2, AlertTriangle, AlertCircle, Search, Info, Phone, Calendar, CreditCard, ShieldAlert, Eye, UserX, UserCheck, Mail, ShoppingCart, Package, Check, X } from 'lucide-react';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com'}/api/admin`;
 
@@ -345,8 +346,8 @@ export default function StudentRequestsPage() {
 
         {/* Alert Banner */}
         {pending.length > 0 && (
-          <div className="alert-banner">
-            ⚠️ {pending.length} student{pending.length > 1 ? 's are' : ' is'} waiting for your approval. Review each request carefully.
+          <div className="alert-banner" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertTriangle size={16} /> {pending.length} student{pending.length > 1 ? 's are' : ' is'} waiting for your approval. Review each request carefully.
           </div>
         )}
 
@@ -379,7 +380,7 @@ export default function StudentRequestsPage() {
               ))
             ) : pending.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">✅</div>
+                <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)' }}><CheckCircle2 size={48} /></div>
                 <div className="empty-title">All caught up!</div>
                 <div>No pending student requests right now.</div>
               </div>
@@ -394,27 +395,30 @@ export default function StudentRequestsPage() {
                     </div>
                     <div style={{ flexShrink: 0 }}>
                       {req.match
-                        ? <span className="domain-badge domain-ok">✓ Domain matches</span>
-                        : <span className="domain-badge domain-warn">⚠️ Domain mismatch</span>}
+                        ? <span className="domain-badge domain-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} /> Domain matches</span>
+                        : <span className="domain-badge domain-warn" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertCircle size={12} /> Domain mismatch</span>}
                     </div>
                   </div>
 
                   <div className="req-divider" />
 
                   <div className="req-meta">
-                    <div className="req-meta-item">
-                      <span className="req-meta-lbl">📅 Request Date</span>
+                    <div className="req-meta-item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Calendar size={13} style={{ color: 'var(--t3)' }} />
+                      <span className="req-meta-lbl">Request Date</span>
                       <span className="req-meta-val">{fmtDate(req.date)}</span>
                     </div>
                     {req.enrollmentId !== '—' && (
-                      <div className="req-meta-item">
-                        <span className="req-meta-lbl">🎫 Enrollment ID</span>
+                      <div className="req-meta-item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <CreditCard size={13} style={{ color: 'var(--t3)' }} />
+                        <span className="req-meta-lbl">Enrollment ID</span>
                         <span className="req-meta-val">{req.enrollmentId}</span>
                       </div>
                     )}
                     {req.phone !== '—' && (
-                      <div className="req-meta-item">
-                        <span className="req-meta-lbl">📞 Phone</span>
+                      <div className="req-meta-item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Phone size={13} style={{ color: 'var(--t3)' }} />
+                        <span className="req-meta-lbl">Phone</span>
                         <span className="req-meta-val">{req.phone}</span>
                       </div>
                     )}
@@ -423,24 +427,26 @@ export default function StudentRequestsPage() {
                   <div className="req-actions">
                     <button
                       className="btn-reject"
-                      style={{ marginRight: 'auto' }}
+                      style={{ marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                       onClick={() => setViewModal({ ...req, status: 'pending' })}
                     >
-                      👁 View
+                      <Eye size={13} /> View
                     </button>
                     <button
                       className="btn-reject"
                       disabled={actionLoading === req.id}
                       onClick={() => setShowRejectModal(req)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                     >
-                      ❌ Reject
+                      <UserX size={13} /> Reject
                     </button>
                     <button
                       className="btn-approve"
                       disabled={actionLoading === req.id}
                       onClick={() => handleApprove(req)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                     >
-                      {actionLoading === req.id ? 'Processing…' : '✅ Approve Access'}
+                      {actionLoading === req.id ? 'Processing…' : <><UserCheck size={13} /> Approve Access</>}
                     </button>
                   </div>
                 </div>
@@ -453,7 +459,7 @@ export default function StudentRequestsPage() {
         {activeTab === 'approved' && (
           <>
             <div className="search-wrap">
-              <span className="search-icon">🔍</span>
+              <span className="search-icon" style={{ display: 'inline-flex', alignItems: 'center' }}><Search size={16} /></span>
               <input
                 className="search-bar"
                 placeholder="Search by name, email, or enrollment ID…"
@@ -520,15 +526,17 @@ export default function StudentRequestsPage() {
                             <button
                               className="btn-sm btn-sm-view"
                               onClick={() => setViewModal({ ...st, status: 'approved' })}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                             >
-                              👁 View
+                              <Eye size={11} /> View
                             </button>
                             <button
                               className="btn-sm btn-sm-suspend"
                               disabled={actionLoading === st.id}
                               onClick={() => setSuspendModal(st)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                             >
-                              Suspend
+                              <UserX size={11} /> Suspend
                             </button>
                           </div>
                         </td>
@@ -569,7 +577,7 @@ export default function StudentRequestsPage() {
       {suspendModal && (
         <div className="modal-bg" onClick={() => setSuspendModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div className="modal-title" style={{ color: 'var(--orange)' }}>⚠️ Suspend Student?</div>
+            <div className="modal-title" style={{ color: 'var(--orange)', display: 'flex', alignItems: 'center', gap: 8 }}><ShieldAlert size={20} /> Suspend Student?</div>
             <p className="modal-sub">
               <strong style={{ color: 'var(--t1)' }}>{suspendModal.name}</strong> will lose marketplace access immediately.
               Their listings will be hidden. You can unsuspend them at any time.
@@ -599,11 +607,11 @@ export default function StudentRequestsPage() {
 
             {/* Status badges */}
             <div className="vm-status-row">
-              <span className={`vm-badge ${viewModal.status === 'pending' ? 'vm-badge-pending' : 'vm-badge-approved'}`}>
-                {viewModal.status === 'pending' ? '⏳ Pending Approval' : '✅ Approved'}
+              <span className={`vm-badge ${viewModal.status === 'pending' ? 'vm-badge-pending' : 'vm-badge-approved'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {viewModal.status === 'pending' ? <><Clock size={12} /> Pending Approval</> : <><Check size={12} /> Approved</>}
               </span>
-              <span className={`vm-badge ${viewModal.match ? 'vm-badge-domain-ok' : 'vm-badge-domain-warn'}`}>
-                {viewModal.match ? '✓ Domain Verified' : '⚠️ Domain Mismatch'}
+              <span className={`vm-badge ${viewModal.match ? 'vm-badge-domain-ok' : 'vm-badge-domain-warn'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {viewModal.match ? <><Check size={12} /> Domain Verified</> : <><AlertTriangle size={12} /> Domain Mismatch</>}
               </span>
             </div>
 
@@ -612,27 +620,27 @@ export default function StudentRequestsPage() {
             {/* Detail grid */}
             <div className="vm-grid">
               <div className="vm-field">
-                <div className="vm-lbl">📅 Join Date</div>
+                <div className="vm-lbl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={11} /> Join Date</div>
                 <div className="vm-val normal">{fmtDate(viewModal.date)}</div>
               </div>
               <div className="vm-field">
-                <div className="vm-lbl">🎫 Enrollment ID</div>
+                <div className="vm-lbl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><CreditCard size={11} /> Enrollment ID</div>
                 <div className="vm-val">{viewModal.enrollmentId}</div>
               </div>
               <div className="vm-field">
-                <div className="vm-lbl">📞 Phone</div>
+                <div className="vm-lbl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11} /> Phone</div>
                 <div className="vm-val normal">{viewModal.phone}</div>
               </div>
               <div className="vm-field">
-                <div className="vm-lbl">📦 Products Listed</div>
+                <div className="vm-lbl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Package size={11} /> Products Listed</div>
                 <div className="vm-val" style={{ color: 'var(--blue)' }}>{viewModal.products}</div>
               </div>
               <div className="vm-field">
-                <div className="vm-lbl">🛒 Purchases Made</div>
+                <div className="vm-lbl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ShoppingCart size={11} /> Purchases Made</div>
                 <div className="vm-val" style={{ color: 'var(--green)' }}>{viewModal.purchases}</div>
               </div>
               <div className="vm-field">
-                <div className="vm-lbl">✉️ Email Domain</div>
+                <div className="vm-lbl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Mail size={11} /> Email Domain</div>
                 <div className="vm-val">{viewModal.email.split('@')[1] || '—'}</div>
               </div>
             </div>

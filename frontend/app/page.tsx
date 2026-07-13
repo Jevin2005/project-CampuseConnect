@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ArrowRight, CheckCircle, Shield } from "lucide-react";
+import { ChevronDown, ArrowRight, CheckCircle, Shield, Lock, CreditCard, Megaphone, School, BadgeCheck, GraduationCap, ShoppingCart, Wrench, FileText } from "lucide-react";
 import PublicNavbar from "@/components/layout/PublicNavbar";
 import Footer from "@/components/layout/Footer";
 
@@ -44,25 +44,25 @@ function useInView(threshold = 0.2) {
 /* ─── data ──────────────────────────────────────────────────────── */
 const FEATURES = [
   {
-    emoji: "🔒", title: "College Isolation",
+    icon: <Lock size={22} color="#4F8EF7" />, title: "College Isolation",
     desc: "Each college gets a completely private marketplace. Zero cross-college visibility.",
     iconBg: "rgba(79,142,247,0.14)", titleColor: "#4F8EF7",
     hoverBorder: "rgba(79,142,247,0.35)", hoverGlow: "0 0 24px rgba(79,142,247,0.18)",
   },
   {
-    emoji: "🛡️", title: "DRM Content Protection",
+    icon: <Shield size={22} color="#A78BFA" />, title: "DRM Content Protection",
     desc: "Notes and videos are watermarked with buyer's name. No download. No screenshot.",
     iconBg: "rgba(124,58,237,0.14)", titleColor: "#A78BFA",
     hoverBorder: "rgba(124,58,237,0.35)", hoverGlow: "0 0 24px rgba(124,58,237,0.18)",
   },
   {
-    emoji: "💳", title: "Transparent Fee System",
+    icon: <CreditCard size={22} color="#10B981" />, title: "Transparent Fee System",
     desc: "Small listing fee filters genuine sellers. 5% platform cut per sale, auto-calculated.",
     iconBg: "rgba(16,185,129,0.14)", titleColor: "#10B981",
     hoverBorder: "rgba(16,185,129,0.35)", hoverGlow: "0 0 24px rgba(16,185,129,0.18)",
   },
   {
-    emoji: "📢", title: "College-Targeted Ads",
+    icon: <Megaphone size={22} color="#F7C948" />, title: "College-Targeted Ads",
     desc: "Admins advertise within their college for free, or pay to go platform-wide.",
     iconBg: "rgba(247,201,72,0.14)", titleColor: "#F7C948",
     hoverBorder: "rgba(247,201,72,0.35)", hoverGlow: "0 0 24px rgba(247,201,72,0.18)",
@@ -70,10 +70,10 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { emoji: "🏫", step: "Step 1", title: "College Registers", desc: "Admin submits college details to platform" },
-  { emoji: "✅", step: "Step 2", title: "Master Approves",   desc: "Marketplace created and activated in seconds" },
-  { emoji: "🎓", step: "Step 3", title: "Students Join",     desc: "Via enrollment email + OTP verification" },
-  { emoji: "🛒", step: "Step 4", title: "Buy & Sell",        desc: "Physical goods + DRM-protected digital content" },
+  { icon: <School size={28} color="#F7C948" />, step: "Step 1", title: "College Registers", desc: "Admin submits college details to platform" },
+  { icon: <BadgeCheck size={28} color="#10B981" />, step: "Step 2", title: "Master Approves",   desc: "Marketplace created and activated in seconds" },
+  { icon: <GraduationCap size={28} color="#4F8EF7" />, step: "Step 3", title: "Students Join",     desc: "Via enrollment email + OTP verification" },
+  { icon: <ShoppingCart size={28} color="#A78BFA" />, step: "Step 4", title: "Buy & Sell",        desc: "Physical goods + DRM-protected digital content" },
 ];
 
 const STEP_COLORS = [
@@ -108,9 +108,9 @@ function FeatureCard({ f, delay }: { f: typeof FEATURES[0]; delay: number }) {
         width: 48, height: 48, borderRadius: 12,
         background: f.iconBg,
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 22, flexShrink: 0,
+        flexShrink: 0,
       }}>
-        {f.emoji}
+        {f.icon}
       </div>
       {/* text */}
       <div>
@@ -233,7 +233,7 @@ export default function LandingPage() {
           color: "#4F8EF7", marginBottom: 28,
           animation: "fadeInUp 0.5s ease both",
         }}>
-          🎓 College Marketplace Platform
+          <GraduationCap size={14} /> College Marketplace Platform
         </div>
 
         {/* h1 */}
@@ -290,7 +290,7 @@ export default function LandingPage() {
               e.currentTarget.style.boxShadow = "0 4px 16px rgba(79,142,247,0.35)";
             }}
           >
-            🎓 Enter Student Market
+            <GraduationCap size={16} /> Enter Student Market
           </Link>
           <Link
             href="/admin/login"
@@ -314,7 +314,7 @@ export default function LandingPage() {
               e.currentTarget.style.borderColor = "rgba(79,142,247,0.6)";
             }}
           >
-            🏫 College Admin Login
+            <School size={16} /> College Admin Login
           </Link>
         </div>
 
@@ -439,10 +439,10 @@ export default function LandingPage() {
                       width: 88, height: 88, borderRadius: "50%",
                       background: c.bg, border: `2px solid ${c.border}`,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 36, position: "relative", zIndex: 1,
+                      position: "relative", zIndex: 1,
                       flexShrink: 0,
                     }}>
-                      {s.emoji}
+                      {s.icon}
                     </div>
 
                     <div className="hiw-step-text">
@@ -528,7 +528,7 @@ export default function LandingPage() {
           >
             {/* Physical */}
             <ProductTypeCard
-              emoji="🔧" title="Refurbished Goods"
+              icon={<Wrench size={22} color="#4F8EF7" />} title="Refurbished Goods"
               tags={["Laptops", "Textbooks", "Lab Equipment", "Instruments", "Furniture", "Electronics"]}
               tagColor="#4F8EF7" tagBg="rgba(79,142,247,0.1)" tagBorder="rgba(79,142,247,0.2)"
               bulletIcon={<CheckCircle size={14} />} bulletColor="#4F8EF7"
@@ -542,7 +542,7 @@ export default function LandingPage() {
             />
             {/* Digital */}
             <ProductTypeCard
-              emoji="📄" title="Digital Content"
+              icon={<FileText size={22} color="#A78BFA" />} title="Digital Content"
               tags={["Notes PDFs", "Video Lectures", "Question Banks", "Study Guides", "Past Papers"]}
               tagColor="#A78BFA" tagBg="rgba(124,58,237,0.1)" tagBorder="rgba(124,58,237,0.2)"
               bulletIcon={<Shield size={14} />} bulletColor="#A78BFA"
@@ -578,9 +578,9 @@ export default function LandingPage() {
               width: 56, height: 56, borderRadius: "50%",
               background: "rgba(247,201,72,0.12)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 28, margin: "0 auto 20px",
+              margin: "0 auto 20px",
             }}>
-              🎓
+              <GraduationCap size={28} style={{ color: "#F7C948" }} />
             </div>
             <h2 style={{
               fontFamily: "'Sora', sans-serif",
@@ -630,12 +630,12 @@ export default function LandingPage() {
 
 /* ─── ProductTypeCard ───────────────────────────────────────────── */
 function ProductTypeCard({
-  emoji, title, tags, tagColor, tagBg, tagBorder,
+  icon, title, tags, tagColor, tagBg, tagBorder,
   bulletIcon, bulletColor, bulletBg, bulletBorder, bulletText,
   linkText, linkColor, borderGradient, accentGlow,
   visible, delay, href,
 }: {
-  emoji: string; title: string;
+  icon: React.ReactNode; title: string;
   tags: string[]; tagColor: string; tagBg: string; tagBorder: string;
   bulletIcon: React.ReactNode; bulletColor: string; bulletBg: string; bulletBorder: string;
   bulletText: string;
@@ -664,9 +664,9 @@ function ProductTypeCard({
         <div style={{
           width: 48, height: 48, borderRadius: 12,
           background: tagBg, display: "flex",
-          alignItems: "center", justifyContent: "center", fontSize: 22,
+          alignItems: "center", justifyContent: "center",
         }}>
-          {emoji}
+          {icon}
         </div>
         <h3 style={{
           fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700,

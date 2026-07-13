@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowLeft, RefreshCw, Clock } from "lucide-react";
+import { ArrowRight, ArrowLeft, RefreshCw, Clock, Video, FileText, Laptop, MailOpen } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
@@ -29,28 +29,45 @@ function AuthLeftPanel() {
 
       {/* stacked cards */}
       <div style={{ position: "relative", height: 220, marginBottom: 48 }}>
-        {[
-          { icon: "🎥", label: "Video Lecture", color: "#A78BFA", border: "rgba(124,58,237,0.3)", rotate: "-4deg", left: 24, top: 30 },
-          { icon: "📄", label: "Notes PDF", color: "#10B981", border: "rgba(16,185,129,0.3)", rotate: "-1.5deg", left: 52, top: 16 },
-          { icon: "💻", label: "Laptop — ₹28,000", color: "#4F8EF7", border: "rgba(79,142,247,0.4)", rotate: "1.5deg", left: 80, top: 0 },
-        ].map(c => (
-          <div key={c.icon} style={{
-            position: "absolute", top: c.top, left: c.left,
-            width: 280, height: 160, borderRadius: 14,
-            background: "#1a2235", border: `1px solid ${c.border}`,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transform: `rotate(${c.rotate})`,
-          }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 32 }}>{c.icon}</div>
-              <div style={{
-                fontFamily: "'DM Sans', sans-serif", fontSize: 12,
-                color: c.color, marginTop: 6, fontWeight: 700,
-              }}>{c.label}</div>
-            </div>
+        <div style={{
+          position: "absolute", top: 30, left: 24,
+          width: 280, height: 160, borderRadius: 14,
+          background: "#1a2235", border: "1px solid rgba(124,58,237,0.3)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transform: "rotate(-4deg)",
+        }}>
+          <div style={{ textAlign: "center" }}>
+            <Video size={32} style={{ color: "#A78BFA", margin: "0 auto" }} />
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#A78BFA", marginTop: 8, fontWeight: 700 }}>Video Lecture</div>
           </div>
-        ))}
+        </div>
+        <div style={{
+          position: "absolute", top: 16, left: 52,
+          width: 280, height: 160, borderRadius: 14,
+          background: "#1a2235", border: "1px solid rgba(16,185,129,0.3)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transform: "rotate(-1.5deg)",
+        }}>
+          <div style={{ textAlign: "center" }}>
+            <FileText size={32} style={{ color: "#10B981", margin: "0 auto" }} />
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#10B981", marginTop: 8, fontWeight: 700 }}>Notes PDF</div>
+          </div>
+        </div>
+        <div style={{
+          position: "absolute", top: 0, left: 80,
+          width: 280, height: 160, borderRadius: 14,
+          background: "#1a2235", border: "1px solid rgba(79,142,247,0.4)",
+          boxShadow: "0 12px 40px rgba(79,142,247,0.18)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transform: "rotate(1.5deg)",
+        }}>
+          <div style={{ textAlign: "center" }}>
+            <Laptop size={32} style={{ color: "#4F8EF7", margin: "0 auto" }} />
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#4F8EF7", marginTop: 8, fontWeight: 700 }}>Laptop — ₹28,000</div>
+          </div>
+        </div>
       </div>
 
       <h2 style={{
@@ -247,11 +264,14 @@ function OtpContent() {
       </Link>
 
       {/* heading */}
+      <div style={{ marginBottom: 16 }}>
+        <MailOpen size={36} style={{ color: '#4F8EF7' }} />
+      </div>
       <h1 style={{
         fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800,
         letterSpacing: "-1px", color: "#F0F4FF", marginBottom: 8,
       }}>
-        Check your inbox 📬
+        Check your inbox
       </h1>
       <p style={{
         fontFamily: "'DM Sans', sans-serif", fontSize: 15,

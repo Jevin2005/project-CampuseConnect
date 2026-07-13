@@ -6,7 +6,7 @@ import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
 import {
-  Check, X, MessageCircle, Clock, Package, ChevronRight, RefreshCw,
+  Check, X, MessageCircle, Clock, Package, ChevronRight, RefreshCw, Laptop, FileText, Video, Phone, BookOpen, AlertCircle
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -22,12 +22,12 @@ function timeAgo(d: string) {
 }
 function productIcon(title: string) {
   const t = title.toLowerCase();
-  if (t.includes("laptop") || t.includes("mac")) return "💻";
-  if (t.includes("note") || t.includes("pdf"))   return "📄";
-  if (t.includes("course") || t.includes("video")) return "🎥";
-  if (t.includes("phone"))  return "📱";
-  if (t.includes("book"))   return "📚";
-  return "📦";
+  if (t.includes("laptop") || t.includes("mac")) return <Laptop size={14} />;
+  if (t.includes("note") || t.includes("pdf"))   return <FileText size={14} />;
+  if (t.includes("course") || t.includes("video")) return <Video size={14} />;
+  if (t.includes("phone"))  return <Phone size={14} />;
+  if (t.includes("book"))   return <BookOpen size={14} />;
+  return <Package size={14} />;
 }
 function initials(name: string) {
   return (name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
@@ -45,10 +45,10 @@ interface APIRequest {
 }
 
 const STATUS_STYLE: Record<ReqStatus, { bg: string; color: string; label: string }> = {
-  pending:   { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "⏳ Pending"  },
-  accepted:  { bg: "rgba(16,185,129,0.1)",  color: "#10B981", label: "✅ Accepted"  },
-  rejected:  { bg: "rgba(239,68,68,0.1)",   color: "#EF4444", label: "❌ Rejected"  },
-  completed: { bg: "rgba(16,185,129,0.12)", color: "#10B981", label: "🤝 Completed" },
+  pending:   { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "Pending"  },
+  accepted:  { bg: "rgba(16,185,129,0.1)",  color: "#10B981", label: "Accepted"  },
+  rejected:  { bg: "rgba(239,68,68,0.1)",   color: "#EF4444", label: "Rejected"  },
+  completed: { bg: "rgba(16,185,129,0.12)", color: "#10B981", label: "Completed" },
 };
 
 export default function RequestsPage() {
@@ -88,7 +88,7 @@ export default function RequestsPage() {
       const r = await api.patch(`/api/marketplace/requests/${id}`, { status });
       setRequests(rs => rs.map(req => req.id === id ? { ...req, status } : req));
       showToast(status === "accepted"
-        ? "✅ Accepted! Chat thread opened in Inbox."
+        ? "Accepted! Chat thread opened in Inbox."
         : "Request declined.");
     } catch (err: any) {
       const msg = err.response?.data?.message || "Failed to update request";
@@ -240,7 +240,7 @@ export default function RequestsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {filtered.length === 0 && (
               <div style={{ textAlign: "center", padding: "60px 0" }}>
-                <span style={{ fontSize: 48 }}>📭</span>
+                <AlertCircle size={48} style={{ color: "#6B7280", margin: "0 auto", strokeWidth: 1.5 }} />
                 <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 16, fontWeight: 700, color: "#F0F4FF", marginTop: 12 }}>No requests here</p>
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", marginTop: 4 }}>When students are interested in your listings, requests will appear here.</p>
               </div>
@@ -271,7 +271,7 @@ export default function RequestsPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#0d1120", borderRadius: 8, padding: "8px 12px", marginBottom: 10, width: "fit-content" }}>
                         {img
                           ? <img src={img} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: "cover" }} onError={e => (e.currentTarget.style.display = "none")} />
-                          : <span style={{ fontSize: 18 }}>{productIcon(req.product.title)}</span>
+                          : <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#4F8EF7" }}>{productIcon(req.product.title)}</span>
                         }
                         <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#9CA3AF" }}>{req.product.title}</span>
                         <ChevronRight size={12} style={{ color: "#374151" }} />
@@ -317,7 +317,9 @@ export default function RequestsPage() {
                           </button>
                         </Link>
                       ) : (
-                        <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#374151", padding: "8px 14px", background: "rgba(239,68,68,0.06)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.15)" }}>❌ Declined</span>
+                        <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#EF4444", padding: "8px 14px", background: "rgba(239,68,68,0.06)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.15)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <X size={12} /> Declined
+                        </span>
                       )}
                     </div>
                   </div>

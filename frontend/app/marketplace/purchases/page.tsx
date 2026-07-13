@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
-import { ShoppingBag, FileText, Video, Download, RefreshCw, Package, ExternalLink } from "lucide-react";
+import { ShoppingBag, FileText, Video, Download, RefreshCw, Package, ExternalLink, BookOpen, Check, AlertCircle, IndianRupee } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -28,9 +28,9 @@ interface Order {
 }
 
 const ST: Record<string, { bg: string; color: string; label: string }> = {
-  PENDING:   { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "⏳ Pending"   },
-  COMPLETED: { bg: "rgba(16,185,129,0.1)",  color: "#10B981", label: "✅ Completed"  },
-  CANCELLED: { bg: "rgba(239,68,68,0.1)",   color: "#EF4444", label: "❌ Cancelled"  },
+  PENDING:   { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "Pending"   },
+  COMPLETED: { bg: "rgba(16,185,129,0.1)",  color: "#10B981", label: "Completed"  },
+  CANCELLED: { bg: "rgba(239,68,68,0.1)",   color: "#EF4444", label: "Cancelled"  },
 };
 
 function fmt(d: string) {
@@ -150,8 +150,8 @@ export default function MyPurchasesPage() {
 
         {/* Toast */}
         {toast && (
-          <div style={{ position: "fixed", top: 20, right: 24, zIndex: 999, background: "#10B981", color: "#fff", borderRadius: 12, padding: "12px 20px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
-            ✅ {toast}
+          <div style={{ position: "fixed", top: 20, right: 24, zIndex: 999, background: "#10B981", color: "#fff", borderRadius: 12, padding: "12px 20px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 700, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", gap: 8 }}>
+            <Check size={14} /> {toast}
           </div>
         )}
 
@@ -163,8 +163,8 @@ export default function MyPurchasesPage() {
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {[
-              { key: "physical" as const, icon: "📦", label: "Physical Orders", active: "#4F8EF7" },
-              { key: "digital"  as const, icon: "📚", label: "Digital Library",  active: "#A78BFA" },
+              { key: "physical" as const, icon: <Package size={14} />, label: "Physical Orders", active: "#4F8EF7" },
+              { key: "digital"  as const, icon: <BookOpen size={14} />, label: "Digital Library",  active: "#A78BFA" },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)} style={{
                 height: 40, padding: "0 20px", borderRadius: 9999, cursor: "pointer",
@@ -188,12 +188,12 @@ export default function MyPurchasesPage() {
         {/* Stats */}
         <div className="purchases-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
           {[
-            { icon: "💰", label: "Total Spent",   value: `₹${totalSpent.toLocaleString("en-IN")}`, color: "#10B981" },
-            { icon: "📦", label: "Physical Orders", value: String(physical.length),  color: "#4F8EF7" },
-            { icon: "📚", label: "Digital Items",   value: String(digital.length),   color: "#A78BFA" },
+            { icon: <IndianRupee size={22} />, label: "Total Spent",   value: `₹${totalSpent.toLocaleString("en-IN")}`, color: "#10B981" },
+            { icon: <Package size={22} />, label: "Physical Orders", value: String(physical.length),  color: "#4F8EF7" },
+            { icon: <BookOpen size={22} />, label: "Digital Items",   value: String(digital.length),   color: "#A78BFA" },
           ].map(s => (
             <div key={s.label} style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 14, padding: "18px 22px", display: "flex", alignItems: "center", gap: 14 }}>
-              <span style={{ fontSize: 28 }}>{s.icon}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", color: s.color }}>{s.icon}</span>
               <div>
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 4 }}>{s.label}</p>
                 <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</p>
@@ -257,7 +257,9 @@ export default function MyPurchasesPage() {
         {!loading && tab === "digital" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF" }}>📚 Digital Content Library</h2>
+              <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF", display: "flex", alignItems: "center", gap: 8 }}>
+                <BookOpen size={18} style={{ color: '#A78BFA' }} /> Digital Content Library
+              </h2>
               <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#6B7280" }}>{digital.length} items</span>
             </div>
             {digital.length === 0 && (
@@ -278,9 +280,11 @@ export default function MyPurchasesPage() {
                         ? <img src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.3 }} onError={e => (e.currentTarget.style.display = "none")} />
                         : null
                       }
-                      <span style={{ fontSize: 36, position: "relative" }}>{isVideo ? "🎥" : "📄"}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: isVideo ? "#10B981" : "#A78BFA", background: isVideo ? "rgba(16,185,129,0.15)" : "rgba(167,139,250,0.15)", padding: "2px 10px", borderRadius: 9999, position: "relative" }}>
-                        {isVideo ? "🎥 Video Course" : "📄 PDF Notes"}
+                      <span style={{ position: "relative", color: isVideo ? "#10B981" : "#A78BFA" }}>
+                        {isVideo ? <Video size={36} /> : <FileText size={36} />}
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: isVideo ? "#10B981" : "#A78BFA", background: isVideo ? "rgba(16,185,129,0.15)" : "rgba(167,139,250,0.15)", padding: "2px 10px", borderRadius: 9999, position: "relative", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        {isVideo ? <><Video size={10} /> Video Course</> : <><FileText size={10} /> PDF Notes</>}
                       </span>
                     </div>
                     <div style={{ padding: "14px 16px" }}>

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   CheckCircle, Upload, FileText, Video, Package, Layers, X,
   Plus, Trash2, ShieldCheck, HelpCircle, ArrowLeft, ArrowRight,
-  File, AlertCircle, ShoppingBag
+  File, AlertCircle, ShoppingBag, BookOpen, Zap
 } from "lucide-react";
 import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
@@ -702,7 +702,9 @@ export default function SellProductPage() {
             borderRadius: 32, padding: "50px 40px", backdropFilter: "blur(12px)",
             boxShadow: "0 20px 40px rgba(0,0,0,0.3)"
           }}>
-            <div style={{ fontSize: 80, marginBottom: 20 }}>🚀</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+              <CheckCircle size={80} style={{ color: "#10B981", strokeWidth: 1.2 }} />
+            </div>
             <h1 className="sell-main-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 12 }}>Product Listing Published!</h1>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "#94A3B8", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 30px" }}>
               Your item is now live on the campus marketplace! Students can search and send buy requests for it immediately.
@@ -813,7 +815,7 @@ export default function SellProductPage() {
                   {[
                     {
                       key: "physical" as ProdType,
-                      icon: "📚",
+                      icon: <BookOpen size={36} color="#3B82F6" />,
                       label: "Physical Assets",
                       desc: "Textbooks, lab kits, drawing equipment, calculators, electronics, or dorm gear.",
                       color: "#3B82F6",
@@ -822,7 +824,7 @@ export default function SellProductPage() {
                     },
                     {
                       key: "digital" as ProdType,
-                      icon: "⚡",
+                      icon: <Zap size={36} color="#8B5CF6" />,
                       label: "Digital Publications",
                       desc: "Handwritten notes, complete courses, test series, or comprehensive exam bundles.",
                       color: "#8B5CF6",
@@ -860,7 +862,7 @@ export default function SellProductPage() {
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                        <span style={{ fontSize: 36 }}>{t.icon}</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{t.icon}</span>
                         <span style={{
                           background: "rgba(16, 185, 129, 0.1)", color: "#10B981",
                           borderRadius: 8, padding: "4px 12px",
@@ -969,7 +971,11 @@ export default function SellProductPage() {
                       borderRadius: 8, padding: "4px 12px",
                       fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700
                     }}>
-                      {prodType === "physical" ? "🔧 Physical" : `⚡ ${DIG_SUBS.find(d => d.key === digSub)?.label}`}
+                      {prodType === "physical" ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Package size={13} /> Physical</span>
+                      ) : (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Zap size={13} /> {DIG_SUBS.find(d => d.key === digSub)?.label}</span>
+                      )}
                     </span>
                   </div>
 

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
+import { Search, GraduationCap, Mail, CreditCard, Phone, Calendar, Package, ShoppingBag, X } from 'lucide-react';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com'}/api/master`;
 
@@ -335,7 +336,7 @@ export default function AllStudentsPage() {
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
             />
-            <span className="search-icon">🔍</span>
+            <span className="search-icon" style={{ display: 'inline-flex', alignItems: 'center' }}><Search size={14} /></span>
           </div>
         </div>
 
@@ -390,7 +391,7 @@ export default function AllStudentsPage() {
 
           {!loading && students.length === 0 && (
             <div style={{ textAlign: 'center', padding: '48px 0', color: '#6B7280' }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🎓</div>
+              <div style={{ color: 'var(--blue)', marginBottom: 10, display: 'flex', justifyContent: 'center' }}><GraduationCap size={40} /></div>
               <div style={{ fontFamily: "'Sora',sans-serif", color: '#F0F4FF', marginBottom: 6 }}>No students found</div>
               <div style={{ fontSize: 13 }}>Try adjusting your filters.</div>
             </div>
@@ -414,7 +415,7 @@ export default function AllStudentsPage() {
         <>
           <div className="overlay" onClick={() => setDrawer(null)} />
           <div className="drawer">
-            <button className="dr-close" onClick={() => setDrawer(null)}>✕</button>
+            <button className="dr-close" onClick={() => setDrawer(null)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
             <div className="dr-av" style={{ background: avatarColor(drawer.name) }}>{initials(drawer.name)}</div>
             <div className="dr-name">{drawer.name}</div>
             <div className="dr-pills">
@@ -423,32 +424,32 @@ export default function AllStudentsPage() {
             </div>
 
             <div className="dr-info">
-              <div className="dr-row">
-                <span className="dr-lbl">📧 Email</span>
+              <div className="dr-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="dr-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Mail size={12} /> Email</span>
                 <span className="dr-val">{drawer.email}</span>
               </div>
-              <div className="dr-row">
-                <span className="dr-lbl">🎫 Enroll ID</span>
+              <div className="dr-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="dr-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CreditCard size={12} /> Enroll ID</span>
                 <span className="dr-val">{drawer.enrollmentId}</span>
               </div>
-              <div className="dr-row">
-                <span className="dr-lbl">📞 Phone</span>
+              <div className="dr-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="dr-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Phone size={12} /> Phone</span>
                 <span className="dr-val">{drawer.phone}</span>
               </div>
-              <div className="dr-row">
-                <span className="dr-lbl">📅 Joined</span>
+              <div className="dr-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="dr-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> Joined</span>
                 <span className="dr-val">{new Date(drawer.joined).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
               </div>
             </div>
 
             <div className="dr-stats">
               <div className="dr-stat">
-                <span className="dr-stat-v" style={{ color: 'var(--blue)' }}>{drawer.products}</span>
-                <span className="dr-stat-l">📦 Products</span>
+                <span className="dr-stat-v" style={{ color: 'var(--blue)', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}><Package size={16} /> {drawer.products}</span>
+                <span className="dr-stat-l">Products</span>
               </div>
               <div className="dr-stat">
-                <span className="dr-stat-v" style={{ color: 'var(--green)' }}>{drawer.purchases}</span>
-                <span className="dr-stat-l">🛒 Purchases</span>
+                <span className="dr-stat-v" style={{ color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}><ShoppingBag size={16} /> {drawer.purchases}</span>
+                <span className="dr-stat-l">Purchases</span>
               </div>
             </div>
           </div>

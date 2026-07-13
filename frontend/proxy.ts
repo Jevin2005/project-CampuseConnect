@@ -1,6 +1,6 @@
 /**
- * Next.js Middleware — Route Protection
- * Spec: authentication.md § NEXT.JS MIDDLEWARE
+ * Next.js Proxy — Route Protection
+ * Spec: authentication.md § NEXT.JS PROXY
  *
  * Strategy:
  * - Read the refreshToken HTTP-only cookie to check if user is logged in.
@@ -9,10 +9,10 @@
  * - Redirect unauthorized users to the correct login page.
  * - Redirect already-logged-in users away from login pages.
  *
- * Note: Since access tokens live in Zustand (memory), middleware uses the
+ * Note: Since access tokens live in Zustand (memory), proxy uses the
  * refreshToken cookie as the presence signal and decodes it (without full
  * verification — that happens on the backend). This is the standard pattern
- * for Next.js middleware where we can't make async API calls reliably.
+ * for Next.js proxy where we can't make async API calls reliably.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -68,8 +68,8 @@ function matchesAny(pathname: string, prefixes: string[]): boolean {
   return prefixes.some(p => pathname === p || pathname.startsWith(p + '/'));
 }
 
-/* ─── Middleware ─────────────────────────────────────────────── */
-export function middleware(req: NextRequest) {
+/* ─── Proxy ──────────────────────────────────────────────────── */
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Skip static files and API routes

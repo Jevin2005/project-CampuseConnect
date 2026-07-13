@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
 import api from '@/lib/axios';
+import { Users, Package, IndianRupee, Clock, AlertTriangle, AlertCircle, RefreshCw, BarChart3, UserCheck, Check, X, CreditCard, ShoppingCart, Trophy, Calendar, Sparkles } from 'lucide-react';
 
 interface TopSeller {
   id: string; name: string; email: string; initials: string;
@@ -222,9 +223,9 @@ export default function AdminDashboardPage() {
   const alerts = [];
   if (!loading && s) {
     if ((s.pendingStudents ?? 0) >= 5)
-      alerts.push({ type: 'urgent', icon: '🚨', msg: `${s.pendingStudents} student registrations awaiting approval`, href: '/admin/requests' });
+      alerts.push({ type: 'urgent', icon: <AlertCircle size={15} />, msg: `${s.pendingStudents} student registrations awaiting approval`, href: '/admin/requests' });
     else if ((s.pendingStudents ?? 0) > 0)
-      alerts.push({ type: 'warn', icon: '⏳', msg: `${s.pendingStudents} student${s.pendingStudents > 1 ? 's' : ''} pending approval`, href: '/admin/requests' });
+      alerts.push({ type: 'warn', icon: <Clock size={15} />, msg: `${s.pendingStudents} student${s.pendingStudents > 1 ? 's' : ''} pending approval`, href: '/admin/requests' });
 
   }
 
@@ -237,7 +238,7 @@ export default function AdminDashboardPage() {
         <div className="hdr">
           <div className="hdr-left">
             <h1 className="greeting">
-              {loading ? '👋 Welcome back' : `${getGreeting()}, ${data?.adminName || 'Admin'} 👋`}
+              {loading ? 'Welcome back' : `${getGreeting()}, ${data?.adminName || 'Admin'}`}
             </h1>
             <p className="greeting-sub">
               {loading ? 'Loading dashboard…' : `${data?.college?.name} · ${today}`}
@@ -272,13 +273,13 @@ export default function AdminDashboardPage() {
           {loading ? Array(4).fill(0).map((_, i) => (
             <div key={i} className="sc"><div className="skeleton" style={{ height: 90 }} /></div>
           )) : [
-            { icon: '👥', label: 'APPROVED STUDENTS', value: s?.totalStudents ?? 0, sub: `${s?.pendingStudents ?? 0} pending approval`, color: C.green, href: '/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
-            { icon: '📦', label: 'ACTIVE LISTINGS', value: s?.totalProducts ?? 0, sub: `${s?.pendingProducts ?? 0} pending review`, color: C.blue, href: '/admin/products', pulse: (s?.pendingProducts ?? 0) > 0 },
-            { icon: '💰', label: 'PLATFORM REVENUE', value: `₹${(s?.revenue ?? 0).toLocaleString('en-IN')}`, sub: `${s?.soldProducts ?? 0} sold · ${s?.totalOrders ?? 0} orders`, color: C.gold, href: '/admin/revenue' },
-            { icon: '⏳', label: 'PENDING REGISTRATIONS', value: s?.pendingStudents ?? 0, sub: 'Requires review', color: C.orange, href: '/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
+            { icon: <Users size={20} />, label: 'APPROVED STUDENTS', value: s?.totalStudents ?? 0, sub: `${s?.pendingStudents ?? 0} pending approval`, color: C.green, href: '/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
+            { icon: <Package size={20} />, label: 'ACTIVE LISTINGS', value: s?.totalProducts ?? 0, sub: `${s?.pendingProducts ?? 0} pending review`, color: C.blue, href: '/admin/products', pulse: (s?.pendingProducts ?? 0) > 0 },
+            { icon: <IndianRupee size={20} />, label: 'PLATFORM REVENUE', value: `₹${(s?.revenue ?? 0).toLocaleString('en-IN')}`, sub: `${s?.soldProducts ?? 0} sold · ${s?.totalOrders ?? 0} orders`, color: C.gold, href: '/admin/revenue' },
+            { icon: <Clock size={20} />, label: 'PENDING REGISTRATIONS', value: s?.pendingStudents ?? 0, sub: 'Requires review', color: C.orange, href: '/admin/requests', pulse: (s?.pendingStudents ?? 0) > 0 },
           ].map(card => (
             <Link key={card.label} href={card.href} className="sc" style={{ borderColor: `${card.color}28` }}>
-              <span className="sc-icon">{card.icon}</span>
+              <span className="sc-icon" style={{ display: 'inline-flex', alignItems: 'center', color: card.color }}>{card.icon}</span>
               <div className="sc-lbl">{card.label}</div>
               <div className="sc-val" style={{ color: card.color }}>{card.value}</div>
               <div className="sc-sub">
@@ -291,9 +292,9 @@ export default function AdminDashboardPage() {
 
         {/* ── Product Breakdown Bar ── */}
         <div className="bk-card">
-          <div className="bk-title">
-            📊 Product Status Breakdown
-            <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 500 }}>{bdTotal} total listings</span>
+          <div className="bk-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <BarChart3 size={16} style={{ color: 'var(--blue)' }} /> Product Status Breakdown
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--t3)', fontWeight: 500 }}>{bdTotal} total listings</span>
           </div>
           {loading ? <div className="skeleton" style={{ height: 12 }} /> : (
             <>
@@ -326,12 +327,12 @@ export default function AdminDashboardPage() {
           {/* Student Requests */}
           <div className="sec">
             <div className="sec-hdr">
-              <span style={{ color: C.green }}>👤 Student Requests</span>
+              <span style={{ color: C.green, display: 'flex', alignItems: 'center', gap: 6 }}><Users size={16} /> Student Requests</span>
               <Link href="/admin/requests" className="view-all" style={{ color: C.green }}>View all →</Link>
             </div>
             {loading ? <div className="skeleton" style={{ height: 130 }} /> :
               (data?.pendingRequests?.length ?? 0) === 0
-                ? <div className="empty">✅ No pending requests</div>
+                ? <div className="empty" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Check size={14} style={{ color: C.green }} /> No pending requests</div>
                 : data!.pendingRequests.map(req => (
                   <div key={req.id} className="req-item">
                     <div className="av" style={{ background: req.color }}>{req.initials}</div>
@@ -342,12 +343,12 @@ export default function AdminDashboardPage() {
                     <div className="ract">
                       {!reqActs[req.id] ? (
                         <>
-                          <button className="btn-ap" onClick={() => handleReqAction(req.id, 'approve')}>✓ Approve</button>
-                          <button className="btn-rj" onClick={() => handleReqAction(req.id, 'reject')}>✗</button>
+                          <button className="btn-ap" onClick={() => handleReqAction(req.id, 'approve')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} /> Approve</button>
+                          <button className="btn-rj" onClick={() => handleReqAction(req.id, 'reject')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><X size={12} /></button>
                         </>
                       ) : (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: reqActs[req.id] === 'approved' ? C.green : C.red }}>
-                          {reqActs[req.id] === 'approved' ? '✅ Done' : '❌ Rejected'}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: reqActs[req.id] === 'approved' ? C.green : C.red, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {reqActs[req.id] === 'approved' ? <><Check size={12} /> Done</> : <><X size={12} /> Rejected</>}
                         </span>
                       )}
                     </div>
@@ -359,7 +360,7 @@ export default function AdminDashboardPage() {
           {/* Recent Transactions */}
           <div className="sec">
             <div className="sec-hdr">
-              <span style={{ color: C.gold }}>💳 Recent Transactions</span>
+              <span style={{ color: C.gold, display: 'flex', alignItems: 'center', gap: 6 }}><CreditCard size={16} /> Recent Transactions</span>
               <Link href="/admin/revenue" className="view-all" style={{ color: C.gold }}>Full report →</Link>
             </div>
             {loading ? <div className="skeleton" style={{ height: 130 }} /> :
@@ -367,7 +368,7 @@ export default function AdminDashboardPage() {
                 ? <div className="empty">No transactions yet</div>
                 : data!.recentTransactions.map(tx => (
                   <div key={tx.id} className="prod-item">
-                    <div className="pib" style={{ background: 'rgba(247,201,72,.08)', fontSize: 14 }}>🛒</div>
+                    <div className="pib" style={{ background: 'rgba(247,201,72,.08)', fontSize: 14, color: C.gold }}><ShoppingCart size={14} /></div>
                     <div className="pi">
                       <div className="pt">{tx.productTitle}</div>
                       <div className="ps">{tx.buyer} → {tx.seller}</div>
@@ -387,7 +388,7 @@ export default function AdminDashboardPage() {
           {/* Top Sellers Leaderboard */}
           <div className="sec">
             <div className="sec-hdr">
-              <span style={{ color: C.gold }}>🏆 Top Sellers</span>
+              <span style={{ color: C.gold, display: 'flex', alignItems: 'center', gap: 6 }}><Trophy size={16} /> Top Sellers</span>
               <Link href="/admin/revenue" className="view-all" style={{ color: C.gold }}>Revenue →</Link>
             </div>
             {loading ? <div className="skeleton" style={{ height: 150 }} /> :
@@ -410,7 +411,7 @@ export default function AdminDashboardPage() {
           {/* Recently Listed Products */}
           <div className="sec">
             <div className="sec-hdr">
-              <span style={{ color: C.blue }}>🆕 Recently Listed</span>
+              <span style={{ color: C.blue, display: 'flex', alignItems: 'center', gap: 6 }}><Sparkles size={16} /> Recently Listed</span>
               <Link href="/admin/products" className="view-all" style={{ color: C.blue }}>All products →</Link>
             </div>
             {loading ? <div className="skeleton" style={{ height: 150 }} /> :

@@ -1,7 +1,26 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { X, MapPin, Phone, ExternalLink, Star, Building2, Megaphone, GraduationCap, ChevronRight } from "lucide-react";
+import { X, MapPin, Phone, ExternalLink, Star, Building2, Megaphone, GraduationCap, ChevronRight, School, Globe, Home, Bed, Zap, Briefcase, Handshake, Ticket, Laptop } from "lucide-react";
+
+export function getAdIcon(iconStr: string, size = 18): React.ReactNode {
+  switch (iconStr) {
+    case "🏫": return <School size={size} />;
+    case "🌐": return <Globe size={size} />;
+    case "🏠":
+    case "🏡": return <Home size={size} />;
+    case "🛏️": return <Bed size={size} />;
+    case "🏢": return <Building2 size={size} />;
+    case "⚡": return <Zap size={size} />;
+    case "🎭": return <Ticket size={size} />;
+    case "💼": return <Briefcase size={size} />;
+    case "🤝": return <Handshake size={size} />;
+    case "🎪": return <Ticket size={size} />;
+    case "💻": return <Laptop size={size} />;
+    default: return null;
+  }
+}
+
 
 const trackAdClick = (adId?: string) => {
   if (adId) {
@@ -164,7 +183,7 @@ function AdDetailModal({ ad, onClose }: AdDetailModalProps) {
             <img src={imgUrl} alt={ad.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ width: "100%", height: "100%", background: ad.bgGradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: "72px", filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.4))" }}>{ad.icon}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", color: ad.accentColor, filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.4))" }}>{getAdIcon(ad.icon, 72) || ad.icon}</span>
             </div>
           )}
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0d131f 0%, transparent 60%)" }} />
@@ -382,7 +401,7 @@ export function AdStrip({ ad }: { ad: AdData }) {
         <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: ad.accentColor, borderRadius: "10px 0 0 10px", zIndex: 2 }} />
 
         <div className="ad-strip-content" style={{ display: "flex", alignItems: "center", gap: 12, zIndex: 2, width: "100%", height: "100%" }}>
-          <span style={{ fontSize: 20, flexShrink: 0 }}>{ad.icon}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", color: ad.accentColor, flexShrink: 0 }}>{getAdIcon(ad.icon, 20) || ad.icon}</span>
 
           <div style={{ flex: 1, minWidth: 200 }}>
             <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#C4CFDF", lineHeight: 1.4 }}>
@@ -502,9 +521,9 @@ export function AdBannerHorizontal({ ad }: { ad: AdData }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "32px"
+            color: ad.accentColor,
           }}>
-            {ad.icon}
+            {getAdIcon(ad.icon, 32) || ad.icon}
           </div>
         )}
 
@@ -595,7 +614,7 @@ export function AdCard({ ad }: { ad: AdData }) {
           ) : (
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, position: "relative" }}>
               <div style={{ position: "absolute", width: 120, height: 120, borderRadius: "50%", background: `radial-gradient(circle, ${ad.glowColor} 0%, transparent 70%)`, top: "50%", left: "50%", transform: "translate(-50%,-50%)", pointerEvents: "none" }} />
-              <span style={{ fontSize: 38, position: "relative" }}>{ad.icon}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", color: ad.accentColor, position: "relative" }}>{getAdIcon(ad.icon, 38) || ad.icon}</span>
               <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 800, color: ad.accentColor, textAlign: "center", padding: "0 12px", position: "relative" }}>{ad.title}</span>
             </div>
           )}
@@ -688,7 +707,7 @@ export function AdSquare({ ad }: { ad: AdData }) {
 
         {!imgUrl && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 52, filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.5))" }}>{ad.icon}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", color: ad.accentColor, filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.5))" }}>{getAdIcon(ad.icon, 52) || ad.icon}</span>
           </div>
         )}
 
@@ -768,7 +787,7 @@ export function AdPortrait({ ad }: { ad: AdData }) {
 
         {!imgUrl && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingBottom: "30%" }}>
-            <span style={{ fontSize: 58, filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.6))" }}>{ad.icon}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", color: ad.accentColor, filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.6))" }}>{getAdIcon(ad.icon, 58) || ad.icon}</span>
           </div>
         )}
 

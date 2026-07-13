@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, GraduationCap } from "lucide-react";
 
 const S = `
 .pub-nav {
@@ -149,7 +149,7 @@ export default function PublicNavbar() {
               boxShadow: "0 4px 10px rgba(79,142,247,0.25)",
               flexShrink: 0,
             }}>
-              <span style={{ fontSize: 15 }}>🎓</span>
+              <span style={{ display: "inline-flex", alignItems: "center", color: "#fff" }}><GraduationCap size={16} /></span>
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
               <span

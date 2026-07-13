@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Store } from 'lucide-react';
 
 export default function NotFound() {
   const [mounted, setMounted] = useState(false);
@@ -98,8 +99,8 @@ export default function NotFound() {
 
         {/* CTA buttons */}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/marketplace" className="nf-go-btn">
-            🏪 Go to Marketplace
+          <Link href="/marketplace" className="nf-go-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Store size={15} /> Go to Marketplace
           </Link>
           <Link href="/" className="nf-back-btn">
             ← Home

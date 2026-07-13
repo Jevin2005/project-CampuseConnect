@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
+import { CheckCircle2, AlertCircle, Key, Eye, EyeOff, Info } from 'lucide-react';
 
 function passwordStrength(pwd: string): { level: number; label: string; color: string } {
   if (pwd.length === 0) return { level: 0, label: '', color: '' };
@@ -434,7 +435,7 @@ export default function StudentRegisterPage() {
         {/* ── SUCCESS STATE ── */}
         {submitted ? (
           <div className="card success-card">
-            <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
+            <CheckCircle2 size={52} className="mx-auto text-accent-green animate-bounce" style={{ marginBottom: 16, color: '#10B981' }} />
             <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 24, fontWeight: 800, color: '#10B981', marginBottom: 12 }}>
               Registration Submitted!
             </h2>
@@ -454,8 +455,8 @@ export default function StudentRegisterPage() {
             </p>
 
             {verificationError && (
-              <div className="err-box">
-                <span>⚠️</span>
+              <div className="err-box" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertCircle size={14} className="text-accent-red flex-shrink-0" />
                 <span>{verificationError}</span>
               </div>
             )}
@@ -525,8 +526,8 @@ export default function StudentRegisterPage() {
         ) : (
           <div className="card">
             {submitError && (
-              <div className="err-box">
-                <span>⚠️</span>
+              <div className="err-box" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertCircle size={14} className="text-accent-red flex-shrink-0" />
                 <span>{submitError}</span>
               </div>
             )}
@@ -584,8 +585,8 @@ export default function StudentRegisterPage() {
                     maxLength={20}
                     required
                   />
-                  <div className="code-hint">
-                    <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>🔑</span>
+                  <div className="code-hint" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <Key size={16} className="text-accent-gold flex-shrink-0 mt-0.5" style={{ color: '#F7C948' }} />
                     <p>
                       The <strong>College Code</strong> identifies which college you belong to and creates your marketplace.
                       Ask your college admin or check your institution&apos;s notice board for this code.
@@ -613,7 +614,7 @@ export default function StudentRegisterPage() {
                       onClick={() => setShowPwd(v => !v)}
                       aria-label={showPwd ? 'Hide' : 'Show'}
                     >
-                      {showPwd ? '🙈' : '👁️'}
+                      {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                   {form.password && (
@@ -646,7 +647,7 @@ export default function StudentRegisterPage() {
                       onClick={() => setShowConfirm(v => !v)}
                       aria-label={showConfirm ? 'Hide' : 'Show'}
                     >
-                      {showConfirm ? '🙈' : '👁️'}
+                      {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                   {form.confirmPassword && !passwordMatch && (
@@ -703,8 +704,8 @@ export default function StudentRegisterPage() {
           </div>
         )}
 
-        <div className="info-card">
-          <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>ℹ️</span>
+        <div className="info-card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <Info size={16} className="text-accent-blue flex-shrink-0 mt-0.5" style={{ color: '#4F8EF7' }} />
           <span>
             After registration your request goes to your <strong>college admin</strong> for approval.
             Once approved, you can log in and access your college&apos;s exclusive marketplace.

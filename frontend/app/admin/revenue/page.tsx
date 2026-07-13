@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
+import { CircleDollarSign, Percent, ShoppingCart, Download } from 'lucide-react';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com'}/api/admin`;
 
@@ -139,15 +140,15 @@ export default function RevenueAdminPage() {
         <div className="stat-cards">
           {loading ? Array(3).fill(0).map((_, i) => <div key={i} className="scard"><div className="skeleton" style={{ height: 80 }} /></div>) : <>
             <div className="scard">
-              <div className="sc-label">💰 Total Sales Volume</div>
+              <div className="sc-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CircleDollarSign size={14} /> Total Sales Volume</div>
               <div className="sc-val" style={{ color: 'var(--blue)' }}>{data?.stats.totalSales ?? '₹0'}</div>
             </div>
             <div className="scard">
-              <div className="sc-label">💸 Platform Cut (5%)</div>
+              <div className="sc-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Percent size={14} /> Platform Cut (5%)</div>
               <div className="sc-val" style={{ color: 'var(--green)' }}>{data?.stats.totalCut ?? '₹0'}</div>
             </div>
             <div className="scard gold">
-              <div className="sc-label">🛒 Total Orders</div>
+              <div className="sc-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ShoppingCart size={14} /> Total Orders</div>
               <div className="sc-val" style={{ color: 'var(--gold)' }}>{data?.stats.totalOrders ?? 0}</div>
             </div>
           </>}
@@ -194,7 +195,7 @@ export default function RevenueAdminPage() {
         <div className="tx-card">
           <div className="tx-header">
             <div className="tx-title">Recent Transactions</div>
-            <button className="export-btn" onClick={downloadCSV}>↓ Export CSV</button>
+            <button className="export-btn" onClick={downloadCSV} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Download size={13} /> Export CSV</button>
           </div>
           <div className="th"><div>Product</div><div>Buyer</div><div>Seller</div><div>Sale Price</div><div>Platform Cut</div><div>Date</div></div>
           {loading ? Array(4).fill(0).map((_, i) => (

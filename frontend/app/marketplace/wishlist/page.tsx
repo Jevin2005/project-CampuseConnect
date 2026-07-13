@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
-import { Heart, Trash2, ShoppingBag, Search, Check, RefreshCw } from "lucide-react";
+import { Heart, Trash2, ShoppingBag, Search, Check, RefreshCw, Package, IndianRupee, HeartOff, FileText } from "lucide-react";
 import { fetchWishlist, removeFromWishlist, type WishlistItem } from "@/lib/marketplaceApi";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -140,12 +140,12 @@ export default function WishlistPage() {
         {/* Stats */}
         <div className="wishlist-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 22 }}>
           {[
-            { icon: "❤️",  label: "Saved Items",    value: filtered.length,             color: "#EF4444" },
-            { icon: "📦",  label: "Physical",        value: physCount,                   color: "#4F8EF7" },
-            { icon: "💰",  label: "Total Value",     value: `₹${totalVal.toLocaleString("en-IN")}`, color: "#F7C948" },
+            { icon: <Heart size={22} style={{ color: "#EF4444", fill: "#EF4444" }} />,  label: "Saved Items",    value: filtered.length,             color: "#EF4444" },
+            { icon: <Package size={22} style={{ color: "#4F8EF7" }} />,  label: "Physical",        value: physCount,                   color: "#4F8EF7" },
+            { icon: <IndianRupee size={22} style={{ color: "#F7C948" }} />,  label: "Total Value",     value: `₹${totalVal.toLocaleString("en-IN")}`, color: "#F7C948" },
           ].map(s => (
             <div key={s.label} style={{ background: "#111827", border: "1px solid #1e2d45", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-              <span style={{ fontSize: 26 }}>{s.icon}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{s.icon}</span>
               <div>
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 3 }}>{s.label}</p>
                 <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</p>
@@ -171,7 +171,7 @@ export default function WishlistPage() {
         {/* Empty */}
         {!loading && filtered.length === 0 && (
           <div style={{ textAlign: "center", padding: "70px 0" }}>
-            <div style={{ fontSize: 64, marginBottom: 14 }}>💔</div>
+            <HeartOff size={48} style={{ color: "#EF4444", margin: "0 auto 14px", strokeWidth: 1.5 }} />
             <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF", marginBottom: 6 }}>
               {search ? "Nothing matches your search" : "Your wishlist is empty"}
             </p>
@@ -202,7 +202,7 @@ export default function WishlistPage() {
                   <div className="wl-card-image" style={{ height: 140, background: product.productType === "digital" ? "linear-gradient(135deg,#1a0d30,#2d1b4e)" : "#1a2235", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
                     {img
                       ? <img src={img} alt={product.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => (e.currentTarget.style.display = "none")} />
-                      : <span style={{ fontSize: 48 }}>{product.productType === "digital" ? "📄" : "📦"}</span>
+                      : (product.productType === "digital" ? <FileText size={48} style={{ color: "#A78BFA" }} /> : <Package size={48} style={{ color: "#4F8EF7" }} />)
                     }
                     <button onClick={() => remove(product.id)} title="Remove from wishlist" style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Heart size={14} style={{ color: "#EF4444", fill: "#EF4444" }} />

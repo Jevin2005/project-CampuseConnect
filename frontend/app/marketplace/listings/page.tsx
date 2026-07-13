@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
 import { AdStrip } from "@/components/AdBanner";
 import { OWN_COLLEGE_ADS, CROSS_COLLEGE_ADS, fetchLiveAds } from "@/lib/adsData";
-import { Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check } from "lucide-react";
+import { Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check, FileText, Package, Megaphone } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 function mediaUrl(p: string) { return p?.startsWith("http") ? p : `${API}${p}`; }
@@ -60,7 +60,9 @@ function ListingThumb({ images }: { images: string[] }) {
   const vids = images.filter(f => isVideo(f));
   const thumb = imgs[0] || vids[0];
   if (!thumb) return (
-    <div style={{ width: 38, height: 38, borderRadius: 9, background: "#1a2235", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>📦</div>
+    <div style={{ width: 38, height: 38, borderRadius: 9, background: "#1a2235", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Package size={18} style={{ color: "#4F8EF7" }} />
+    </div>
   );
   return isVideo(thumb)
     ? <video src={mediaUrl(thumb)} muted style={{ width: 38, height: 38, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
@@ -212,7 +214,7 @@ export default function MyListingsPage() {
             gap: 4px !important;
           }
           .listings-cell-views::before {
-            content: "👁 Views: " !important;
+            content: "Views: " !important;
           }
           .listings-cell-requests { 
             grid-area: requests !important; 
@@ -224,7 +226,7 @@ export default function MyListingsPage() {
             gap: 4px !important;
           }
           .listings-cell-requests::before {
-            content: "💬 Requests: " !important;
+            content: "Requests: " !important;
           }
         }
       `}</style>
@@ -242,7 +244,7 @@ export default function MyListingsPage() {
         {deleteId && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 998 }}>
             <div style={{ background: "#111827", border: "1.5px solid #EF444460", borderRadius: 16, padding: "28px 32px", maxWidth: 380, textAlign: "center" }}>
-              <span style={{ fontSize: 40 }}>🗑️</span>
+              <Trash2 size={40} style={{ color: "#EF4444", margin: "0 auto 12px" }} />
               <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 17, fontWeight: 700, color: "#F0F4FF", margin: "12px 0 6px" }}>Remove this listing?</p>
               <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", marginBottom: 20 }}>This action cannot be undone. The listing will be permanently removed.</p>
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
@@ -323,7 +325,7 @@ export default function MyListingsPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ padding: "60px 24px", textAlign: "center" }}>
-              <span style={{ fontSize: 48 }}>📦</span>
+              <Package size={48} style={{ color: "#6B7280", margin: "0 auto", strokeWidth: 1.5 }} />
               <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF", marginTop: 12, marginBottom: 4 }}>No products here</p>
               <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", marginBottom: 20 }}>Start selling to your campus community</p>
               <Link href="/marketplace/sell" style={{ textDecoration: "none" }}>
@@ -345,7 +347,7 @@ export default function MyListingsPage() {
                   </div>
                 </div>
                 <span className="listings-cell-type" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ts.bg, color: ts.color, borderRadius: 9999, padding: "4px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>
-                  {l.productType === "digital" ? "📄" : "🔧"} {l.productType === "digital" ? "Digital" : "Physical"}
+                  {l.productType === "digital" ? <FileText size={11} /> : <Package size={11} />} {l.productType === "digital" ? "Digital" : "Physical"}
                 </span>
                 <span className="listings-cell-price" style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>₹{l.price.toLocaleString("en-IN")}</span>
                 <span className="listings-cell-status" style={{ display: "inline-block", background: st.bg, color: st.color, borderRadius: 9999, padding: "4px 12px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 700, width: "fit-content" }}>{sl}</span>
@@ -372,7 +374,7 @@ export default function MyListingsPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, padding: "12px 18px", background: "rgba(79,142,247,0.05)", border: "1px solid rgba(79,142,247,0.12)", borderRadius: 12 }}>
           <TrendingUp size={14} style={{ color: "#4F8EF7", flexShrink: 0 }} />
           <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#6B7280" }}>
-            Your listings got <strong style={{ color: "#F0F4FF" }}>{totals.views.toLocaleString()} views</strong> total — boost sales by sharing on campus groups 📣
+            Your listings got <strong style={{ color: "#F0F4FF" }}>{totals.views.toLocaleString()} views</strong> total — boost sales by sharing on campus groups
           </p>
         </div>
 

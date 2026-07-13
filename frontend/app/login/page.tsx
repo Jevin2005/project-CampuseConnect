@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Info, AlertCircle, Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { ArrowRight, Info, AlertCircle, Eye, EyeOff, Mail, Lock, Video, FileText, Laptop, Shield, Clock } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
@@ -211,8 +211,8 @@ function AuthLeftPanel() {
           transform: "rotate(-4deg)",
         }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 32 }}>🎥</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#A78BFA", marginTop: 6, fontWeight: 700 }}>Video Lecture</div>
+            <Video size={32} style={{ color: "#A78BFA", margin: "0 auto" }} />
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#A78BFA", marginTop: 8, fontWeight: 700 }}>Video Lecture</div>
           </div>
         </div>
         <div style={{
@@ -224,8 +224,8 @@ function AuthLeftPanel() {
           transform: "rotate(-1.5deg)",
         }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 32 }}>📄</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#10B981", marginTop: 6, fontWeight: 700 }}>Notes PDF</div>
+            <FileText size={32} style={{ color: "#10B981", margin: "0 auto" }} />
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#10B981", marginTop: 8, fontWeight: 700 }}>Notes PDF</div>
           </div>
         </div>
         <div style={{
@@ -237,8 +237,8 @@ function AuthLeftPanel() {
           transform: "rotate(1.5deg)",
         }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 32 }}>💻</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#4F8EF7", marginTop: 6, fontWeight: 700 }}>Laptop — ₹28,000</div>
+            <Laptop size={32} style={{ color: "#4F8EF7", margin: "0 auto" }} />
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#4F8EF7", marginTop: 8, fontWeight: 700 }}>Laptop — ₹28,000</div>
           </div>
         </div>
       </div>
@@ -442,13 +442,13 @@ export default function StudentLoginPage() {
         {/* ══ MOBILE-ONLY header (display:none on desktop via MOBILE_STYLES) ══ */}
         <div className="sl-mobile-top">
           <Link href="/" className="sl-mobile-logo">
-            <span className="sl-mobile-logo-icon">🛡️</span>
+            <span className="sl-mobile-logo-icon"><Shield size={16} className="text-accent-blue" /></span>
             <span className="sl-mobile-logo-text">
               <span className="sl-mobile-logo-campus">Campus</span>
               <span className="sl-mobile-logo-connect">Connect</span>
             </span>
           </Link>
-          <h1 className="sl-mobile-heading">Welcome back 👋</h1>
+          <h1 className="sl-mobile-heading">Welcome back</h1>
           <p className="sl-mobile-sub">Access your campus marketplace securely.</p>
         </div>
 
@@ -496,7 +496,7 @@ export default function StudentLoginPage() {
                     borderRadius: 10, padding: "12px 14px", fontSize: 13, color: "#EF4444",
                     marginBottom: 16, display: "flex", alignItems: "center", gap: 8,
                   }}>
-                    ⚠️ {verificationError}
+                    <AlertCircle size={14} className="text-accent-red flex-shrink-0 mt-0.5" /> {verificationError}
                   </div>
                 )}
 
@@ -556,7 +556,7 @@ export default function StudentLoginPage() {
                   fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800,
                   letterSpacing: "-1px", color: "#F0F4FF", marginBottom: 8,
                 }}>
-                  Welcome back 👋
+                  Welcome back
                 </h1>
                 <p className="sl-desktop-sub" style={{
                   fontFamily: "'DM Sans', sans-serif", fontSize: 15,
@@ -599,7 +599,7 @@ export default function StudentLoginPage() {
                       borderRadius: 10, padding: "12px 16px",
                       display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 20,
                     }}>
-                      <span style={{ fontSize: 16 }}>⏳</span>
+                      <Clock size={16} className="text-accent-orange flex-shrink-0 mt-0.5" style={{ color: "#F59E0B" }} />
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#F59E0B", lineHeight: 1.5 }}>
                         Your account is pending admin approval. You will be notified by email.
                       </p>

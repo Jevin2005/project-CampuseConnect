@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { CheckCircle2, AlertCircle, Key, Eye, EyeOff, Info, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
@@ -513,7 +514,7 @@ export default function AdminRegisterPage() {
         {/* SUCCESS STATE */}
         {submitted && (
           <div className="form-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+            <CheckCircle2 size={48} className="mx-auto text-accent-green" style={{ marginBottom: 16, color: '#10B981' }} />
             <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 24, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>Registration Submitted!</h2>
             <p style={{ color: '#9CA3AF', fontSize: 14, lineHeight: 1.6 }}>
               Your college registration is under review. You will hear back within <strong style={{ color: '#F0F4FF' }}>24–48 hours</strong>.
@@ -599,7 +600,7 @@ export default function AdminRegisterPage() {
                     <input id="reg-password" type={showPwd ? 'text' : 'password'} className="form-input"
                       placeholder="Create a strong password" style={{ paddingRight: '44px' }}
                       value={step2.password} onChange={e => setStep2({ ...step2, password: e.target.value })} required />
-                    <button type="button" className="eye-btn" onClick={() => setShowPwd(!showPwd)} aria-label="Toggle password">{showPwd ? '🙈' : '👁️'}</button>
+                    <button type="button" className="eye-btn" onClick={() => setShowPwd(!showPwd)} aria-label="Toggle password">{showPwd ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                   </div>
                   {step2.password && (
                     <div className="strength-bar">
@@ -616,7 +617,7 @@ export default function AdminRegisterPage() {
                     <input id="confirm-password" type={showConfirmPwd ? 'text' : 'password'} className="form-input"
                       placeholder="Repeat password" style={{ paddingRight: '44px' }}
                       value={step2.confirmPassword} onChange={e => setStep2({ ...step2, confirmPassword: e.target.value })} required />
-                    <button type="button" className="eye-btn" onClick={() => setShowConfirmPwd(!showConfirmPwd)} aria-label="Toggle confirm password">{showConfirmPwd ? '🙈' : '👁️'}</button>
+                    <button type="button" className="eye-btn" onClick={() => setShowConfirmPwd(!showConfirmPwd)} aria-label="Toggle confirm password">{showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                   </div>
                   {step2.confirmPassword && step2.password !== step2.confirmPassword && (
                     <p className="helper-text" style={{ color: '#EF4444' }}>Passwords do not match</p>
@@ -633,12 +634,12 @@ export default function AdminRegisterPage() {
                 </div>
               </div>
               {submitError && (
-                <p style={{ color: '#EF4444', fontSize: 13, marginTop: 12 }}>⚠️ {submitError}</p>
+                <p style={{ color: '#EF4444', fontSize: 13, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={14} /> {submitError}</p>
               )}
               <div className="action-row">
                 <button type="button" className="btn-back" onClick={() => setStep(1)}>← Back to College Info</button>
                 <button type="submit" className="btn-primary" disabled={loading || step2.password !== step2.confirmPassword || !step2.authorized}>
-                  {loading ? '⏳ Submitting...' : 'Submit Registration →'}
+                  {loading ? 'Submitting...' : 'Submit Registration →'}
                 </button>
               </div>
             </form>
@@ -654,7 +655,7 @@ export default function AdminRegisterPage() {
             </p>
 
             {verificationError && (
-              <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>⚠️ {verificationError}</p>
+              <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 16, textAlign: 'center', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><AlertCircle size={14} /> {verificationError}</p>
             )}
 
             <form onSubmit={handleVerifyOtp}>
@@ -686,7 +687,7 @@ export default function AdminRegisterPage() {
                   className="btn-primary"
                   disabled={otp.join('').length < 6 || verifying}
                 >
-                  {verifying ? '⏳ Verifying OTP...' : 'Complete Verification & Submit →'}
+                  {verifying ? <Loader2 size={16} className="animate-spin" /> : 'Complete Verification & Submit →'}
                 </button>
               </div>
             </form>
@@ -720,7 +721,7 @@ export default function AdminRegisterPage() {
         )}
 
         <div className="info-card">
-          <span className="info-icon">ℹ️</span>
+          <span className="info-icon" style={{ display: 'inline-flex', alignItems: 'center' }}><Info size={16} style={{ color: '#10B981' }} /></span>
           <span>After submission, your request will be reviewed by the CampusConnect team within <strong>24–48 hours</strong>. You'll receive an email upon approval.</span>
         </div>
 

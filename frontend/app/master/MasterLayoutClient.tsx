@@ -3,25 +3,25 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Crown, School, GraduationCap, Users, CircleDollarSign, Landmark, Settings, LogOut } from 'lucide-react';
 import api from '@/lib/axios';
 import { useAuthStore } from '@/store/authStore';
 
 interface NavItem {
   href: string;
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   badge?: string | number;
 }
 
 const BASE_NAV: NavItem[] = [
-  { href: '/master/dashboard', icon: '👑', label: 'Dashboard' },
-  { href: '/master/requests', icon: '🏫', label: 'College Requests' },
-  { href: '/master/colleges', icon: '🎓', label: 'All Colleges' },
-  { href: '/master/students', icon: '👤', label: 'All Students' },
-  { href: '/master/revenue', icon: '💰', label: 'Platform Revenue' },
-  { href: '/master/payouts', icon: '💸', label: 'Seller Payouts' },
-  { href: '/master/settings', icon: '⚙️', label: 'Pricing Settings' },
+  { href: '/master/dashboard', icon: <Crown size={16} />, label: 'Dashboard' },
+  { href: '/master/requests', icon: <School size={16} />, label: 'College Requests' },
+  { href: '/master/colleges', icon: <GraduationCap size={16} />, label: 'All Colleges' },
+  { href: '/master/students', icon: <Users size={16} />, label: 'All Students' },
+  { href: '/master/revenue', icon: <CircleDollarSign size={16} />, label: 'Platform Revenue' },
+  { href: '/master/payouts', icon: <Landmark size={16} />, label: 'Seller Payouts' },
+  { href: '/master/settings', icon: <Settings size={16} />, label: 'Pricing Settings' },
 ];
 
 export default function MasterLayoutClient({ children }: { children: React.ReactNode }) {
@@ -155,7 +155,7 @@ export default function MasterLayoutClient({ children }: { children: React.React
           font-weight:700; border-left:3px solid var(--gold);
           padding-left:9px;
         }
-        .nav-icon { font-size:16px; flex-shrink:0; }
+        .nav-icon { display: flex; align-items: center; font-size:16px; flex-shrink:0; }
         .nav-label { flex:1; }
         .nav-badge {
           background:var(--accent-orange); color:#fff;
@@ -411,7 +411,9 @@ export default function MasterLayoutClient({ children }: { children: React.React
                 <span className="logo-campus">Campus</span>
                 <span className="logo-connect">Connect</span>
               </span>
-              <div className="sidebar-role-label" style={{ fontSize: 10 }}>⚡ Master Control Panel</div>
+              <div className="sidebar-role-label" style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Crown size={10} /> Master Control Panel
+              </div>
             </div>
             <button
               className="drawer-close-btn"
@@ -462,7 +464,9 @@ export default function MasterLayoutClient({ children }: { children: React.React
               <span className="logo-campus">Campus</span>
               <span className="logo-connect">Connect</span>
             </span>
-            <div className="sidebar-role-label">⚡ Master Control Panel</div>
+            <div className="sidebar-role-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Crown size={10} /> Master Control Panel
+            </div>
           </div>
 
           <nav className="sidebar-nav">
@@ -487,7 +491,7 @@ export default function MasterLayoutClient({ children }: { children: React.React
               <div className="admin-card-email">{user?.email || 'master@campusconnect.in'}</div>
             </div>
             <button className="logout-btn" onClick={handleLogout}>
-              <span>→</span>
+              <LogOut size={16} />
               <span>Logout</span>
             </button>
           </div>
@@ -500,25 +504,25 @@ export default function MasterLayoutClient({ children }: { children: React.React
         {/* Mobile Bottom Navigation Bar */}
         <nav className="master-bottom-nav">
           <Link href="/master/dashboard" className={`master-bnav-item ${pathname === '/master/dashboard' ? 'active' : ''}`}>
-            <span className="master-bnav-icon">👑</span>
+            <span className="master-bnav-icon" style={{ display: 'inline-flex', alignItems: 'center' }}><Crown size={18} /></span>
             <span>Dashboard</span>
           </Link>
           
           <Link href="/master/requests" className={`master-bnav-item ${pathname?.startsWith('/master/requests') ? 'active' : ''}`}>
-            <span className="master-bnav-icon" style={{ position: 'relative' }}>
-              🏫
+            <span className="master-bnav-icon" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <School size={18} />
               {pendingCount > 0 && <span className="bnav-badge" />}
             </span>
             <span>Requests</span>
           </Link>
           
           <Link href="/master/colleges" className={`master-bnav-item ${pathname?.startsWith('/master/colleges') ? 'active' : ''}`}>
-            <span className="master-bnav-icon">🎓</span>
+            <span className="master-bnav-icon" style={{ display: 'inline-flex', alignItems: 'center' }}><GraduationCap size={18} /></span>
             <span>Colleges</span>
           </Link>
           
           <Link href="/master/revenue" className={`master-bnav-item ${pathname?.startsWith('/master/revenue') ? 'active' : ''}`}>
-            <span className="master-bnav-icon">💰</span>
+            <span className="master-bnav-icon" style={{ display: 'inline-flex', alignItems: 'center' }}><CircleDollarSign size={18} /></span>
             <span>Revenue</span>
           </Link>
         </nav>
