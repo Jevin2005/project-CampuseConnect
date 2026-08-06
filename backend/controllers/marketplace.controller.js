@@ -119,13 +119,17 @@ exports.getSettings = async (req, res) => {
 /** GET /api/marketplace/products */
 exports.getProducts = async (req, res) => {
   try {
-    const { category, type, search, sort = 'newest', page = 1, limit = 20 } = req.query;
+    const { category, type, search, sort = 'newest', page = 1, limit = 20, collegeId: qCollegeId } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = { isApproved: true, status: 'active' };
-    if (req.user && req.user.collegeId) {
-      where.collegeId = req.user.collegeId;
+
+    // College scoping: prefer req.user.collegeId (from JWT), then query param, else show all
+    const collegeId = (req.user && req.user.collegeId) || qCollegeId || null;
+    if (collegeId) {
+      where.collegeId = collegeId;
     }
+
     if (category) where.category = category;
     if (type) where.productType = type;
     if (search) where.title = { contains: search, mode: 'insensitive' };

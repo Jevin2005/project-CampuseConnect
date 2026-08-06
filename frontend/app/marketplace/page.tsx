@@ -512,7 +512,11 @@ export default function MarketplacePage() {
   }, []);
 
   useEffect(() => {
-    api.get("/api/marketplace/products?limit=100")
+    // Build URL — pass collegeId so backend scopes to this college even for guests
+    const params = new URLSearchParams({ limit: '200' });
+    if (collegeId) params.set('collegeId', collegeId);
+
+    api.get(`/api/marketplace/products?${params.toString()}`)
       .then(res => {
         const data = res.data;
         if (data?.products) {

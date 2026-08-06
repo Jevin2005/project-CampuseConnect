@@ -14,6 +14,26 @@ const adCtrl          = require('../controllers/ad.controller');
 
 const requireAdmin = [auth, checkRole('admin', 'master')];
 
+/**
+ * Optional auth middleware — attaches req.user if a valid Bearer token is
+ * present, but does NOT reject the request if no token is provided.
+ * Used for public-browsable endpoints (product listing) so guests can browse
+ * while logged-in students get college-scoped results.
+ */
+const jwt = require('jsonwebtoken');
+function optionalAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+      if (!req.user.id && req.user.userId) req.user.id = req.user.userId;
+    } catch (_) { /* invalid/expired token — treat as guest */ }
+  }
+  next();
+}
+
 /* ─── Public ─────────────────────────────────────────────────────────── */
 router.get('/settings', ctrl.getSettings);
 
@@ -23,9 +43,10 @@ router.get('/ads/:id',            adCtrl.getPublicAdById);
 router.post('/ads/:id/view',      adCtrl.trackAdView);
 router.post('/ads/:id/click',     adCtrl.trackAdClick);
 
-router.get('/products',     auth, ctrl.getProducts);
-router.get('/products/:id', auth, ctrl.getProductById);
-router.get('/products/:id/file', auth, ctrl.streamProductFile);
+// Public browsing — no login needed; logged-in users get college-scoped results
+router.get('/products',          optionalAuth, ctrl.getProducts);
+router.get('/products/:id',      optionalAuth, ctrl.getProductById);
+router.get('/products/:id/file', auth,         ctrl.streamProductFile); // file access still requires login
 
 /* ─── Authenticated Student ──────────────────────────────────────────── */
 
