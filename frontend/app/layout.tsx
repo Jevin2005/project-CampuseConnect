@@ -67,6 +67,14 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>CampusConnect — Your College Marketplace</title>
+        <meta
+          name="description"
+          content="CampusConnect is the exclusive student marketplace for buying and selling notes, video courses, textbooks, electronics and more — privately within your college."
+        />
+        <meta name="theme-color" content="#0A0E1A" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

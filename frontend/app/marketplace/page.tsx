@@ -496,20 +496,20 @@ export default function MarketplacePage() {
   const [adFormatFilter, setAdFormatFilter] = useState<string>("all");
 
 
-  // Listen to search and category changes in URL
+  // Listen to search and category changes in URL — runs once on client mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const catParam = params.get("category");
-      if (catParam) {
-        setCat(catParam as Category);
-      }
-      const searchParam = params.get("search");
-      if (searchParam !== null) {
-        setSearch(searchParam);
-      }
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const catParam = params.get("category");
+    if (catParam) {
+      setCat(catParam as Category);
     }
-  }, [typeof window !== "undefined" ? window.location.search : ""]);
+    const searchParam = params.get("search");
+    if (searchParam !== null) {
+      setSearch(searchParam);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     api.get("/api/marketplace/products?limit=100")
@@ -554,12 +554,12 @@ export default function MarketplacePage() {
       } else if (cat === "Physical") {
         if (pType !== "physical") return false;
       } else {
-        if (!pCat.includes(cat.toLowerCase())) return false;
+        if (!pCat.includes((cat as string).toLowerCase())) return false;
       }
     }
 
     if (cat === "Ads") return false;
-    if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !pCat.includes(search.toLowerCase())) return false;
+    if (search && !(p.title || "").toLowerCase().includes(search.toLowerCase()) && !pCat.includes(search.toLowerCase())) return false;
     if (minP && p.price < parseFloat(minP)) return false;
     if (maxP && p.price > parseFloat(maxP)) return false;
     return true;

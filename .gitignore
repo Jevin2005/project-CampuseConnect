@@ -31,3 +31,13 @@ backend/uploads/
 Thumbs.db
 *.pem
 *.key
+
+# Scratch / dev-only scripts (not needed for deployment)
+backend/scratch_*.js
+backend/db_test.js
+backend/check_env.js
+backend/test_*.js
+backend/database_dump*.json
+backend/prisma_output.txt
+backend/neon_import.sql
+backend/campusconnect_backup.sql
