@@ -220,7 +220,7 @@ export default function ProfilePage() {
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#374151", textAlign: "center", padding: "20px 0" }}>No active listings yet</p>
               )}
               {activeListings.map(l => (
-                <Link key={l.id} href={`/marketplace/${l.productType === "digital" ? "digital" : "product"}/${l.id}`} style={{ textDecoration: "none" }}>
+                <Link key={l.id} href={`/marketplace/${(l.productType || "").toLowerCase() === "digital" ? "digital" : "product"}/${l.id}`} style={{ textDecoration: "none" }}>
                   <div className="preview-row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "#1a2235", borderRadius: 10, cursor: "pointer", transition: "background 0.15s" }}>
                     <div style={{ width: 36, height: 36, borderRadius: 8, background: "#111827", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {l.images?.[0]

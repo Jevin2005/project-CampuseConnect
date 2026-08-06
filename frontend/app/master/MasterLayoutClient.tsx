@@ -27,34 +27,27 @@ const BASE_NAV: NavItem[] = [
 export default function MasterLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clearAuth, accessToken, user } = useAuthStore();
+  const { clearAuth, accessToken, user, role } = useAuthStore();
   const [pendingCount, setPendingCount] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const fetchPendingRequests = async () => {
-    if (!accessToken) return;
+    if (!accessToken || role !== 'MASTER_ADMIN') return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com'}/api/master/stats`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (res.ok) {
-        const d = await res.json();
-        if (d?.stats && typeof d.stats.pendingRequests === 'number') {
-          setPendingCount(d.stats.pendingRequests);
-        }
+      const res = await api.get('/api/master/stats');
+      if (res.data?.stats && typeof res.data.stats.pendingRequests === 'number') {
+        setPendingCount(res.data.stats.pendingRequests);
       }
-    } catch (err) {
-      console.error('Failed to fetch master stats:', err);
-    }
+    } catch (_) {}
   };
 
   useEffect(() => {
-    if (accessToken) {
+    if (accessToken && role === 'MASTER_ADMIN') {
       fetchPendingRequests();
       const interval = setInterval(fetchPendingRequests, 15000);
       return () => clearInterval(interval);
     }
-  }, [accessToken]);
+  }, [accessToken, role]);
 
   useEffect(() => {
     setDrawerOpen(false);

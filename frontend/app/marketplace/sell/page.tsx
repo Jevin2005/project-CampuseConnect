@@ -380,10 +380,22 @@ export default function SellProductPage() {
     }
 
     try {
-      await api.post("/api/marketplace/products", fd, {
+      const res = await api.post("/api/marketplace/products", fd, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       setPayModal(false);
+
+      // For video products: redirect to processing status page
+      const createdProduct = res.data?.product || res.data;
+      const createdId = createdProduct?.id;
+      const isVideoProduct = (digSub === "video" || digSub === "both" || digSub === "bundle");
+
+      if (isVideoProduct && createdId) {
+        // Use window.location for hard navigation to avoid Next.js router import issues
+        window.location.href = `/marketplace/video-processing?id=${createdId}`;
+        return;
+      }
+
       setSubmitted(true);
     } catch (err) {
       console.error("Submitting listing failed:", err);
@@ -573,6 +585,27 @@ export default function SellProductPage() {
           }
           .sell-preview-flex div[style*="display: flex; gap: 8px"] {
             justify-content: center !important;
+          }
+        }
+        .sell-left-form-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        .sell-left-form-container::-webkit-scrollbar-track {
+          background: rgba(15, 23, 42, 0.4);
+          border-radius: 10px;
+        }
+        .sell-left-form-container::-webkit-scrollbar-thumb {
+          background: #334155;
+          border-radius: 10px;
+        }
+        .sell-left-form-container::-webkit-scrollbar-thumb:hover {
+          background: #475569;
+        }
+        @media (max-width: 768px) {
+          .sell-left-form-container {
+            max-height: none !important;
+            overflow-y: visible !important;
+            padding-right: 0 !important;
           }
         }
       `}</style>
@@ -837,7 +870,16 @@ export default function SellProductPage() {
                       onClick={() => {
                         setProdType(t.key);
                         setDigSub(null);
-                        if (t.key === "physical") setStep(2);
+                        if (t.key === "physical") {
+                          setStep(2);
+                        } else if (t.key === "digital") {
+                          setTimeout(() => {
+                            const el = document.getElementById("digital-options");
+                            if (el) {
+                              el.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
+                          }, 100);
+                        }
                       }}
                       style={{
                         background: "#0F172A",
@@ -889,7 +931,7 @@ export default function SellProductPage() {
 
                 {/* Step 1.2: Digital subtype choice */}
                 {prodType === "digital" && (
-                  <div style={{ marginTop: 40, animation: "slideUp 0.3s ease-out" }}>
+                  <div id="digital-options" style={{ marginTop: 40, animation: "slideUp 0.3s ease-out", scrollMarginTop: 80 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
                       <div style={{ background: "rgba(139, 92, 246, 0.1)", borderRadius: 8, padding: 6, color: "#8B5CF6" }}>
                         <Package size={16} />
@@ -901,7 +943,15 @@ export default function SellProductPage() {
                       {DIG_SUBS.map(d => (
                         <div
                           key={d.key!}
-                          onClick={() => setDigSub(d.key)}
+                          onClick={() => {
+                            setDigSub(d.key);
+                            setTimeout(() => {
+                              const btn = document.getElementById("digital-proceed-btn");
+                              if (btn) {
+                                btn.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                              }
+                            }, 100);
+                          }}
                           style={{
                             background: "#0F172A",
                             border: `1.5px solid ${digSub === d.key ? d.color : "#1E293B"}`,
@@ -934,6 +984,7 @@ export default function SellProductPage() {
                     </div>
 
                     <button
+                      id="digital-proceed-btn"
                       disabled={!digSub}
                       onClick={() => setStep(2)}
                       style={{
@@ -958,7 +1009,7 @@ export default function SellProductPage() {
               <div className="sell-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 32, alignItems: "start", animation: "fadeIn 0.3s ease" }}>
 
                 {/* Left Side: Structured Form Panels */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                <div className="sell-left-form-container" style={{ display: "flex", flexDirection: "column", gap: 24, maxHeight: "calc(100vh - 120px)", overflowY: "auto", paddingRight: 8 }}>
 
                   {/* General Header */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(15, 23, 42, 0.4)", border: "1px solid #1E293B", padding: "16px 20px", borderRadius: 16 }}>

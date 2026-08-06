@@ -11,18 +11,21 @@ const prisma = new PrismaClient();
 /* ─── Helper: extract uploaded file URLs (works with both R2 and disk) ── */
 function extractFiles(req) {
   const images = [], videos = [], documents = [];
+  const isDocMime = (m) => m && (m.includes('pdf') || m.includes('document') || m.includes('msword') || m.includes('powerpoint') || m.includes('text/'));
   if (req.files) {
     (req.files['images'] || []).forEach(f => images.push(f.path));
     (req.files['thumbnails'] || []).forEach(f => images.push(f.path));
     (req.files['videos'] || []).forEach(f => videos.push(f.path));
     (req.files['documents'] || []).forEach(f => documents.push(f.path));
     (req.files['media'] || []).forEach(f => {
-      if (f.mimetype.startsWith('video/')) videos.push(f.path);
+      if (f.mimetype?.startsWith('video/')) videos.push(f.path);
+      else if (isDocMime(f.mimetype)) documents.push(f.path);
       else images.push(f.path);
     });
   }
   if (req.file) {
     if (req.file.mimetype?.startsWith('video/')) videos.push(req.file.path);
+    else if (isDocMime(req.file.mimetype)) documents.push(req.file.path);
     else images.push(req.file.path);
   }
   return { images, videos, documents };
@@ -164,8 +167,8 @@ exports.getProductById = async (req, res) => {
     });
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    // Security check: restrict cross-college product viewing
-    if (req.user && req.user.collegeId && product.collegeId !== req.user.collegeId) {
+    // Security check: restrict cross-college product viewing for physical items
+    if (req.user && req.user.collegeId && product.collegeId && product.collegeId !== req.user.collegeId && product.productType === 'PHYSICAL') {
       return res.status(403).json({ message: 'Access denied: Product belongs to another college.' });
     }
 
@@ -195,7 +198,10 @@ exports.createProduct = async (req, res) => {
     // All media URLs (R2 gives absolute URLs; disk gives relative /uploads/... paths)
     const allMedia = [...images, ...documents, ...videos];
 
-    const settings = await getPlatformSettings();
+    const isVideoProduct = (productType === 'digital') && 
+      (digitalSubType === 'video' || digitalSubType === 'both' || digitalSubType === 'bundle' || videos.length > 0);
+
+    const initialStatus = (isVideoProduct && videos.length > 0) ? 'PROCESSING' : 'active';
 
     const product = await prisma.product.create({
       data: {
@@ -208,12 +214,41 @@ exports.createProduct = async (req, res) => {
         condition: condition || 'Good',
         productType: productType || 'physical',
         digitalSubType: digitalSubType || null,
-        status: 'active',
+        status: initialStatus,
         isApproved: true,
         sellerId: req.user.id,
         collegeId: req.user.collegeId,
       },
     });
+
+    // If video files uploaded, queue HLS conversion job for ALL uploaded videos
+    if (videos.length > 0) {
+      try {
+        const videoQueue = require('../queues/videoProcessing.queue');
+        if (videoQueue && typeof videoQueue.add === 'function') {
+          for (let vIdx = 0; vIdx < videos.length; vIdx++) {
+            const vidUrl = videos[vIdx];
+            let rawR2Key = vidUrl;
+            if (vidUrl.startsWith('http://') || vidUrl.startsWith('https://')) {
+              rawR2Key = new URL(vidUrl).pathname.replace(/^\//, '');
+            } else {
+              rawR2Key = rawVideoUrl.replace(/^\//, '');
+            }
+            try {
+              rawR2Key = decodeURIComponent(rawR2Key);
+            } catch (_) {}
+
+            await videoQueue.add(
+              { productId: product.id, rawR2Key, videoIndex: vIdx },
+              { jobId: `video-${product.id}-${vIdx}` }
+            );
+            console.log(`[createProduct] Enqueued HLS video processing for product ${product.id} video ${vIdx + 1}`);
+          }
+        }
+      } catch (qErr) {
+        console.error('[createProduct] Failed to queue video processing:', qErr.message);
+      }
+    }
 
     res.status(201).json(product);
   } catch (err) {
@@ -1247,24 +1282,52 @@ exports.streamProductFile = async (req, res) => {
     // 3. Find target file (we look for PDFs, docs, videos in product.images)
     const files = product.images || [];
     const isDoc = (url) => {
+      if (!url) return false;
       const clean = url.split('?')[0].toLowerCase();
       const ext = clean.substring(clean.lastIndexOf('.') + 1);
-      return ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt'].includes(ext);
+      return ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt'].includes(ext) || clean.includes('pdf') || clean.includes('document') || clean.includes('notes');
     };
     const isVid = (url) => {
+      if (!url) return false;
       const clean = url.split('?')[0].toLowerCase();
       const ext = clean.substring(clean.lastIndexOf('.') + 1);
-      return ['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext);
+      return ['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext) || clean.includes('video');
     };
 
     let targetFile = '';
-    if (product.digitalSubType === 'video') {
-      targetFile = files.find(isVid);
-    } else if (product.digitalSubType === 'notes') {
-      targetFile = files.find(isDoc);
-    } else {
-      // both/bundle/other: find any matching doc or video depending on query or default
-      targetFile = files.find(f => isDoc(f) || isVid(f));
+    const matchingDocs = files.filter(isDoc);
+    const matchingVids = files.filter(isVid);
+
+    const videoIndex = req.query.videoIndex !== undefined ? parseInt(req.query.videoIndex, 10) : null;
+    const docIndex = req.query.docIndex !== undefined ? parseInt(req.query.docIndex, 10) : null;
+    const fileIndex = req.query.fileIndex !== undefined ? parseInt(req.query.fileIndex, 10) : null;
+
+    if (videoIndex !== null && !isNaN(videoIndex)) {
+      if (matchingVids.length > videoIndex && videoIndex >= 0) {
+        targetFile = matchingVids[videoIndex];
+      } else if (files.length > videoIndex && videoIndex >= 0) {
+        targetFile = files[videoIndex];
+      }
+    } else if (docIndex !== null && !isNaN(docIndex)) {
+      if (matchingDocs.length > docIndex && docIndex >= 0) {
+        targetFile = matchingDocs[docIndex];
+      } else if (files.length > docIndex && docIndex >= 0) {
+        targetFile = files[docIndex];
+      }
+    } else if (fileIndex !== null && !isNaN(fileIndex)) {
+      if (files.length > fileIndex && fileIndex >= 0) {
+        targetFile = files[fileIndex];
+      }
+    }
+
+    if (!targetFile) {
+      if (product.digitalSubType === 'video') {
+        targetFile = matchingVids[0] || files[0] || '';
+      } else if (product.digitalSubType === 'notes') {
+        targetFile = matchingDocs[0] || files.find(f => !isVid(f)) || files[0] || '';
+      } else {
+        targetFile = matchingDocs[0] || matchingVids[0] || files[0] || '';
+      }
     }
 
     if (!targetFile) {
@@ -1275,126 +1338,202 @@ exports.streamProductFile = async (req, res) => {
     const isR2Url = targetFile.startsWith('http://') || targetFile.startsWith('https://');
 
     if (isR2Url) {
-      // Stream from R2
+      // ── Stream from Cloudflare R2 ──────────────────────────────────────────
+      // Extract the R2 object key from the stored public URL.
+      // Stored format: https://pub-xxx.r2.dev/videos/uuid.mp4
+      // Key format:    videos/uuid.mp4
+      const publicUrlBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+      let key = targetFile;
+      if (publicUrlBase && targetFile.startsWith(publicUrlBase)) {
+        key = targetFile.slice(publicUrlBase.length).replace(/^\//, '');
+      } else {
+        // Fallback: strip the entire origin (e.g. https://hostname.com/) to get the path
+        try {
+          key = new URL(targetFile).pathname.replace(/^\//, '');
+        } catch (_) { /* keep key = targetFile */ }
+      }
+
       try {
-        let contentType = 'application/octet-stream';
-        if (isDoc(targetFile)) contentType = 'application/pdf';
-        else if (isVid(targetFile)) contentType = 'video/mp4';
+        // Determine MIME type
+        const extMap = {
+          mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg',
+          mkv: 'video/x-matroska', mov: 'video/quicktime', avi: 'video/x-msvideo',
+          pdf: 'application/pdf',
+        };
+        const ext = key.split('.').pop()?.toLowerCase() || '';
+        const contentType = extMap[ext] || 'application/octet-stream';
+
+        // NOTE: Do NOT override CORS headers here. The global cors() middleware
+        // in server.js already sets Access-Control-Allow-Origin correctly for all
+        // origins including localhost:3000 and production. Overriding with a
+        // hardcoded FRONTEND_URL value breaks local dev.
+
+        // PDF preview: buffer, truncate to 2 pages, send
+        if (isPreview && isDoc(targetFile)) {
+          const { GetObjectCommand } = require('@aws-sdk/client-s3');
+          const obj = await r2.R2.send(new GetObjectCommand({ Bucket: r2.BUCKET, Key: key }));
+          const fullBuffer = await streamToBuffer(obj.Body);
+          const truncatedBuffer = await getTruncatedPdfBuffer(fullBuffer);
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Length', truncatedBuffer.length);
+          return res.send(truncatedBuffer);
+        }
+
+        // Get real file size via HeadObject
+        const { HeadObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+        const head = await r2.R2.send(new HeadObjectCommand({ Bucket: r2.BUCKET, Key: key }));
+        const fileSize = head.ContentLength || 0;
 
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('Accept-Ranges', 'bytes');
 
-        if (isPreview) {
-          if (isDoc(targetFile)) {
-            // PDF Preview: Truncate to 2 pages
-            const stream = await r2.getObjectStreamByUrl(targetFile);
-            const fullBuffer = await streamToBuffer(stream);
-            const truncatedBuffer = await getTruncatedPdfBuffer(fullBuffer);
-            res.setHeader('Content-Length', truncatedBuffer.length);
-            res.send(truncatedBuffer);
-          } else {
-            // Video Preview: limit bytes to 15MB
-            const stream = await r2.getObjectStreamByUrl(targetFile);
-            const previewLimit = 15 * 1024 * 1024;
-            res.setHeader('Content-Length', previewLimit);
-            stream.pipe(new StreamLimitTransform(previewLimit)).pipe(res);
-          }
-        } else {
-          // Full access
-          const stream = await r2.getObjectStreamByUrl(targetFile);
-          stream.pipe(res);
-        }
-      } catch (err) {
-        console.error('[streamProductFile - R2 Error]', err);
-        res.status(500).json({ message: 'Error streaming file from cloud storage.' });
-      }
-    } else {
-      // Stream from local disk
-      const fs = require('fs');
-      const path = require('path');
-      const relPath = targetFile.replace(/^\/uploads\//, '');
-      const absolutePath = path.join(__dirname, '..', 'uploads', relPath);
+        const range = req.headers.range;
 
-      if (!fs.existsSync(absolutePath)) {
-        return res.status(404).json({ message: 'Local secure file not found.' });
-      }
-
-      const stat = fs.statSync(absolutePath);
-      const fileSize = stat.size;
-      const range = req.headers.range;
-
-      let contentType = 'application/octet-stream';
-      if (isDoc(targetFile)) contentType = 'application/pdf';
-      else if (isVid(targetFile)) contentType = 'video/mp4';
-
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-
-      if (isPreview) {
-        if (isDoc(targetFile)) {
-          // PDF Preview: Truncate to 2 pages
-          const fullBuffer = fs.readFileSync(absolutePath);
-          const truncatedBuffer = await getTruncatedPdfBuffer(fullBuffer);
-          res.setHeader('Content-Length', truncatedBuffer.length);
-          res.send(truncatedBuffer);
-        } else {
-          // Video Preview: limit bytes to 15MB
+        // Video preview: cap at 15 MB
+        if (isPreview && isVid(targetFile)) {
           const previewLimit = Math.min(fileSize, 15 * 1024 * 1024);
           if (range) {
-            const parts = range.replace(/bytes=/, '').split('-');
-            const start = parseInt(parts[0], 10);
+            const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(startStr, 10) || 0;
             if (start >= previewLimit) {
               return res.status(403).json({ message: 'Preview limit reached. Purchase to view full video.' });
             }
-            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-            const adjustedEnd = Math.min(end, previewLimit - 1);
-            const chunksize = (adjustedEnd - start) + 1;
-            const fileStream = fs.createReadStream(absolutePath, { start, end: adjustedEnd });
-
+            const end = endStr ? Math.min(parseInt(endStr, 10), previewLimit - 1) : previewLimit - 1;
+            const chunksize = end - start + 1;
+            const obj = await r2.R2.send(new GetObjectCommand({
+              Bucket: r2.BUCKET, Key: key,
+              Range: `bytes=${start}-${end}`,
+            }));
             res.writeHead(206, {
-              'Content-Range': `bytes ${start}-${adjustedEnd}/${previewLimit}`,
+              'Content-Range': `bytes ${start}-${end}/${fileSize}`,
               'Accept-Ranges': 'bytes',
               'Content-Length': chunksize,
               'Content-Type': contentType,
             });
-            fileStream.pipe(res);
-          } else {
-            res.setHeader('Content-Length', previewLimit);
-            const fileStream = fs.createReadStream(absolutePath, { start: 0, end: previewLimit - 1 });
-            fileStream.pipe(res);
+            return obj.Body.pipe(res);
           }
+          // No range — serve first previewLimit bytes
+          const obj = await r2.R2.send(new GetObjectCommand({
+            Bucket: r2.BUCKET, Key: key,
+            Range: `bytes=0-${previewLimit - 1}`,
+          }));
+          res.setHeader('Content-Length', previewLimit);
+          return obj.Body.pipe(res);
         }
-      } else {
-        // Full access
-        if (range && isVid(targetFile)) {
-          const parts = range.replace(/bytes=/, '').split('-');
-          const start = parseInt(parts[0], 10);
-          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-          const chunksize = (end - start) + 1;
-          const fileStream = fs.createReadStream(absolutePath, { start, end });
 
+        // Full access — honour Range header for seek / buffering
+        if (range) {
+          const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(startStr, 10) || 0;
+          const end = endStr ? parseInt(endStr, 10) : fileSize - 1;
+          const chunksize = end - start + 1;
+          const obj = await r2.R2.send(new GetObjectCommand({
+            Bucket: r2.BUCKET, Key: key,
+            Range: `bytes=${start}-${end}`,
+          }));
           res.writeHead(206, {
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
             'Accept-Ranges': 'bytes',
             'Content-Length': chunksize,
             'Content-Type': contentType,
           });
-          fileStream.pipe(res);
-        } else {
-          res.setHeader('Content-Length', fileSize);
-          const fileStream = fs.createReadStream(absolutePath);
-          fileStream.pipe(res);
+          return obj.Body.pipe(res);
         }
+
+        // No Range header — stream entire object
+        const obj = await r2.R2.send(new GetObjectCommand({ Bucket: r2.BUCKET, Key: key }));
+        res.setHeader('Content-Length', fileSize);
+        return obj.Body.pipe(res);
+
+      } catch (err) {
+        const isNotFound = err.name === 'NotFound' || err.name === 'NoSuchKey' || (err.message && err.message.includes('not exist'));
+        if (isNotFound) {
+          console.log('[streamProductFile] Raw video file was already deleted post-HLS transcode:', key);
+          return res.status(404).json({ message: 'Raw video file has been transcoded into HLS stream.' });
+        }
+        console.error('[streamProductFile - R2 Error] key:', key, err.message);
+        return res.status(500).json({ message: 'Error streaming file from cloud storage.' });
       }
+    } else {
+      // ── Stream from local disk ─────────────────────────────────────────────
+      const fs   = require('fs');
+      const path = require('path');
+      const relPath      = targetFile.replace(/^\/uploads\//, '');
+      const absolutePath = path.join(__dirname, '..', 'uploads', relPath);
+
+      if (!fs.existsSync(absolutePath)) {
+        return res.status(404).json({ message: 'Local secure file not found.' });
+      }
+
+      const stat     = fs.statSync(absolutePath);
+      const fileSize = stat.size;
+      const range    = req.headers.range;
+
+      const extMap = {
+        mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg',
+        mkv: 'video/x-matroska', mov: 'video/quicktime',
+        pdf: 'application/pdf',
+      };
+      const ext = absolutePath.split('.').pop()?.toLowerCase() || '';
+      const contentType = extMap[ext] || 'application/octet-stream';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Accept-Ranges', 'bytes');
+
+      // PDF preview
+      if (isPreview && isDoc(targetFile)) {
+        const fullBuffer = fs.readFileSync(absolutePath);
+        const truncatedBuffer = await getTruncatedPdfBuffer(fullBuffer);
+        res.setHeader('Content-Length', truncatedBuffer.length);
+        return res.send(truncatedBuffer);
+      }
+
+      // Video preview: cap at 15 MB
+      if (isPreview && isVid(targetFile)) {
+        const previewLimit = Math.min(fileSize, 15 * 1024 * 1024);
+        if (range) {
+          const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(startStr, 10) || 0;
+          if (start >= previewLimit) {
+            return res.status(403).json({ message: 'Preview limit reached. Purchase to view full video.' });
+          }
+          const end = Math.min(endStr ? parseInt(endStr, 10) : fileSize - 1, previewLimit - 1);
+          const chunksize = end - start + 1;
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${previewLimit}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunksize,
+            'Content-Type': contentType,
+          });
+          return fs.createReadStream(absolutePath, { start, end }).pipe(res);
+        }
+        res.setHeader('Content-Length', previewLimit);
+        return fs.createReadStream(absolutePath, { start: 0, end: previewLimit - 1 }).pipe(res);
+      }
+
+      // Full access — Range support
+      if (range) {
+        const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(startStr, 10) || 0;
+        const end = endStr ? parseInt(endStr, 10) : fileSize - 1;
+        const chunksize = end - start + 1;
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize,
+          'Content-Type': contentType,
+        });
+        return fs.createReadStream(absolutePath, { start, end }).pipe(res);
+      }
+
+      res.setHeader('Content-Length', fileSize);
+      return fs.createReadStream(absolutePath).pipe(res);
     }
   } catch (err) {
     console.error('[streamProductFile]', err);
     res.status(500).json({ message: 'Internal server error while streaming file.' });
   }
+
 };
 
 /* ── Helper: create database notification ── */

@@ -3,18 +3,19 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import api from "@/lib/axios";
-import { AdCard, AdBannerHorizontal, AdStrip, AdRenderer } from "@/components/AdBanner";
-import { INLINE_ADS, OWN_COLLEGE_ADS, HOSTEL_ADS, CROSS_COLLEGE_ADS, fetchLiveAds } from "@/lib/adsData";
+import { AdCard, AdBannerHorizontal, AdStrip, AdRenderer, type AdData } from "@/components/AdBanner";
+import { fetchLiveAds } from "@/lib/adsData";
 import { Search, SlidersHorizontal, TrendingUp, Zap, X, Heart, Eye, ChevronLeft, ChevronRight, Play, FileText, Sparkles, Layers, Plus, MessageSquare, ShoppingBag } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
-type Category = "All" | "Notes PDF" | "Video Course" | "Physical" | "Ads";
+type Category = "All" | "Notes PDF" | "Video Course" | "Video + Notes" | "Physical" | "Ads";
 
 const CATEGORIES: { key: Category; icon: string; color: string; glow: string }[] = [
   { key: "All", icon: "🏪", color: "#4F8EF7", glow: "rgba(79,142,247,0.2)" },
   { key: "Notes PDF", icon: "📄", color: "#A78BFA", glow: "rgba(167,139,250,0.2)" },
   { key: "Video Course", icon: "🎥", color: "#10B981", glow: "rgba(16,185,129,0.2)" },
-  { key: "Physical", icon: "🔧", color: "#F59E0B", glow: "rgba(245,158,11,0.2)" },
+  { key: "Video + Notes", icon: "📚", color: "#F59E0B", glow: "rgba(245,158,11,0.2)" },
+  { key: "Physical", icon: "📦", color: "#6366F1", glow: "rgba(99,102,241,0.2)" },
   { key: "Ads", icon: "📢", color: "#F7C948", glow: "rgba(247,201,72,0.2)" },
 ];
 
@@ -28,6 +29,7 @@ function isImage(p: string) { return !isVideo(p) && !isPdf(p); }
 interface Product {
   id: string;
   productType: string;
+  digitalSubType?: string;
   images: string[];
   title: string;
   price: number;
@@ -37,37 +39,102 @@ interface Product {
   views?: number;
   isApproved?: boolean;
   badge?: string;
+  typeBadge?: string;
   badgeC?: string;
   hot?: boolean;
   createdAt?: string;
   status?: string;
 }
 
+function getCategoryInfo(p: any): { categoryDisplay: string; typeTag: string; badgeC: string } {
+  const type = (p.productType || "").toLowerCase();
+  const rawCat = (p.category || "").trim();
+  const sub = (p.digitalSubType || "").toLowerCase();
+
+  let typeTag = "Physical";
+  let badgeC = "#4F8EF7";
+
+  if (type === "digital") {
+    if (sub === "both" || sub === "bundle" || (rawCat.toLowerCase().includes("video") && rawCat.toLowerCase().includes("note"))) {
+      typeTag = "Video + Notes";
+      badgeC = "#F59E0B";
+    } else if (sub === "video" || rawCat.toLowerCase().includes("video") || rawCat.toLowerCase().includes("course")) {
+      typeTag = "Video Course";
+      badgeC = "#10B981";
+    } else {
+      typeTag = "Notes PDF";
+      badgeC = "#A78BFA";
+    }
+  }
+
+  let categoryDisplay = rawCat;
+  if (!categoryDisplay || categoryDisplay.toLowerCase() === "digital product" || categoryDisplay.toLowerCase() === "digital resource" || categoryDisplay.toLowerCase() === "physical product") {
+    categoryDisplay = typeTag;
+  }
+
+  return { categoryDisplay, typeTag, badgeC };
+}
+
 function getBadge(p: Product): { badge: string; badgeC: string } {
-  const cat = (p.category || "").toLowerCase();
-  if (p.productType === "physical") return { badge: "Physical", badgeC: "#4F8EF7" };
-  if (cat.includes("video")) return { badge: "Video", badgeC: "#10B981" };
-  return { badge: "Notes PDF", badgeC: "#A78BFA" };
+  const { categoryDisplay, badgeC } = getCategoryInfo(p);
+  return { badge: categoryDisplay, badgeC };
 }
 
 const BADGE_BG: Record<string, string> = {
-  "Notes PDF": "rgba(167,139,250,0.15)",
-  "Video": "rgba(16,185,129,0.15)",
-  "Physical": "rgba(79,142,247,0.15)",
+  "Notes PDF": "rgba(139,92,246,0.18)",
+  "Video": "rgba(16,185,129,0.18)",
+  "Physical": "rgba(59,130,246,0.18)",
 };
 
-function fallbackIcon(badge: string, cat: string) {
-  if (badge === "Video") return "🎥";
-  if (badge === "Notes PDF") return "📄";
-  const c = cat.toLowerCase();
-  if (c.includes("electron") || c.includes("laptop")) return "💻";
-  if (c.includes("book") || c.includes("note")) return "📚";
-  return "🛍️";
-}
 function fallbackBg(badge: string) {
-  if (badge === "Video") return "linear-gradient(135deg,#0a1f20,#1b3040)";
-  if (badge === "Notes PDF") return "linear-gradient(135deg,#1a0d30,#2d1b4e)";
-  return "linear-gradient(135deg,#0d2040,#1e3a5f)";
+  if (badge === "Video") return "linear-gradient(135deg, #07171a 0%, #0d2830 100%)";
+  if (badge === "Notes PDF") return "linear-gradient(135deg, #150a29 0%, #271445 100%)";
+  return "linear-gradient(135deg, #08152b 0%, #11264a 100%)";
+}
+
+function renderFallbackGraphic(badge: string, title: string, cat: string) {
+  const t = (title || "").toLowerCase();
+  
+  if (badge === "Video" || t.includes("video") || t.includes("course") || t.includes("bootcamp") || t.includes("dsp")) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: 16,
+          background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.35)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#10B981", boxShadow: "0 0 24px rgba(16, 185, 129, 0.2)"
+        }}>
+          <Play size={24} style={{ transform: "translateX(2px)", fill: "#10B981" }} />
+        </div>
+      </div>
+    );
+  }
+  if (badge === "Notes PDF" || t.includes("note") || t.includes("pdf") || t.includes("gate") || t.includes("handwritten")) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: 16,
+          background: "rgba(167, 139, 250, 0.15)", border: "1px solid rgba(167, 139, 250, 0.35)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#A78BFA", boxShadow: "0 0 24px rgba(167, 139, 250, 0.2)"
+        }}>
+          <FileText size={26} />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{
+        width: 52, height: 52, borderRadius: 16,
+        background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.35)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "#3B82F6", boxShadow: "0 0 24px rgba(59, 130, 246, 0.2)"
+      }}>
+        <ShoppingBag size={26} />
+      </div>
+    </div>
+  );
 }
 
 interface ProductCardProps {
@@ -80,7 +147,7 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
   const [hov, setHov] = useState(false);
   const [activeMediaIdx, setActiveMediaIdx] = useState(0);
   const { badge, badgeC } = getBadge(p);
-  const href = p.productType === "physical"
+  const href = (p.productType || "").toLowerCase() === "physical"
     ? `/marketplace/product/${p.id}`
     : `/marketplace/digital/${p.id}`;
 
@@ -98,12 +165,21 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (hov) {
-      video.currentTime = 0; // Reset play pointer to beginning on hover like YouTube
-      video.play().catch(() => { });
+    // When the hovered media URL is a video, update the src and reload.
+    // Setting src on the <video> element directly (not via <source>) is required
+    // so React's state-driven updates actually trigger a browser media reload.
+    if (isVideo(currentMediaUrl)) {
+      const src = mediaUrl(currentMediaUrl);
+      if (video.src !== src) {
+        video.src = src;
+        video.load();
+      }
+    }
+    if (hov && isVideo(currentMediaUrl)) {
+      video.play().catch(() => {});
     } else {
       video.pause();
-      video.currentTime = 0; // Return to starting poster frame when not hovered
+      video.currentTime = 0;
     }
   }, [hov, currentMediaUrl]);
 
@@ -126,78 +202,33 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
   if (totalMedia === 0) {
     mediaNode = (
       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 52, filter: hov ? "drop-shadow(0 0 16px rgba(255,255,255,0.25))" : "none", transition: "filter 0.25s" }}>
-          {fallbackIcon(badge, p.category || "")}
-        </span>
+        {renderFallbackGraphic(badge, p.title || "", p.category || "")}
       </div>
     );
   } else if (isVideo(currentMediaUrl)) {
     mediaNode = (
-      <div style={{ width: "100%", height: "100%", position: "relative" }}>
-        <video
-          ref={videoRef}
-          muted
-          loop
-          playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        >
-          <source src={mediaUrl(currentMediaUrl)} />
-        </video>
-
-        {/* Play overlay overlayed over static video image when not hovered */}
-        {!hov && (
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "rgba(0, 0, 0, 0.2)",
-            transition: "background 0.2s",
-          }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: "50%",
-              background: "rgba(17, 24, 39, 0.8)", border: "1px solid rgba(255, 255, 255, 0.15)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#fff", transition: "all 0.25s",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-            }}>
-              <Play size={18} style={{ transform: "translateX(2px)", fill: "#fff" }} />
-            </div>
-          </div>
-        )}
-
-        <span style={{ position: "absolute", bottom: 8, right: 8, background: hov ? "rgba(16,185,129,0.9)" : "rgba(17, 24, 39, 0.85)", border: `1px solid ${hov ? "rgba(16,185,129,0.3)" : "rgba(255, 255, 255, 0.1)"}`, borderRadius: 6, padding: "2px 8px", color: hov ? "#fff" : "#9CA3AF", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", gap: 3, transition: "all 0.2s" }}>
-          {hov ? (
-            <>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", animation: "pulse 1.5s ease-in-out infinite" }} />
-              PREVIEWING
-            </>
-          ) : (
-            <>▶ VIDEO</>
-          )}
-        </span>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: fallbackBg("Video") }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: 16,
+          background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.35)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#10B981", boxShadow: "0 0 24px rgba(16, 185, 129, 0.2)"
+        }}>
+          <Play size={24} style={{ transform: "translateX(2px)", fill: "#10B981" }} />
+        </div>
       </div>
     );
   } else if (isPdf(currentMediaUrl)) {
     mediaNode = (
-      <div style={{
-        width: "100%", height: "100%",
-        background: "linear-gradient(135deg, #1e1035 0%, #0c081e 100%)",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        padding: "16px", boxSizing: "border-box", position: "relative",
-      }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: fallbackBg("Notes PDF") }}>
         <div style={{
-          width: 44, height: 44, borderRadius: 12,
-          background: "rgba(167, 139, 250, 0.15)", border: "1px solid rgba(167, 139, 250, 0.3)",
+          width: 52, height: 52, borderRadius: 16,
+          background: "rgba(167, 139, 250, 0.15)", border: "1px solid rgba(167, 139, 250, 0.35)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#A78BFA", marginBottom: 8, boxShadow: "0 0 12px rgba(167,139,250,0.2)",
+          color: "#A78BFA", boxShadow: "0 0 24px rgba(167, 139, 250, 0.2)"
         }}>
-          <FileText size={22} />
+          <FileText size={26} />
         </div>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700, color: "#F0F4FF", textAlign: "center", width: "90%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>
-          {currentMediaUrl.split("/").pop() || "Document.pdf"}
-        </p>
-        <span style={{ fontSize: 9, color: "#A78BFA", background: "rgba(167, 139, 250, 0.12)", border: "1px solid rgba(167, 139, 250, 0.25)", padding: "2px 7px", borderRadius: 4, marginTop: 6, fontWeight: 700 }}>
-          🔒 SECURE NOTES / PDF
-        </span>
       </div>
     );
   } else {
@@ -211,7 +242,7 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
   }
 
   return (
-    <Link href={href} style={{ textDecoration: "none" }}>
+    <Link href={href} style={{ textDecoration: "none", display: "flex", flexDirection: "column", height: "100%" }}>
       <div
         className="mkt-card-container"
         onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
@@ -222,11 +253,11 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
           boxShadow: hov ? "0 20px 40px rgba(0,0,0,0.55), 0 0 20px rgba(79, 142, 247, 0.15)" : "none",
           transform: hov ? "translateY(-4px)" : "none",
           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", display: "flex", flexDirection: "column",
-          position: "relative",
+          position: "relative", height: "100%", flex: 1,
         }}
       >
         {/* Media Container Viewport */}
-        <div className="mkt-card-media" style={{ height: 180, position: "relative", overflow: "hidden", background: fallbackBg(badge) }}>
+        <div className="mkt-card-media" style={{ height: 180, position: "relative", overflow: "hidden", background: fallbackBg(badge), flexShrink: 0 }}>
 
           {/* Active Media Node */}
           {mediaNode}
@@ -289,9 +320,9 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
           )}
 
           {/* Overlay Badges: Left (Category & Hot) */}
-          <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6, zIndex: 10 }}>
-            <span style={{ background: BADGE_BG[badge] || "rgba(79,142,247,0.15)", color: badgeC, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 6, backdropFilter: "blur(6px)", border: `1px solid ${badgeC}30` }}>
-              {badge}
+          <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6, zIndex: 10, flexWrap: "wrap", maxWidth: "80%" }}>
+            <span style={{ background: `${badgeC || "#4F8EF7"}22`, color: badgeC || "#4F8EF7", fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 6, backdropFilter: "blur(6px)", border: `1px solid ${badgeC || "#4F8EF7"}40`, display: "flex", alignItems: "center", gap: 4 }}>
+              {p.productType === "digital" ? (p.typeBadge === "Video Course" ? "🎥" : "📄") : "📦"} {badge}
             </span>
             {p.hot && (
               <span style={{ background: "rgba(239,68,68,0.15)", color: "#EF4444", fontSize: 9, fontWeight: 800, letterSpacing: "1px", padding: "3px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 3, backdropFilter: "blur(6px)", border: "1px solid rgba(239,68,68,0.25)" }}>
@@ -352,10 +383,10 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
         </div>
 
         {/* Content Details area */}
-        <div className="mkt-card-details" style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+        <div className="mkt-card-details" style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1, justifyContent: "space-between" }}>
 
           {/* Seller profile and views count row */}
-          <div className="mkt-card-seller-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="mkt-card-seller-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div className="mkt-card-seller-avatar" style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#4F8EF7,#7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
                 {(p.seller?.name || "U").split(" ").filter(Boolean).map((w: string) => w[0]).join("")}
@@ -369,7 +400,7 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
             )}
           </div>
 
-          <p className="mkt-card-title" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, minHeight: 40 }}>
+          <p className="mkt-card-title" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 600, color: "#F0F4FF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, height: 40 }}>
             {p.title}
           </p>
 
@@ -387,10 +418,12 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
                   </span>
                 )}
               </div>
-              {hasDiscount && (
+              {hasDiscount ? (
                 <span className="mkt-card-discount-tag" style={{ fontSize: 9, fontWeight: 800, color: "#EF4444", background: "rgba(239,68,68,0.1)", padding: "1px 6px", borderRadius: 4, width: "fit-content", marginTop: 2 }}>
                   {discountPercent}% OFF
                 </span>
+              ) : (
+                <div style={{ height: 15 }} />
               )}
             </div>
 
@@ -427,25 +460,20 @@ function ProductCard({ p, isSaved = false, onToggleWishlist }: ProductCardProps)
 const PER_PAGE = 12;
 
 function normProduct(p: any): Product {
-  const cat = (p.category || "").toLowerCase();
-  let badge = "Physical"; let badgeC = "#4F8EF7";
-  if (p.productType === "digital") {
-    if (cat.includes("video") || p.digitalSubType === "video") { badge = "Video"; badgeC = "#10B981"; }
-    else { badge = "Notes PDF"; badgeC = "#A78BFA"; }
-  }
-  return { ...p, badge, badgeC };
+  const { categoryDisplay, typeTag, badgeC } = getCategoryInfo(p);
+  return { ...p, badge: categoryDisplay, typeBadge: typeTag, badgeC };
 }
 
 // Demo products as fallback (shown while API loads)
 const DEMO: Product[] = [
-  { id: "1", productType: "physical", images: [], badge: "Physical", badgeC: "#4F8EF7", seller: { name: "Rahul S." }, title: "Dell Latitude i5 Laptop", price: 18000, views: 450, category: "Electronics", hot: true },
-  { id: "2", productType: "digital", images: [], badge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Arjun M." }, title: "GATE 2024 ECE Notes", price: 299, views: 120, category: "Notes PDF", hot: true },
-  { id: "3", productType: "digital", images: [], badge: "Video", badgeC: "#10B981", seller: { name: "Priya K." }, title: "Advanced DSP Full Course", price: 499, views: 230, category: "Video Course", hot: false },
-  { id: "4", productType: "physical", images: [], badge: "Physical", badgeC: "#4F8EF7", seller: { name: "Sneha P." }, title: "Engineering Drawing Kit", price: 450, views: 88, category: "Equipment", hot: false },
-  { id: "5", productType: "digital", images: [], badge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Vijay R." }, title: "Thermodynamics Notes", price: 149, views: 67, category: "Notes PDF", hot: false },
-  { id: "6", productType: "digital", images: [], badge: "Video", badgeC: "#10B981", seller: { name: "Dev G." }, title: "Python ML Bootcamp 2024", price: 799, views: 340, category: "Video Course", hot: true },
-  { id: "7", productType: "physical", images: [], badge: "Physical", badgeC: "#4F8EF7", seller: { name: "Meera T." }, title: "Sony WH-1000XM4", price: 14000, views: 55, category: "Electronics", hot: false },
-  { id: "8", productType: "digital", images: [], badge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Raj K." }, title: "Engg Maths Handwritten", price: 199, views: 99, category: "Notes PDF", hot: true },
+  { id: "1", productType: "physical", images: [], badge: "Electronics", typeBadge: "Physical", badgeC: "#3B82F6", seller: { name: "Rahul S." }, title: "Dell Latitude i5 Laptop", price: 18000, views: 450, category: "Electronics", hot: true },
+  { id: "2", productType: "digital", digitalSubType: "notes", images: [], badge: "Notes PDF", typeBadge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Arjun M." }, title: "GATE 2024 ECE Notes", price: 299, views: 120, category: "Notes PDF", hot: true },
+  { id: "3", productType: "digital", digitalSubType: "video", images: [], badge: "Video Course", typeBadge: "Video Course", badgeC: "#10B981", seller: { name: "Priya K." }, title: "Advanced DSP Full Course", price: 499, views: 230, category: "Video Course", hot: false },
+  { id: "4", productType: "physical", images: [], badge: "Lab Equipment", typeBadge: "Physical", badgeC: "#06B6D4", seller: { name: "Sneha P." }, title: "Engineering Drawing Kit", price: 450, views: 88, category: "Lab Equipment", hot: false },
+  { id: "5", productType: "digital", digitalSubType: "notes", images: [], badge: "Notes PDF", typeBadge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Vijay R." }, title: "Thermodynamics Notes", price: 149, views: 67, category: "Notes PDF", hot: false },
+  { id: "6", productType: "digital", digitalSubType: "video", images: [], badge: "Video Course", typeBadge: "Video Course", badgeC: "#10B981", seller: { name: "Dev G." }, title: "Python ML Bootcamp 2024", price: 799, views: 340, category: "Video Course", hot: true },
+  { id: "7", productType: "physical", images: [], badge: "Electronics", typeBadge: "Physical", badgeC: "#3B82F6", seller: { name: "Meera T." }, title: "Sony WH-1000XM4 Headphones", price: 14000, views: 55, category: "Electronics", hot: false },
+  { id: "8", productType: "digital", digitalSubType: "notes", images: [], badge: "Notes PDF", typeBadge: "Notes PDF", badgeC: "#A78BFA", seller: { name: "Raj K." }, title: "Engg Maths Handwritten", price: 199, views: 99, category: "Notes PDF", hot: true },
 ] as any;
 
 
@@ -463,7 +491,7 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
-  const [liveAds, setLiveAds] = useState<typeof INLINE_ADS>([]);
+  const [liveAds, setLiveAds] = useState<AdData[]>([]);
   const [adCategoryFilter, setAdCategoryFilter] = useState<string>("all");
   const [adFormatFilter, setAdFormatFilter] = useState<string>("all");
 
@@ -474,9 +502,7 @@ export default function MarketplacePage() {
       const params = new URLSearchParams(window.location.search);
       const catParam = params.get("category");
       if (catParam) {
-        if (["Notes PDF", "Video Course", "Physical", "Ads", "All"].includes(catParam)) {
-          setCat(catParam as Category);
-        }
+        setCat(catParam as Category);
       }
       const searchParam = params.get("search");
       if (searchParam !== null) {
@@ -513,12 +539,27 @@ export default function MarketplacePage() {
 
   const filtered = allProducts.filter(p => {
     if (p.status && p.status.toLowerCase() !== "active") return false;
-    const { badge } = getBadge(p);
-    if (cat === "Notes PDF" && badge !== "Notes PDF") return false;
-    if (cat === "Video Course" && badge !== "Video") return false;
-    if (cat === "Physical" && p.productType !== "physical") return false;
+    const pCat = (p.category || "").toLowerCase();
+    const pType = (p.productType || "").toLowerCase();
+    const sub = (p.digitalSubType || "").toLowerCase();
+    const { typeTag } = getCategoryInfo(p);
+
+    if (cat !== "All" && cat !== "Ads") {
+      if (cat === "Notes PDF") {
+        if (typeTag !== "Notes PDF") return false;
+      } else if (cat === "Video Course") {
+        if (typeTag !== "Video Course") return false;
+      } else if (cat === "Video + Notes") {
+        if (typeTag !== "Video + Notes") return false;
+      } else if (cat === "Physical") {
+        if (pType !== "physical") return false;
+      } else {
+        if (!pCat.includes(cat.toLowerCase())) return false;
+      }
+    }
+
     if (cat === "Ads") return false;
-    if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !pCat.includes(search.toLowerCase())) return false;
     if (minP && p.price < parseFloat(minP)) return false;
     if (maxP && p.price > parseFloat(maxP)) return false;
     return true;
@@ -540,10 +581,8 @@ export default function MarketplacePage() {
   const activeFilters = [minP, maxP].filter(Boolean).length;
   function clearFilters() { setMinP(""); setMaxP(""); setPage(1); }
 
-  // Merge live ads with static fallback inline ads (only fallback when not in production)
-  const inlineAdsToShow = liveAds.length > 0
-    ? liveAds
-    : (process.env.NODE_ENV === "production" ? [] : INLINE_ADS);
+  // Render live ads when available
+  const inlineAdsToShow = liveAds;
 
   // Separate ads by rendering style:
   // Full-width (strip/banner) = injected between rows as full-span items
@@ -553,8 +592,8 @@ export default function MarketplacePage() {
 
   type GridItem =
     | { kind: "product"; data: Product }
-    | { kind: "ad-inline"; data: typeof INLINE_ADS[0] }
-    | { kind: "ad-fullwidth"; data: typeof INLINE_ADS[0] };
+    | { kind: "ad-inline"; data: AdData }
+    | { kind: "ad-fullwidth"; data: AdData };
 
   const gridItems: GridItem[] = [];
   let inlineAdIdx = 0;
@@ -582,7 +621,30 @@ export default function MarketplacePage() {
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        .mkt-page { animation: fadeUp .4s ease; }
+         .mkt-page { animation: fadeUp .4s ease; }
+
+        .mkt-hero-btn {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          background: #F7C948 !important;
+          color: #1a0d00 !important;
+          font-family: 'DM Sans', sans-serif !important;
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          padding: 10px 24px !important;
+          border-radius: 9999px !important;
+          margin-top: 14px !important;
+          text-decoration: none !important;
+          box-shadow: 0 4px 14px rgba(247, 201, 72, 0.35) !important;
+          width: fit-content !important;
+          transition: all 0.2s !important;
+        }
+        .mkt-hero-btn:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 18px rgba(247, 201, 72, 0.45) !important;
+          background: #f9d668 !important;
+        }
 
         .mkt-mobile-only {
           display: none !important;
@@ -734,13 +796,30 @@ export default function MarketplacePage() {
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 12px !important;
             margin-bottom: 24px !important;
+            align-items: stretch !important;
+          }
+          .mkt-products-grid > a {
+            grid-column: auto !important;
+            width: 100% !important;
+            height: 100% !important;
+          }
+          .mkt-card-container {
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
           }
           .mkt-card-media {
             height: 125px !important;
+            flex-shrink: 0 !important;
           }
           .mkt-card-title {
             font-size: 12px !important;
-            min-height: 34px !important;
+            height: 34px !important;
+            line-height: 1.4 !important;
+            overflow: hidden !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
             margin-bottom: 2px !important;
           }
           .mkt-card-price {
@@ -749,6 +828,10 @@ export default function MarketplacePage() {
           .mkt-card-details {
             padding: 10px 10px 12px !important;
             gap: 4px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 !important;
+            justify-content: space-between !important;
           }
           .mkt-card-seller-name {
             font-size: 10px !important;
@@ -778,13 +861,15 @@ export default function MarketplacePage() {
 
         {/* Hero Banner */}
         <div className="mkt-hero-banner" style={{
-          background: "linear-gradient(135deg,#0d1829 0%,#111827 40%,#0a1f15 100%)",
-          border: "1px solid rgba(79,142,247,0.2)", borderRadius: 20,
-          padding: "28px 32px", marginBottom: 28, position: "relative", overflow: "hidden",
+          background: "linear-gradient(rgba(13, 24, 41, 0.75), rgba(13, 24, 41, 0.85)), url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=1200&auto=format&fit=crop')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          border: "1px solid rgba(79,142,247,0.25)", borderRadius: 20,
+          padding: "36px 40px", marginBottom: 28, position: "relative", overflow: "hidden",
         }}>
-          <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(79,142,247,0.05)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -40, left: 200, width: 160, height: 160, borderRadius: "50%", background: "rgba(16,185,129,0.04)", pointerEvents: "none" }} />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, position: "relative" }}>
+          <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(79,142,247,0.03)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -40, left: 200, width: 160, height: 160, borderRadius: "50%", background: "rgba(16,185,129,0.02)", pointerEvents: "none" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 16, position: "relative" }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: 10, fontWeight: 800, letterSpacing: "1.2px", padding: "3px 10px", borderRadius: 9999 }}>
@@ -795,35 +880,23 @@ export default function MarketplacePage() {
                   Live Marketplace
                 </span>
               </div>
-              <h1 className="mkt-hero-title" style={{ fontFamily: "'Sora',sans-serif", fontSize: 26, fontWeight: 800, color: "#F0F4FF", marginBottom: 6, lineHeight: 1.2 }}>
+              <h1 className="mkt-hero-title" style={{ fontFamily: "'Sora',sans-serif", fontSize: 28, fontWeight: 800, color: "#F0F4FF", marginBottom: 6, lineHeight: 1.2 }}>
                 Campus Marketplace
               </h1>
-              <p className="mkt-hero-desc" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280", maxWidth: 500 }}>
+              <p className="mkt-hero-desc" style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: "#C4CFDF", maxWidth: 600 }}>
                 Buy &amp; sell notes, video courses, gadgets and more — exclusively within {user?.collegeName || "your college"}.
               </p>
-              <Link href="/marketplace/sell" className="mkt-hero-btn mkt-mobile-only">
+              <Link href="/marketplace/sell" className="mkt-hero-btn">
                 Sell an Item
               </Link>
-            </div>
-            <div className="mkt-hero-stats" style={{ display: "flex", gap: 20 }}>
-              {[
-                { label: "Products", value: totalCount !== null ? `${totalCount}+` : "—", color: "#4F8EF7" },
-                { label: "Students", value: "1.2k+", color: "#10B981" },
-                { label: "Sales Today", value: "18", color: "#F7C948" },
-              ].map(s => (
-                <div key={s.label} style={{ textAlign: "center" }}>
-                  <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#6B7280" }}>{s.label}</div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
 
-        {/* ── Featured Ad Banner — shown in All view —── */}
-        {cat === "All" && (liveAds.length > 0 || process.env.NODE_ENV !== "production") && (
+        {/* ── Featured Ad Banner — shown in All view when live ads exist —── */}
+        {cat === "All" && liveAds.length > 0 && (
           <div style={{ marginBottom: 22 }}>
-            <AdBannerHorizontal ad={liveAds.length > 0 ? liveAds[0] : HOSTEL_ADS[0]} />
+            <AdBannerHorizontal ad={liveAds[0]} />
           </div>
         )}
 
@@ -904,15 +977,7 @@ export default function MarketplacePage() {
           </div>
         )}
 
-        {/* Trending banner */}
-        {cat === "All" && (
-          <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 12, padding: "10px 16px", marginBottom: 22, display: "flex", alignItems: "center", gap: 10 }}>
-            <TrendingUp size={14} style={{ color: "#10B981", flexShrink: 0 }} />
-            <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#9CA3AF" }}>
-              <strong style={{ color: "#10B981" }}>Trending now:</strong> GATE Notes, Python Courses, MacBook listings — updated 5 min ago
-            </p>
-          </div>
-        )}
+
 
         {/* ── ADS-ONLY VIEW ── */}
         {showAdsOnly ? (
@@ -1000,11 +1065,7 @@ export default function MarketplacePage() {
               <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#6B7280" }}>
                 Showing <strong style={{ color: "#F0F4FF" }}>{
                   (() => {
-                    const adsSource = liveAds.length > 0 ? liveAds : (process.env.NODE_ENV === "production" ? [] : [
-                      ...OWN_COLLEGE_ADS,
-                      ...HOSTEL_ADS,
-                      ...CROSS_COLLEGE_ADS
-                    ]);
+                    const adsSource = liveAds;
                     const filteredAds = adsSource.filter(ad => {
                       if (search) {
                         const q = search.toLowerCase();
@@ -1034,11 +1095,7 @@ export default function MarketplacePage() {
 
             {/* Responsive Ads Display Grid */}
             {(() => {
-              const adsSource = liveAds.length > 0 ? liveAds : (process.env.NODE_ENV === "production" ? [] : [
-                ...OWN_COLLEGE_ADS,
-                ...HOSTEL_ADS,
-                ...CROSS_COLLEGE_ADS
-              ]);
+              const adsSource = liveAds;
               const filteredAds = adsSource.filter(ad => {
                 if (search) {
                   const q = search.toLowerCase();
@@ -1116,7 +1173,7 @@ export default function MarketplacePage() {
 
 
             {/* Mixed Product + Ad Grid */}
-            <div className="mkt-products-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 22, marginBottom: 40 }}>
+            <div className="mkt-products-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 22, marginBottom: 40, alignItems: "stretch" }}>
               {gridItems.map((item, idx) => {
                 if (item.kind === "product") {
                   return (

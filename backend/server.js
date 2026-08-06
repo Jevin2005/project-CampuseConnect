@@ -37,6 +37,12 @@ const masterRoutes      = require('./routes/master.routes');
 const adminRoutes       = require('./routes/admin.routes');
 const marketplaceRoutes = require('./routes/marketplace.routes');
 const paymentRoutes     = require('./routes/payment.routes');
+const uploadRoutes      = require('./routes/upload.routes');
+const streamingRoutes   = require('./routes/streaming.routes');
+
+// Register the video processing queue processor on startup.
+// Bull connects to Redis via REDIS_URL and begins consuming jobs immediately.
+require('./queues/videoProcessing.queue');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -277,13 +283,16 @@ app.get('/api/seed-now', async (req, res) => {
 
 
 /* ─── API routes ───────────────────────────────────────────────────── */
-app.use('/api/auth',        authRoutes);
-app.use('/api/master',      masterRoutes);
-app.use('/api/admin',       adminRoutes);
-app.use('/api/marketplace', marketplaceRoutes);
-app.use('/api/payments',    paymentRoutes);
+app.use('/api/auth',             authRoutes);
+app.use('/api/master',           masterRoutes);
+app.use('/api/admin',            adminRoutes);
+app.use('/api/marketplace',      marketplaceRoutes);
+app.use('/api/payments',         paymentRoutes);
+app.use('/api/student/upload',   uploadRoutes);
+app.use('/api/student/content',  streamingRoutes);
 
-console.log(`   Marketplace API: http://localhost:${process.env.PORT||5000}/api/marketplace/*`);
+console.log(`   Upload API:      http://localhost:${process.env.PORT||5000}/api/student/upload/*`);
+console.log(`   Streaming API:   http://localhost:${process.env.PORT||5000}/api/student/content/*`);
 
 /* ─── 404 handler ───────────────────────────────────────────────────── */
 app.use((req, res) => {
@@ -331,6 +340,10 @@ async function syncSoldProducts() {
 }
 
 syncSoldProducts();
+
+// Convert any legacy uploaded video products into 4s HLS chunks
+const { convertLegacyVideosToHLS } = require('./services/videoMigration.service');
+convertLegacyVideosToHLS().catch((err) => console.warn('[VideoMigration] Startup error:', err.message));
 
 /* ─── Graceful shutdown ─────────────────────────────────────────────── */
 process.on('SIGINT', async () => {

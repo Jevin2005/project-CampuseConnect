@@ -51,11 +51,11 @@ export default function WishlistPage() {
     !search || i.product.title.toLowerCase().includes(search.toLowerCase())
   );
   const totalVal = filtered.reduce((s, i) => s + i.product.price, 0);
-  const physCount = filtered.filter(i => i.product.productType === "physical").length;
-  const digCount  = filtered.filter(i => i.product.productType === "digital").length;
+  const physCount = filtered.filter(i => (i.product.productType || "").toLowerCase() === "physical").length;
+  const digCount  = filtered.filter(i => (i.product.productType || "").toLowerCase() === "digital").length;
 
   function typeTag(productType: string) {
-    if (productType === "digital") return { bg: "rgba(167,139,250,0.12)", color: "#A78BFA", label: "Digital" };
+    if ((productType || "").toLowerCase() === "digital") return { bg: "rgba(167,139,250,0.12)", color: "#A78BFA", label: "Digital" };
     return { bg: "rgba(79,142,247,0.12)", color: "#4F8EF7", label: "Physical" };
   }
 
@@ -194,15 +194,16 @@ export default function WishlistPage() {
             {filtered.map(item => {
               const { product } = item;
               const img  = product.images?.[0];
+              const isDig = (product.productType || "").toLowerCase() === "digital";
               const tag  = typeTag(product.productType);
-              const href = `/marketplace/${product.productType === "digital" ? "digital" : "product"}/${product.id}`;
+              const href = `/marketplace/${isDig ? "digital" : "product"}/${product.id}`;
               return (
                 <div key={item.id} className="wl-card" style={{ background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 16, overflow: "hidden" }}>
                   {/* Image / Preview */}
-                  <div className="wl-card-image" style={{ height: 140, background: product.productType === "digital" ? "linear-gradient(135deg,#1a0d30,#2d1b4e)" : "#1a2235", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                  <div className="wl-card-image" style={{ height: 140, background: isDig ? "linear-gradient(135deg,#1a0d30,#2d1b4e)" : "#1a2235", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
                     {img
                       ? <img src={img} alt={product.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => (e.currentTarget.style.display = "none")} />
-                      : (product.productType === "digital" ? <FileText size={48} style={{ color: "#A78BFA" }} /> : <Package size={48} style={{ color: "#4F8EF7" }} />)
+                      : (isDig ? <FileText size={48} style={{ color: "#A78BFA" }} /> : <Package size={48} style={{ color: "#4F8EF7" }} />)
                     }
                     <button onClick={() => remove(product.id)} title="Remove from wishlist" style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Heart size={14} style={{ color: "#EF4444", fill: "#EF4444" }} />

@@ -45,14 +45,18 @@ async function getAdminWithCollege(adminId) {
 
 /* ─── Helper: auto-expire ads past their expiresAt ─────────────────── */
 async function autoExpireAds(collegeId) {
-  await prisma.advertisement.updateMany({
-    where: {
-      collegeId,
-      status: 'active',
-      expiresAt: { lt: new Date() },
-    },
-    data: { status: 'expired' },
-  });
+  try {
+    await prisma.advertisement.updateMany({
+      where: {
+        collegeId,
+        status: 'active',
+        expiresAt: { lt: new Date() },
+      },
+      data: { status: 'expired' },
+    });
+  } catch (err) {
+    console.warn('[AdController.autoExpireAds] Non-fatal auto-expire warning:', err.message);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -226,11 +230,15 @@ async function getPublicAds(req, res) {
   try {
     const { collegeId } = req.query;
 
-    // Auto-expire any stale ads across all colleges
-    await prisma.advertisement.updateMany({
-      where: { status: 'active', expiresAt: { lt: new Date() } },
-      data:  { status: 'expired' },
-    });
+    // Auto-expire any stale ads across all colleges (safely)
+    try {
+      await prisma.advertisement.updateMany({
+        where: { status: 'active', expiresAt: { lt: new Date() } },
+        data:  { status: 'expired' },
+      });
+    } catch (expireErr) {
+      console.warn('[AdController.getPublicAds] Non-fatal auto-expire error:', expireErr.message);
+    }
 
     const hasCollege = collegeId && collegeId !== 'undefined' && collegeId !== 'null' && collegeId.trim() !== '';
     const where = hasCollege
@@ -254,8 +262,9 @@ async function getPublicAds(req, res) {
 
     return res.json({ ads });
   } catch (err) {
-    console.error('[AdController.getPublicAds]', err);
-    return res.status(500).json({ message: 'Server error' });
+    console.error('[AdController.getPublicAds]', err.message);
+    // Return empty ads array rather than crashing the frontend during temporary DB connection glitches
+    return res.json({ ads: [] });
   }
 }
 

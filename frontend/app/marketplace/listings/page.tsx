@@ -5,7 +5,7 @@ import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/axios";
 import { AdStrip } from "@/components/AdBanner";
-import { OWN_COLLEGE_ADS, CROSS_COLLEGE_ADS, fetchLiveAds } from "@/lib/adsData";
+import { fetchLiveAds } from "@/lib/adsData";
 import { Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check, FileText, Package, Megaphone } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -380,15 +380,7 @@ export default function MyListingsPage() {
 
         {/* Ads */}
         {(() => {
-          const adsToShow = liveAds.length > 0
-            ? liveAds
-            : (process.env.NODE_ENV === "production"
-                ? []
-                : [
-                    { ...OWN_COLLEGE_ADS[0], subtitle: "Zenith Tech Fest 2024 — Register before Dec 20. ₹5L prize pool!", dismissible: true },
-                    { ...CROSS_COLLEGE_ADS[0], subtitle: "Inter-college Hackathon — VIT × MIT × PCCOE. ₹2L prizes. Open to all!", dismissible: true }
-                  ]
-              );
+          const adsToShow = liveAds;
           if (adsToShow.length === 0) return null;
           return (
             <div style={{ marginTop: 24 }}>

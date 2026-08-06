@@ -19,12 +19,12 @@ const NAV = [
     items: [
       { href: "/marketplace", icon: <LayoutDashboard size={16} />, label: "Browse", badge: null },
       { href: "/marketplace/listings", icon: <Package size={16} />, label: "My Listings", badge: null },
-      { href: "/marketplace/requests", icon: <Bell size={16} />, label: "Requests", badge: <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4F8EF7" }} /> },
+      { href: "/marketplace/requests", icon: <Bell size={16} />, label: "Requests", badge: null },
       { href: "/marketplace/inbox", icon: <MessageCircle size={16} />, label: "Inbox", badge: null },
       { href: "/marketplace/purchases", icon: <ShoppingBag size={16} />, label: "My Purchases", badge: null },
       { href: "/marketplace/wishlist", icon: <Heart size={16} />, label: "Wishlist", badge: null },
       { href: "/marketplace/profile", icon: <User size={16} />, label: "My Profile", badge: null },
-      { href: "/marketplace/ads", icon: <Megaphone size={16} />, label: "Advertisements", badge: <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#F7C948" }} /> },
+      { href: "/marketplace/ads", icon: <Megaphone size={16} />, label: "Advertisements", badge: null },
     ],
   },
 ];
@@ -382,13 +382,19 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                 letterSpacing: "1.4px", color: "#374151", textTransform: "uppercase",
                 padding: "6px 12px 5px",
               }}>{group.group}</p>
-              {group.items.map(item => (
-                <NavItem
-                  key={item.href}
-                  {...item}
-                  active={isActive(item.href)}
-                />
-              ))}
+              {group.items.map(item => {
+                const itemBadge = item.href === "/marketplace/requests" && unreadCount > 0
+                  ? <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4F8EF7" }} />
+                  : item.badge;
+                return (
+                  <NavItem
+                    key={item.href}
+                    {...item}
+                    badge={itemBadge}
+                    active={isActive(item.href)}
+                  />
+                );
+              })}
             </div>
           ))}
 
@@ -493,21 +499,6 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
       {/* ── MOBILE Header ── */}
       <div className="sl-mobile-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Link href="/marketplace/profile" style={{ textDecoration: "none", display: "flex" }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: "50%",
-              overflow: "hidden",
-              border: "1.5px solid rgba(255, 255, 255, 0.15)",
-              background: "linear-gradient(135deg, #4F8EF7, #7C3AED)",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
-            }}>
-              <img
-                src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=100"
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            </div>
-          </Link>
           <Link href="/marketplace" style={{ textDecoration: "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{
@@ -650,6 +641,9 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     {group.items.map(item => {
                       const active = isActive(item.href);
+                      const itemBadge = item.href === "/marketplace/requests" && unreadCount > 0
+                        ? <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4F8EF7" }} />
+                        : item.badge;
                       return (
                         <Link key={item.href} href={item.href} onClick={() => setDrawerOpen(false)} style={{ textDecoration: "none" }}>
                           <div style={{
@@ -662,7 +656,7 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                           }}>
                             <span>{item.icon}</span>
                             <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, flex: 1 }}>{item.label}</span>
-                            {item.badge && <span style={{ display: "inline-flex", alignItems: "center" }}>{item.badge}</span>}
+                            {itemBadge && <span style={{ display: "inline-flex", alignItems: "center" }}>{itemBadge}</span>}
                           </div>
                         </Link>
                       );

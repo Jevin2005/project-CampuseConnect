@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   ChevronRight, Star, ShieldCheck, Eye, FileText, Video,
@@ -22,10 +22,12 @@ interface Product {
   originalPrice?: number;
   images: string[];
   category: string;
+  productType?: string;
   digitalSubType?: string;
   isApproved: boolean;
   views: number;
   createdAt?: string;
+  sellerId?: string;
   seller: { id: string; name: string; email: string };
   college: { name: string };
   _count: { buyRequests: number };
@@ -69,6 +71,7 @@ const isVideoUrl = (url: string) => {
 
 export default function DigitalProductPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -95,6 +98,13 @@ export default function DigitalProductPage() {
       try {
         // Fetch product details
         const res = await api.get(`/api/marketplace/products/${id}`);
+
+        // If product is actually physical, redirect to physical product page
+        if ((res.data?.productType || "").toLowerCase() === "physical") {
+          router.replace(`/marketplace/product/${id}`);
+          return;
+        }
+
         setProduct(res.data);
         if (res.data?.title) {
           document.title = `${res.data.title} | CampusConnect`;
@@ -524,8 +534,6 @@ export default function DigitalProductPage() {
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
                 <span className={`badge ${themeBadge}`} style={{ textTransform: "uppercase" }}>{subtypeLabel}</span>
-                <span className="badge" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-soft)" }}>♾️ Lifetime Access</span>
-                <span className="badge" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-soft)" }}>🔒 Secured DRM</span>
               </div>
             </div>
 
@@ -669,7 +677,6 @@ export default function DigitalProductPage() {
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                 <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><Eye size={12} /> {product.views} Views</span>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)" }}>Platform Secured</span>
               </div>
             </div>
 

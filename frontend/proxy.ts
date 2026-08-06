@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const STUDENT_ROUTES = [
   '/marketplace',
   '/product',
+  '/digital',
   '/viewer',
   '/sell',
   '/my-listings',

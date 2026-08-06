@@ -1,43 +1,24 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense, useCallback } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ChevronLeft, CheckCircle, Lock, Bell, User, ShoppingCart,
-  Play, Pause, Volume2, ShieldAlert, Monitor, SkipForward, Maximize2, Settings
+  ChevronLeft, CheckCircle, Lock, User, ShoppingCart,
+  Play, Pause, Volume2, VolumeX, ShieldAlert, Maximize2, Minimize2, Settings,
+  FileText, ShieldCheck, Sparkles, RefreshCw, AlertTriangle,
+  RotateCcw, RotateCw, BookOpen, Info, HelpCircle, Download,
+  PanelRightClose, PanelRightOpen, Monitor, Award, Layers, X, Search, ExternalLink
 } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
-/* ─── Course outline syllabus ────────────────────────────────────────── */
-const SYLLABUS_LESSONS = [
-  { id: 1, title: "Course Introduction & Setup", duration: "12:15", topic: "intro" },
-  { id: 2, title: "Mathematical Prefaces & Matrix", duration: "25:40", topic: "math" },
-  { id: 3, title: "Wave-Particle Duality & Theory", duration: "32:10", topic: "wave" },
-  { id: 4, title: "The Schrödinger Equation", duration: "45:55", topic: "schrodinger" },
-  { id: 5, title: "Infinite Square Well Solutions", duration: "38:20", topic: "well" },
-  { id: 6, title: "Tunneling & Barrier Penetration", duration: "41:15", topic: "tunnel" },
-];
-
-const WATERMARK_POSITIONS: React.CSSProperties[] = [
-  { top: "12%", left: "5%" },
-  { top: "12%", right: "5%" },
-  { bottom: "16%", left: "5%" },
-  { bottom: "16%", right: "5%" },
-];
-
 /* ─── Format seconds to MM:SS ─── */
 function formatTime(s: number) {
+  if (isNaN(s) || s < 0) return "00:00";
   const m = Math.floor(s / 60);
-  const sec = s % 60;
+  const sec = Math.floor(s % 60);
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-}
-
-/* ─── Parse seconds from string MM:SS ─── */
-function parseDuration(dStr: string) {
-  const parts = dStr.split(":");
-  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
 }
 
 const isVideoUrl = (url: string) => {
@@ -46,73 +27,127 @@ const isVideoUrl = (url: string) => {
   return ["mp4", "webm", "ogg", "mkv", "mov", "avi"].includes(ext);
 };
 
-const getFileUrl = (url: string) => {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
-  return `${baseUrl.replace(/\/$/, "")}${url}`;
+const isDocumentUrl = (url: string) => {
+  const cleanUrl = url.split("?")[0].toLowerCase();
+  const ext = cleanUrl.substring(cleanUrl.lastIndexOf(".") + 1);
+  return ["pdf", "doc", "docx", "ppt", "pptx", "txt"].includes(ext);
 };
 
+function getOriginalFileName(url: string, fallbackTitle?: string, defaultPrefix = "Asset"): string {
+  if (!url) return fallbackTitle || defaultPrefix;
+  try {
+    const cleanUrl = url.split("?")[0];
+    const rawFileName = cleanUrl.substring(cleanUrl.lastIndexOf("/") + 1);
+    if (!rawFileName) return fallbackTitle || defaultPrefix;
+
+    let displayName = decodeURIComponent(rawFileName);
+
+    // Strip upload field prefixes & timestamps
+    displayName = displayName.replace(/^(documents|videos|images|media|file|thumbnail|thumbnails)[-_]/i, "");
+    displayName = displayName.replace(/^(\d+[-_]|file[-\d]+[-_])/, "");
+
+    // Check if filename is a raw UUID (e.g. d7f9f850-763e-45dc-b401-f7ofb1bf3b1c.mp4)
+    const baseWithoutExt = displayName.substring(0, displayName.lastIndexOf(".")) || displayName;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(baseWithoutExt);
+
+    if (isUuid) {
+      return fallbackTitle || defaultPrefix;
+    }
+
+    // Replace underscores with spaces for clean display
+    displayName = displayName.replace(/_/g, " ").trim();
+
+    if (displayName && displayName.length > 0) {
+      return displayName;
+    }
+  } catch (e) {}
+
+  return fallbackTitle || defaultPrefix;
+}
+
+const WATERMARK_POSITIONS: React.CSSProperties[] = [
+  { top: "18px", right: "24px" },
+  { top: "18px", left: "200px" },
+  { bottom: "75px", right: "24px" },
+  { bottom: "75px", left: "24px" },
+  { top: "40%", right: "30px" },
+  { top: "25%", left: "30px" },
+  { bottom: "35%", right: "40px" },
+];
+
+interface LessonItem {
+  id: number;
+  title: string;
+  url: string;
+}
+
 /* ─── Video Paywall Overlay ────────────────────────────── */
-function VideoPaywall({ productTitle, price, productId }: { productTitle: string; price: number; productId: string }) {
+function VideoPaywall({ price, productId }: { price: number; productId: string }) {
   return (
     <div style={{
       position: "absolute", inset: 0,
-      background: "rgba(10,14,26,0.92)",
-      backdropFilter: "blur(12px)",
+      background: "rgba(5, 8, 18, 0.95)",
+      backdropFilter: "blur(20px)",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      gap: 16, padding: 32, zIndex: 30,
-      borderRadius: 12,
+      gap: 18, padding: 32, zIndex: 35,
+      animation: "fadePaywall 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
     }}>
       <div style={{
-        width: 68, height: 68, borderRadius: "50%",
-        background: "rgba(16,185,129,0.12)",
-        border: "2px solid rgba(16,185,129,0.4)",
+        width: 72, height: 72, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.05) 100%)",
+        border: "1.5px solid rgba(16,185,129,0.4)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: "0 0 20px rgba(16,185,129,0.2)"
+        boxShadow: "0 0 30px rgba(16,185,129,0.25)"
       }}>
-        <Lock size={30} style={{ color: "#10B981" }} />
+        <Lock size={32} style={{ color: "#10B981" }} />
       </div>
-      <h3 style={{
-        fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800,
-        color: "#F0F4FF", textAlign: "center",
-      }}>
-        Demo Playback Suspended
-      </h3>
-      <p style={{
-        fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
-        textAlign: "center", maxWidth: 340, lineHeight: 1.7,
-      }}>
-        You&apos;ve watched the <strong style={{ color: "#10B981" }}>5-minute free preview</strong>.
-        Purchase the course to unlock all syllabus lectures, study downloads, and final certificates.
-      </p>
 
-      {/* Price Badge */}
+      <div style={{ textAlign: "center", maxWidth: 420 }}>
+        <h3 style={{
+          fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800,
+          color: "#F0F4FF", marginBottom: 8, letterSpacing: "-0.5px"
+        }}>
+          Preview Limit Reached
+        </h3>
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#9CA3AF",
+          lineHeight: 1.6, margin: 0
+        }}>
+          You&apos;ve completed the <span style={{ color: "#10B981", fontWeight: 700 }}>5-minute free preview</span>.
+          Enroll in this course to get full lifetime access to all video lectures & study materials.
+        </p>
+      </div>
+
+      {/* Price Pill */}
       <div style={{
-        background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)",
-        borderRadius: 9999, padding: "8px 24px",
-        fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#F0F4FF",
-        marginTop: 4
-      }}>₹{price}</div>
+        background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.35)",
+        borderRadius: 9999, padding: "8px 28px",
+        fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#10B981",
+        letterSpacing: "-0.5px"
+      }}>
+        ₹{price.toLocaleString("en-IN")}
+      </div>
 
       {/* CTA Button */}
-      <Link href={`/marketplace/digital/${productId}`} style={{ textDecoration: "none", width: "100%", maxWidth: 260 }}>
+      <Link href={`/marketplace/digital/${productId}`} style={{ textDecoration: "none", width: "100%", maxWidth: 300 }}>
         <button style={{
-          height: 46, width: "100%", borderRadius: 9999,
-          background: "#10B981", border: "none", cursor: "pointer",
-          fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff",
-          boxShadow: "0 4px 20px rgba(16,185,129,0.35)",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          transition: "transform 0.15s"
-        }} onMouseOver={e => e.currentTarget.style.transform = "scale(1.02)"} onMouseOut={e => e.currentTarget.style.transform = "scale(1.0)"}>
-          <ShoppingCart size={15} /> Enroll in Course Pack
+          height: 50, width: "100%", borderRadius: 14,
+          background: "linear-gradient(135deg, #10B981, #059669)", border: "none", cursor: "pointer",
+          fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#fff",
+          boxShadow: "0 6px 24px rgba(16,185,129,0.4)",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          transition: "all 0.2s ease"
+        }} onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseOut={e => e.currentTarget.style.transform = "translateY(0)"}>
+          <ShoppingCart size={18} /> Unlock Full Video Access
         </button>
       </Link>
+
       <Link href={`/marketplace/digital/${productId}`} style={{
-        fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", textDecoration: "none", marginTop: 8
+        fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#6B7280", textDecoration: "none", marginTop: 4,
+        display: "flex", alignItems: "center", gap: 4
       }}>
-        ← Return to product detail
+        ← Return to course overview page
       </Link>
     </div>
   );
@@ -122,357 +157,258 @@ function VideoPaywall({ productTitle, price, productId }: { productTitle: string
 function VideoViewerInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const productId = searchParams.get("id") || "1";
+  const productId = searchParams.get("id") || "";
 
-  // Auth Store
   const user = useAuthStore(s => s.user);
   const authLoading = useAuthStore(s => s.isLoading);
+  const accessToken = useAuthStore(s => s.accessToken);
 
-  // Dynamic state
   const [product, setProduct] = useState<any>(null);
   const [purchased, setPurchased] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [currentLessonId, setCurrentLessonId] = useState(1);
+  const [currentLessonIdx, setCurrentLessonIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [elapsed, setElapsed] = useState(0); // seconds
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [wmIndex, setWmIndex] = useState(0);
   const [expired, setExpired] = useState(false);
+  const [muted, setMuted] = useState(false);
 
-  // Custom player settings
   const [volume, setVolume] = useState(80);
   const [speed, setSpeed] = useState(1.0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"resources" | "shortcuts">("resources");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
 
-  // Security overlays trigger
   const [focusLost, setFocusLost] = useState(false);
-  const [clipboardAttacked, setClipboardAttacked] = useState(false);
-  const [permanentlyLocked, setPermanentlyLocked] = useState(false);
-  const permanentlyLockedRef = useRef(false);
   const [devToolsOpen, setDevToolsOpen] = useState(false);
+  const [clipboardAttacked, setClipboardAttacked] = useState(false);
 
-  const triggerPermanentLock = () => {
-    document.body.classList.add('focus-lost');
-    setFocusLost(true);
-    setPlaying(false);
-    setPermanentlyLocked(true);
-    permanentlyLockedRef.current = true;
-  };
-
-  // DevTools detection loop
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const threshold = 160;
-    const check = () => {
-      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
-      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
-      const isOpen = widthThreshold || heightThreshold;
-
-      setDevToolsOpen(prev => {
-        if (prev !== isOpen) {
-          if (isOpen) {
-            document.body.classList.add('focus-lost');
-            setFocusLost(true);
-            setPlaying(false);
-          } else {
-            if (!permanentlyLockedRef.current) {
-              document.body.classList.remove('focus-lost');
-              setFocusLost(false);
-            }
-          }
-        }
-        return isOpen;
-      });
-    };
-
-    const interval = setInterval(check, 500);
-    window.addEventListener("resize", check);
-    check();
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("resize", check);
-    };
-  }, []);
-
-  // Canvas context reference for the simulation
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animFrameIdRef = useRef<number | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
-
-  // Hidden Video DRM playback refs & state
-  const [videoDuration, setVideoDuration] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const videoFiles = (product?.images || []).filter(isVideoUrl);
-  const activeVideoFile = videoFiles[Math.min(currentLessonId - 1, Math.max(0, videoFiles.length - 1))];
+  const videoFiles: string[] = (product?.images || []).filter(isVideoUrl);
+  const documentFiles: string[] = (product?.images || []).filter(isDocumentUrl);
 
-  // Direct video elements to the backend proxy stream URL for range-compatible secure delivery
+  const docItemsList = documentFiles.length > 0
+    ? documentFiles.map((url: string, i: number) => ({
+        id: i + 1,
+        title: `Resource Document ${i + 1}: ${product?.title || "Study Material"}`,
+        url: url,
+      }))
+    : [
+        {
+          id: 1,
+          title: `Verified Lecture Slides & Course PDF — ${product?.title || "Study Notes"}`,
+          url: `/marketplace/viewer/pdf?id=${productId}`,
+        }
+      ];
+
   const isPreviewRequested = searchParams.get("preview") === "true";
   const isSeller = product?.sellerId === user?.id;
   const isPreview = isPreviewRequested || (!purchased && !isSeller);
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
-  const realVideoUrl = activeVideoFile
-    ? `${baseUrl.replace(/\/$/, "")}/api/marketplace/products/${productId}/file${isPreview ? "?preview=true" : ""}`
-    : "";
 
-  // Fetch product data & orders status
+  const PREVIEW_LIMIT_SECS = 300; 
+
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+  const buildStreamUrl = (preview: boolean) => {
+    if (!productId || !accessToken) return "";
+    const params = new URLSearchParams();
+    if (preview) params.set("preview", "true");
+    params.set("token", accessToken);
+    return `${baseUrl.replace(/\/$/, "")}/api/marketplace/products/${productId}/file?${params.toString()}`;
+  };
+
+  const getFileUrl = (url: string) => {
+    if (!url) return "";
+    let clean = url.replace(/\\/g, "/");
+    if (clean.startsWith("http://") || clean.startsWith("https://")) {
+      try {
+        return encodeURI(decodeURI(clean));
+      } catch (_) {
+        return encodeURI(clean);
+      }
+    }
+    if (!clean.startsWith("/")) clean = "/" + clean;
+    if (!clean.startsWith("/uploads/") && !clean.startsWith("/api/")) {
+      if (clean.startsWith("/videos/") || clean.startsWith("/images/") || clean.startsWith("/documents/")) {
+        clean = "/uploads" + clean;
+      } else {
+        clean = "/uploads/videos" + clean;
+      }
+    }
+    const fullUrl = `${baseUrl.replace(/\/$/, "")}${clean}`;
+    try {
+      return encodeURI(decodeURI(fullUrl));
+    } catch (_) {
+      return encodeURI(fullUrl);
+    }
+  };
+
+  const [hlsMasterUrl, setHlsMasterUrl] = useState<string>("");
+  const [hlsUrlCache, setHlsUrlCache] = useState<Record<number, string>>({});
+  const [hlsSupported, setHlsSupported] = useState(false);
+  const [productStatus, setProductStatus] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ((window as any).Hls) {
+      setHlsSupported(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/hls.js@latest";
+    script.async = true;
+    script.onload = () => setHlsSupported(true);
+    document.head.appendChild(script);
+  }, []);
+
   useEffect(() => {
     if (!productId) return;
     setLoading(true);
 
     const loadData = async () => {
       try {
-        const prodRes = await api.get(`/api/marketplace/products/${productId}`);
-        setProduct(prodRes.data);
+        let fetchedProductData: any = null;
+        try {
+          const prodRes = await api.get(`/api/marketplace/products/${productId}`);
+          fetchedProductData = prodRes.data;
+          setProduct(prodRes.data);
+        } catch (prodErr) {
+          console.log("Product metadata fetch notice:", prodErr);
+        }
 
-        const ordersRes = await api.get("/api/marketplace/orders");
-        const orders = ordersRes.data || [];
+        if (user) {
+          try {
+            const ordersRes = await api.get("/api/marketplace/orders");
+            const orders = ordersRes.data || [];
+            const userOrder = orders.find(
+              (o: any) => o.productId === productId && (o.status === "COMPLETED" || o.status === "PAID")
+            );
+            const sellerMatch = fetchedProductData?.sellerId === user?.id;
 
-        const hasOrder = orders.some(
-          (o: any) => o.productId === productId && o.status === "COMPLETED"
-        );
-        const isSeller = prodRes.data.sellerId === user?.id;
+            if (userOrder || sellerMatch) {
+              setPurchased(true);
+            }
+          } catch (orderErr) {
+            console.log("Order verification skipped:", orderErr);
+          }
+        }
 
-        if (hasOrder || isSeller) {
-          setPurchased(true);
+        try {
+          const hlsRes = await api.get(`/api/student/content/product/${productId}?videoIndex=0${isPreviewRequested ? '&preview=true' : ''}`);
+          if (hlsRes.data?.masterProxyUrl) {
+            setProductStatus(hlsRes.data?.productStatus || 'active');
+            setHlsMasterUrl(hlsRes.data.masterProxyUrl);
+            setHlsUrlCache(prev => ({ ...prev, 0: hlsRes.data.masterProxyUrl }));
+          } else if (hlsRes.data?.productStatus) {
+            setProductStatus(hlsRes.data.productStatus);
+          }
+        } catch (hlsErr: any) {
+          if (hlsErr?.response?.data?.productStatus) {
+            setProductStatus(hlsErr.response.data.productStatus);
+          }
+          console.log('HLS playlist fallback:', hlsErr);
         }
       } catch (err: any) {
-        console.error("Failed to load video product/orders:", err);
-        setError("This secure video stream could not be validated or is unavailable.");
+        console.error("Failed to load video product:", err);
+        setError("This secure video stream could not be loaded or verified.");
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
+    if (user || isPreviewRequested) {
       loadData();
     } else if (!authLoading) {
       router.push(`/login?redirect=/marketplace/viewer/video?id=${productId}`);
     }
-  }, [productId, user, authLoading, router]);
-
-
-
-  const PREVIEW_LIMIT_SECS = 300; // 5 minutes
-  const activeLesson = SYLLABUS_LESSONS.find(l => l.id === currentLessonId) || SYLLABUS_LESSONS[0];
-  const baseDuration = realVideoUrl && videoDuration ? Math.floor(videoDuration) : parseDuration(activeLesson.duration);
-  const totalLessonSecs = isPreview ? Math.min(PREVIEW_LIMIT_SECS, baseDuration) : baseDuration;
-
-  // Ticking timeline clock (for fallback simulation mode only)
-  useEffect(() => {
-    if (realVideoUrl) return;
-    let t: any;
-    if (playing && !expired && !focusLost) {
-      t = setInterval(() => {
-        setElapsed(e => {
-          const next = e + 1;
-          if (isPreview && next >= PREVIEW_LIMIT_SECS) {
-            setPlaying(false);
-            setExpired(true);
-            return PREVIEW_LIMIT_SECS;
-          }
-          if (next >= totalLessonSecs) {
-            setPlaying(false);
-            return totalLessonSecs;
-          }
-          return next;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(t);
-  }, [playing, expired, isPreview, totalLessonSecs, focusLost, realVideoUrl, PREVIEW_LIMIT_SECS]);
-
-  // Create / setup hidden video element
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.playsInline = true;
-    videoRef.current = video;
-
-    return () => {
-      video.pause();
-      video.src = "";
-      video.load();
-      videoRef.current = null;
-    };
-  }, []);
-
-  // Synchronize source when realVideoUrl changes
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (devToolsOpen) {
-      video.pause();
-      video.removeAttribute("src");
-      video.load();
-      return;
-    }
-
-    if (realVideoUrl) {
-      video.src = realVideoUrl;
-      video.load();
-      setElapsed(0);
-      setExpired(false);
-    } else {
-      video.src = "";
-    }
-  }, [realVideoUrl, devToolsOpen]);
-
-  // Update video duration state on load
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleLoadedMetadata = () => {
-      setVideoDuration(video.duration);
-    };
-
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    return () => {
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-    };
-  }, []);
-
-  // Sync volume, speed
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !realVideoUrl) return;
-    video.volume = volume / 100;
-  }, [volume, realVideoUrl]);
+  }, [productId, user, authLoading, router, isPreviewRequested]);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !realVideoUrl) return;
-    video.playbackRate = speed;
-  }, [speed, realVideoUrl]);
+    let checkInterval: any;
+    const threshold = 160;
 
-  // Sync play/pause of hidden video
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !realVideoUrl) return;
-
-    if (playing && !expired && !focusLost) {
-      video.play().catch(err => {
-        console.error("Error playing video:", err);
-      });
-    } else {
-      video.pause();
-    }
-  }, [playing, expired, focusLost, realVideoUrl]);
-
-  // Sync elapsed with real video currentTime via timeupdate
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !realVideoUrl) return;
-
-    const handleTimeUpdate = () => {
-      const current = Math.floor(video.currentTime);
-      setElapsed(current);
-
-      // Check preview limit
-      if (isPreview && current >= PREVIEW_LIMIT_SECS) {
-        setPlaying(false);
-        setExpired(true);
-        video.pause();
+    const detectDevTools = () => {
+      const isMobile = typeof window !== "undefined" && (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768);
+      if (isMobile) {
+        setDevToolsOpen(false);
+        return;
       }
-
-      // Check normal end
-      if (current >= totalLessonSecs) {
-        setPlaying(false);
-        video.pause();
+      const widthDiff = window.outerWidth - window.innerWidth > threshold;
+      const heightDiff = window.outerHeight - window.innerHeight > threshold;
+      if (widthDiff || heightDiff) {
+        setDevToolsOpen(true);
+      } else {
+        setDevToolsOpen(false);
       }
     };
 
-    video.addEventListener("timeupdate", handleTimeUpdate);
-    return () => {
-      video.removeEventListener("timeupdate", handleTimeUpdate);
-    };
-  }, [realVideoUrl, isPreview, totalLessonSecs, PREVIEW_LIMIT_SECS]);
-
-  // Shifting Mobile Watermark overlay coordinates every 10 seconds
-  useEffect(() => {
-    const t = setInterval(() => {
-      setWmIndex(i => (i + 1) % WATERMARK_POSITIONS.length);
-    }, 10000);
-    return () => clearInterval(t);
+    checkInterval = setInterval(detectDevTools, 1500);
+    return () => clearInterval(checkInterval);
   }, []);
 
-  // 🛡️ DRM Event Listeners: Focus Loss & Keyboard PrintScreen
   useEffect(() => {
-    const handleBlur = () => {
-      // Small timeout filters out transient focus shifts (like Tab press, scrollbar drag)
-      setTimeout(() => {
-        if (!document.hasFocus()) {
-          document.body.classList.add('focus-lost');
-          setFocusLost(true);
-          setPlaying(false); // Pause video on focus loss!
-        }
-      }, 150);
-    };
-    const handleFocus = () => {
-      if (permanentlyLockedRef.current) return;
-      document.body.classList.remove('focus-lost');
-      setFocusLost(false);
-    };
+    const handleBlur = () => setFocusLost(true);
+    const handleFocus = () => setFocusLost(false);
 
-    // Visibility change (switching tabs or minimizing window)
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        document.body.classList.add('focus-lost');
         setFocusLost(true);
-        setPlaying(false);
+      } else {
+        setFocusLost(false);
       }
-    };
-
-    // Mouse boundaries (cursor leaving viewport blocks captures via overlays)
-    const handleMouseLeave = () => {
-      document.body.classList.add('focus-lost');
-      setFocusLost(true);
-      setPlaying(false);
-    };
-    const handleMouseEnter = () => {
-      if (permanentlyLockedRef.current) return;
-      document.body.classList.remove('focus-lost');
-      setFocusLost(false);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-
-      // Allow page refresh/reload keys (F5, Ctrl+R, Cmd+R)
-      if (key === "f5" || ((e.ctrlKey || e.metaKey) && key === "r")) {
-        return;
-      }
-
-      // Block all other keys and trigger permanent lock
-      e.preventDefault();
-      triggerPermanentLock();
-
-      if (key === "printscreen" || e.keyCode === 44) {
+      if (e.key === "PrintScreen" || e.keyCode === 44) {
+        e.preventDefault();
         document.body.classList.add('clipboard-attacked');
         setClipboardAttacked(true);
-        navigator.clipboard?.writeText("🔒").catch(() => { });
+        navigator.clipboard?.writeText("🔒 Content Protected by CampusConnect DRM").catch(() => {});
         setTimeout(() => {
           document.body.classList.remove('clipboard-attacked');
           setClipboardAttacked(false);
         }, 2200);
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "u" || e.key === "i" || e.key === "p" || e.key === "c")) {
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "F12") {
+        e.preventDefault();
+        return;
+      }
+
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        setPlaying(prev => !prev);
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        skipTime(10);
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        skipTime(-10);
+      } else if (e.code === "KeyF") {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.code === "KeyM") {
+        e.preventDefault();
+        setMuted(prev => !prev);
       }
     };
 
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
     window.addEventListener("blur", handleBlur);
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    document.addEventListener("mouseleave", handleMouseLeave);
-    document.addEventListener("mouseenter", handleMouseEnter);
     window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("contextmenu", handleContextMenu);
 
@@ -480,233 +416,270 @@ function VideoViewerInner() {
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      document.removeEventListener("mouseleave", handleMouseLeave);
-      document.removeEventListener("mouseenter", handleMouseEnter);
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("contextmenu", handleContextMenu);
-
-      // Cleanup classes on component unmount
-      document.body.classList.remove('focus-lost');
-      document.body.classList.remove('clipboard-attacked');
     };
   }, []);
 
-  // Fullscreen controller
-  const toggleFullscreen = () => {
-    if (!playerContainerRef.current) return;
-    if (!document.fullscreenElement) {
-      playerContainerRef.current.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      }).catch(() => { });
-    } else {
-      document.exitFullscreen().then(() => {
-        setIsFullscreen(false);
-      }).catch(() => { });
+  useEffect(() => {
+    const t = setInterval(() => {
+      setWmIndex(i => (i + 1) % WATERMARK_POSITIONS.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const handleTimeUpdate = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const current = video.currentTime;
+    setElapsed(current);
+
+    if (isPreview && current >= PREVIEW_LIMIT_SECS) {
+      video.pause();
+      setPlaying(false);
+      setExpired(true);
     }
   };
 
-  // 60FPS Quantum Physics Canvas Simulator Lecture Player
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const [hlsLevels, setHlsLevels] = useState<{ id: number; name: string }[]>([]);
+  const [selectedLevel, setSelectedLevel] = useState<number>(-1);
+  const hlsRef = useRef<any>(null);
+
+  // Fetch HLS master URL for any video index when the user switches lessons
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!productId || !accessToken) return;
+    if (hlsUrlCache[currentLessonIdx]) return; // already cached
 
-    let width = (canvas.width = 854);
-    let height = (canvas.height = 480);
-    let waveOffset = 0;
+    let isSubscribed = true;
+    setHlsLoading(true);
 
-    const render = () => {
-      const video = videoRef.current;
-      if (realVideoUrl && video && video.readyState >= 2) {
-        ctx.drawImage(video, 0, 0, width, height);
-      } else {
-        ctx.clearRect(0, 0, width, height);
-
-        // Deep dark cosmic space background
-        const grad = ctx.createRadialGradient(width / 2, height / 2, 50, width / 2, height / 2, width / 1.3);
-        grad.addColorStop(0, "#0e1329");
-        grad.addColorStop(1, "#020308");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, width, height);
-
-        // Render cosmic background stars
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        for (let i = 0; i < 30; i++) {
-          const x = (i * 143) % width;
-          const y = (i * 97) % height;
-          const radius = i % 4 === 0 ? 1.5 : 0.8;
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, Math.PI * 2);
-          ctx.fill();
+    const fetchHlsForIndex = async () => {
+      try {
+        const res = await api.get(
+          `/api/student/content/product/${productId}?videoIndex=${currentLessonIdx}${isPreview ? '&preview=true' : ''}`
+        );
+        if (isSubscribed && res.data?.masterProxyUrl) {
+          setHlsUrlCache(prev => ({ ...prev, [currentLessonIdx]: res.data.masterProxyUrl }));
         }
-
-        // Draw lecture topic metadata text on canvas (watermarking the frame itself)
-        ctx.font = "bold 13px 'JetBrains Mono', monospace";
-        ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-        ctx.fillText(`TOPIC: ${activeLesson.title.toUpperCase()}`, 30, 42);
-        ctx.fillText(`STATUS: PLATFORM SECURED`, 30, 62);
-        ctx.fillText(`TIME: ${formatTime(elapsed)} / ${activeLesson.duration}`, 30, 82);
-
-        // Animated physics wavepackets (only animate when playing)
-        if (playing) {
-          waveOffset += 0.05 * speed;
-        }
-
-        // Schrödinger wavefunction calculations
-        const points: { x: number; y: number }[] = [];
-        const waveType = activeLesson.topic;
-
-        for (let x = 0; x < width; x++) {
-          let y = height / 2;
-
-          if (waveType === "intro" || waveType === "math") {
-            // Simple superposed sinewaves
-            y += Math.sin(x * 0.015 - waveOffset) * 45;
-            y += Math.cos(x * 0.035 + waveOffset * 0.5) * 15;
-          } else if (waveType === "wave") {
-            // Dynamic amplitude modulated wavepacket
-            const envelope = Math.exp(-Math.pow((x - width / 2) / 140, 2));
-            y += envelope * Math.sin(x * 0.09 - waveOffset * 1.5) * 80;
-          } else if (waveType === "schrodinger" || waveType === "well") {
-            // Quantized standing wave solution
-            const envelope = Math.sin((x / width) * Math.PI);
-            y += Math.pow(envelope, 2) * Math.sin(x * 0.06 - waveOffset * 1.2) * 90;
-          } else {
-            // Tunneling quantum barrier penetration simulation
-            const barrierX = width / 2;
-            if (x < barrierX) {
-              // Incoming wave
-              y += Math.sin(x * 0.035 - waveOffset * 1.4) * 55;
-            } else if (x >= barrierX && x < barrierX + 60) {
-              // Decaying wave inside potential barrier
-              const decay = Math.exp(-(x - barrierX) * 0.04);
-              y += decay * Math.sin(x * 0.015 - waveOffset * 0.4) * 55;
-            } else {
-              // Transmitted lower-amplitude wave
-              const scale = Math.exp(-60 * 0.04);
-              y += scale * Math.sin(x * 0.035 - waveOffset * 1.4) * 55;
-            }
-          }
-          points.push({ x, y });
-        }
-
-        // Draw mathematical potential barrier if tunneling
-        if (waveType === "tunnel") {
-          ctx.fillStyle = "rgba(239, 68, 68, 0.15)";
-          ctx.strokeStyle = "rgba(239, 68, 68, 0.5)";
-          ctx.lineWidth = 2;
-          ctx.fillRect(width / 2, height / 2 - 100, 60, 200);
-          ctx.strokeRect(width / 2, height / 2 - 100, 60, 200);
-          ctx.fillStyle = "#EF4444";
-          ctx.font = "9px 'JetBrains Mono', monospace";
-          ctx.fillText("POTENTIAL BARRIER V(x)", width / 2 - 40, height / 2 - 110);
-        }
-
-        // Render the primary wavefunction trace curve
-        ctx.beginPath();
-        ctx.strokeStyle = waveType === "tunnel" ? "#10B981" : "#4F8EF7";
-        ctx.lineWidth = 3;
-        ctx.lineJoin = "round";
-
-        if (points.length > 0) {
-          ctx.moveTo(points[0].x, points[0].y);
-          for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-          }
-        }
-        ctx.stroke();
-
-        // Render probability distribution fill underneath
-        if (points.length > 0) {
-          ctx.beginPath();
-          ctx.moveTo(points[0].x, height / 2);
-          for (let i = 0; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-          }
-          ctx.lineTo(points[points.length - 1].x, height / 2);
-          ctx.closePath();
-          const fillGrad = ctx.createLinearGradient(0, height / 2 - 80, 0, height / 2 + 80);
-          fillGrad.addColorStop(0, "rgba(79, 142, 247, 0.12)");
-          fillGrad.addColorStop(1, "rgba(79, 142, 247, 0.0)");
-          ctx.fillStyle = fillGrad;
-          ctx.fill();
-        }
-
-        // Draw base horizontal axis
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, height / 2);
-        ctx.lineTo(width, height / 2);
-        ctx.stroke();
-
-        // Render mathematical formula equation visual on board
-        ctx.fillStyle = "rgba(79, 142, 247, 0.85)";
-        ctx.font = "italic 16px 'Sora', sans-serif";
-        let boardEquation = "iℏ ∂Ψ/∂t = ĤΨ";
-        if (waveType === "wave") boardEquation = "Ψ(x,t) = Ae^(i(kx-ωt))";
-        if (waveType === "schrodinger") boardEquation = "Ĥ = -ℏ²/(2m) ∇² + V";
-        ctx.fillText(boardEquation, width - 200, 50);
+      } catch (err) {
+        console.log(`[HLS] Could not fetch HLS URL for video ${currentLessonIdx}:`, err);
+      } finally {
+        if (isSubscribed) setHlsLoading(false);
       }
-
-      animFrameIdRef.current = requestAnimationFrame(render);
     };
 
-    render();
-
+    fetchHlsForIndex();
     return () => {
-      if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+      isSubscribed = false;
     };
-  }, [activeLesson, playing, speed, realVideoUrl]);
+  }, [currentLessonIdx, productId, accessToken, isPreview]);
 
-  // Handle outline lesson switching (Check purchase rules)
-  const handleLessonClick = (id: number) => {
-    const isLockedInPreview = isPreview && id > 1;
-    if (isLockedInPreview) {
-      setPlaying(false);
-      setExpired(true); // Fire up the paywall overlay
+  // True while we're fetching the HLS URL for a non-zero video index
+  const [hlsLoading, setHlsLoading] = useState(false);
+
+  // Fallback to direct video file if available in product.images for current index
+  const directVideoFallback = videoFiles[currentLessonIdx]
+    ? getFileUrl(videoFiles[currentLessonIdx])
+    : (videoFiles[0] ? getFileUrl(videoFiles[0]) : "");
+
+  // Use cached HLS URL for current lesson, fall back to initial hlsMasterUrl for index 0, or direct video URL
+  const activeVideoUrl: string = hlsUrlCache[currentLessonIdx]
+    || (currentLessonIdx === 0 && hlsMasterUrl ? hlsMasterUrl : directVideoFallback);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    // Don't attempt to load HLS until we have a real URL
+    if (!video || !activeVideoUrl) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
       return;
     }
-    setCurrentLessonId(id);
-    setElapsed(0);
-    setExpired(false);
-  };
 
-  // Seek timeline click handler
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (expired) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    const targetTime = Math.floor(pos * totalLessonSecs);
-    setElapsed(targetTime);
-    if (videoRef.current && realVideoUrl) {
-      videoRef.current.currentTime = targetTime;
+    const isHls = activeVideoUrl.includes(".m3u8") || activeVideoUrl.includes("/segment");
+    const HlsClass = (window as any).Hls;
+
+    if (isHls && HlsClass && HlsClass.isSupported()) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      const hlsInstance = new HlsClass({
+        capLevelToPlayerSize: true,
+        autoStartLoad: false,
+        maxBufferLength: 1,
+        maxMaxBufferLength: 4,
+        maxBufferSize: 512 * 1024,
+        backBufferLength: 0,
+        maxBufferHole: 0.1,
+        startLevel: -1,
+        enableWorker: true,
+        lowLatencyMode: false,
+        xhrSetup: (xhr: XMLHttpRequest) => {
+          xhr.withCredentials = false;
+        },
+      });
+
+      hlsRef.current = hlsInstance;
+      hlsInstance.loadSource(activeVideoUrl);
+      hlsInstance.attachMedia(video);
+
+      hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (_event: any, data: any) => {
+        if (data.levels && data.levels.length > 0) {
+          const parsed = data.levels.map((lvl: any, idx: number) => ({
+            id: idx,
+            name: lvl.height ? `${lvl.height}p` : `Level ${idx + 1}`,
+          }));
+          setHlsLevels([{ id: -1, name: "Auto (Adaptive)" }, ...parsed]);
+        }
+        if (playing) {
+          hlsInstance.startLoad();
+          video.play().catch(err => console.log("HLS play interrupted:", err));
+        }
+      });
+
+      hlsInstance.on(HlsClass.Events.ERROR, (_event: any, data: any) => {
+        if (data.fatal) {
+          if (data.type === HlsClass.ErrorTypes.NETWORK_ERROR) {
+            console.warn('[HLS.js] Network error — attempting recovery:', data.details);
+            hlsInstance.startLoad();
+          } else {
+            console.error('[HLS.js] Fatal error:', data.type, data.details);
+            hlsInstance.destroy();
+            hlsRef.current = null;
+          }
+        }
+      });
+
+      return () => {
+        hlsInstance.destroy();
+        hlsRef.current = null;
+      };
+    } else {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      video.src = activeVideoUrl;
+      video.load();
+      if (playing) {
+        video.play().catch(err => console.log("Direct play interrupted:", err));
+      }
+    }
+  }, [activeVideoUrl]);
+
+  const handleQualityChange = (levelId: number) => {
+    setSelectedLevel(levelId);
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = levelId;
     }
   };
 
-  // Loading indicator
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (playing && !expired && !devToolsOpen && !focusLost) {
+      if (hlsRef.current) hlsRef.current.startLoad();
+      video.play().catch(err => console.log("Play interrupted:", err));
+    } else {
+      video.pause();
+      if (hlsRef.current) hlsRef.current.stopLoad();
+    }
+  }, [playing, expired, devToolsOpen, focusLost]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = muted ? 0 : volume / 100;
+      videoRef.current.playbackRate = speed;
+    }
+  }, [volume, muted, speed]);
+
+  const toggleFullscreen = () => {
+    const isMobile = typeof window !== "undefined" && (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768);
+    const video = videoRef.current;
+    const container = playerContainerRef.current;
+
+    if (isMobile && video && (video as any).webkitEnterFullscreen) {
+      (video as any).webkitEnterFullscreen();
+      return;
+    }
+
+    if (!container) return;
+    if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => {});
+      } else if ((container as any).webkitRequestFullscreen) {
+        (container as any).webkitRequestFullscreen();
+      } else if (video && (video as any).webkitEnterFullscreen) {
+        (video as any).webkitEnterFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  };
+
+  const skipTime = (seconds: number) => {
+    if (!videoRef.current) return;
+    const newTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, duration || 99999));
+    if (isPreview && newTime >= PREVIEW_LIMIT_SECS) {
+      setExpired(true);
+      setPlaying(false);
+      return;
+    }
+    videoRef.current.currentTime = newTime;
+    setElapsed(newTime);
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (expired || !videoRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickPos = (e.clientX - rect.left) / rect.width;
+    const targetTime = clickPos * duration;
+
+    if (isPreview && targetTime >= PREVIEW_LIMIT_SECS) {
+      setExpired(true);
+      setPlaying(false);
+      return;
+    }
+    videoRef.current.currentTime = targetTime;
+    setElapsed(targetTime);
+  };
+
   if (authLoading || loading) {
     return (
-      <div style={{ background: "#0A0E1A", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-        <div style={{ width: 44, height: 44, border: "3px solid #1f2937", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF" }}>Checking access credentials...</p>
+      <div style={{ background: "#060913", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+        <div style={{ width: 48, height: 48, border: "3px solid rgba(16,185,129,0.15)", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", fontWeight: 500 }}>Validating DRM security & video stream...</p>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
-  // Error block
   if (error || !product) {
     return (
-      <div style={{ background: "#0A0E1A", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
-        <div style={{ fontSize: 48 }}>🛡️</div>
-        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700, color: "#fff" }}>Resource Denied</h2>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", textAlign: "center", maxWidth: 400, marginTop: -8 }}>
-          {error || "Verify product authorization criteria. Purchases are secured under university guidelines."}
+      <div style={{ background: "#060913", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, padding: 24 }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <AlertTriangle size={32} style={{ color: "#EF4444" }} />
+        </div>
+        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#fff", margin: 0 }}>Stream Unavailable</h2>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#9CA3AF", textAlign: "center", maxWidth: 420, margin: 0, lineHeight: 1.6 }}>
+          {error || "This video resource is currently unavailable or processing."}
         </p>
-        <Link href="/marketplace" style={{ textDecoration: "none" }}>
-          <button style={{ height: 38, padding: "0 20px", borderRadius: 8, background: "#10B981", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+        <Link href="/marketplace" style={{ textDecoration: "none", marginTop: 8 }}>
+          <button style={{ height: 42, padding: "0 24px", borderRadius: 12, background: "linear-gradient(135deg, #10B981, #059669)", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
             Back to Marketplace
           </button>
         </Link>
@@ -714,13 +687,82 @@ function VideoViewerInner() {
     );
   }
 
-  const watermarkUser = user?.name || " rahul.sharma";
+  const watermarkUser = user?.name || "Student Access";
   const watermarkEmail = user?.email || "student@campusconnect.in";
-  const progressPercent = Math.min((elapsed / totalLessonSecs) * 100, 100);
+
+  const allUploadedFiles: string[] = product?.images || [];
+  const uploadedDocFiles = allUploadedFiles.filter(isDocumentUrl);
+
+  let vCounter = 0;
+  let dCounter = 0;
+
+  interface UnifiedSyllabusAsset {
+    id: number;
+    type: "video" | "document";
+    title: string;
+    url: string;
+    videoIdx?: number;
+    docIdx?: number;
+  }
+
+  const unifiedSyllabus: UnifiedSyllabusAsset[] = [];
+
+  if (allUploadedFiles.length > 0) {
+    allUploadedFiles.forEach((fileUrl: string, idx: number) => {
+      if (isVideoUrl(fileUrl)) {
+        const currentVIdx = vCounter;
+        vCounter++;
+        const originalName = getOriginalFileName(fileUrl, product?.title, `Video Lecture ${currentVIdx + 1}`);
+        unifiedSyllabus.push({
+          id: idx + 1,
+          type: "video",
+          title: originalName,
+          url: fileUrl,
+          videoIdx: currentVIdx,
+        });
+      } else if (isDocumentUrl(fileUrl)) {
+        const currentDIdx = dCounter;
+        dCounter++;
+        const originalName = getOriginalFileName(fileUrl, product?.title, `Study Document ${currentDIdx + 1}`);
+        unifiedSyllabus.push({
+          id: idx + 1,
+          type: "document",
+          title: originalName,
+          url: fileUrl,
+          docIdx: currentDIdx,
+        });
+      }
+    });
+  }
+
+  if (unifiedSyllabus.length === 0) {
+    const rawTitle = product?.title || "Video Lecture";
+    unifiedSyllabus.push({
+      id: 1,
+      type: "video",
+      title: rawTitle === "testing videos" ? "Complete Lecture Module" : rawTitle,
+      url: "",
+      videoIdx: 0,
+    });
+  }
+
+  const lessonsList = videoFiles.length > 0
+    ? videoFiles.map((v: string, i: number) => ({ id: i + 1, title: product?.title || "Video Course", url: v }))
+    : [{ id: 1, title: product?.title || "Video Lecture", url: "" }];
+
+  const totalSecs = isPreview ? Math.min(PREVIEW_LIMIT_SECS, duration || PREVIEW_LIMIT_SECS) : (duration || 0);
+  const progressPercent = totalSecs > 0 ? Math.min((elapsed / totalSecs) * 100, 100) : 0;
+
+  const rawDesc = product?.description || "Comprehensive academic video lecture course with DRM protection.\nMulti-bitrate adaptive HLS streaming (720p / 480p / 360p).\nBundled PDF study resources and verified student enrollment access.";
+  const descLines = rawDesc.includes("\n")
+    ? rawDesc.split("\n").filter((l: string) => l.trim().length > 0)
+    : rawDesc.split(". ").filter((l: string) => l.trim().length > 0).map((l: string) => l.endsWith(".") ? l : `${l}.`);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#060913", overflow: "hidden", position: "relative" }}>
+    <div className="main-viewport-container" style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#060913", color: "#F0F4FF", overflow: "hidden", position: "relative" }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
         @media print {
           body, html, #__next, .video-workspace-grid, .video-player-pane, .video-sidebar {
             display: none !important;
@@ -729,14 +771,14 @@ function VideoViewerInner() {
           }
         }
 
-        /* DRM Instant Blackout styles */
-        body.focus-lost .video-workspace-grid,
-        body.focus-lost .video-header,
-        body.focus-lost .video-trace-bar {
-          filter: blur(60px) !important;
+        @keyframes fadePaywall { from{opacity:0;transform:scale(0.97)} to{opacity:1;transform:scale(1)} }
+
+        body.focus-lost .workspace-container,
+        body.focus-lost header,
+        body.focus-lost footer {
+          filter: blur(50px) !important;
           opacity: 0 !important;
           pointer-events: none !important;
-          transition: none !important;
         }
 
         .drm-blackout-overlay {
@@ -752,26 +794,16 @@ function VideoViewerInner() {
           gap: 16px;
           text-align: center;
           padding: 24px;
-          box-sizing: border-box;
         }
 
         body.focus-lost .drm-blackout-overlay {
           display: flex !important;
         }
 
-        body.clipboard-attacked .video-workspace-grid,
-        body.clipboard-attacked .video-header,
-        body.clipboard-attacked .video-trace-bar {
-          filter: blur(60px) !important;
-          opacity: 0 !important;
-          pointer-events: none !important;
-          transition: none !important;
-        }
-
         .drm-clipboard-overlay {
           position: fixed;
           inset: 0;
-          background: #000000;
+          background: #000;
           z-index: 100000 !important;
           display: none;
           flex-direction: column;
@@ -779,7 +811,7 @@ function VideoViewerInner() {
           justify-content: center;
           color: #fff;
           gap: 12px;
-          box-sizing: border-box;
+          text-align: center;
           padding: 24px;
         }
 
@@ -787,558 +819,708 @@ function VideoViewerInner() {
           display: flex !important;
         }
 
-        .video-watermark-text {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 12px;
-          color: #ffffff;
-        }
-        .drm-long-text {
-          display: inline;
-        }
-        .drm-short-text {
-          display: none;
+        .top-navbar {
+          background: rgba(10, 14, 26, 0.9);
+          backdrop-filter: blur(16px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
-        @media (max-width: 900px) {
-          .video-workspace-grid {
-            grid-template-columns: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-          }
-          .video-sidebar {
-            border-left: none !important;
-            border-top: 1px solid #1b233a !important;
+        .ctrl-btn {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #D1D5DB;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 12px;
+          border-radius: 10px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        .ctrl-btn:hover {
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.14);
+          border-color: rgba(255, 255, 255, 0.25);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+        .ctrl-btn:active {
+          transform: translateY(0) scale(0.96);
+        }
+
+        .play-main-btn {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #10B981, #059669);
+          border: none;
+          color: #ffffff;
+          box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .play-main-btn:hover {
+          transform: scale(1.06);
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        }
+        .play-main-btn:active {
+          transform: scale(0.95);
+        }
+
+        .tab-btn {
+          padding: 10px 20px;
+          border-radius: 12px;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .tab-btn.active {
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08));
+          color: #10B981;
+          border: 1px solid rgba(16, 185, 129, 0.4);
+          box-shadow: 0 4px 14px rgba(16, 185, 129, 0.15);
+        }
+        .tab-btn.inactive {
+          background: rgba(255, 255, 255, 0.03);
+          color: #9CA3AF;
+          border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+        .tab-btn.inactive:hover {
+          color: #F0F4FF;
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(255, 255, 255, 0.18);
+          transform: translateY(-1px);
+        }
+
+        .cta-btn-primary {
+          height: 46px;
+          width: 100%;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #10B981, #059669);
+          border: none;
+          color: #ffffff;
+          font-family: 'Sora', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .cta-btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(16, 185, 129, 0.5);
+        }
+        .cta-btn-primary:active {
+          transform: translateY(0);
+        }
+
+        .lesson-card {
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .lesson-card:hover {
+          background: rgba(255, 255, 255, 0.05) !important;
+          border-color: rgba(255, 255, 255, 0.15) !important;
+          transform: translateX(2px);
+        }
+
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(16, 185, 129, 0.4);
+        }
+
+        .profile-btn-hover {
+          transition: all 0.2s ease;
+        }
+        .profile-btn-hover:hover {
+          background: rgba(255, 255, 255, 0.08);
+          transform: translateY(-1px);
+        }
+
+        /* ── RESPONSIVE DESIGN RULES ── */
+        .main-viewport-container {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+        }
+
+        .video-sidebar-pane.desktop-closed {
+          display: none;
+        }
+        .video-sidebar-pane.desktop-open {
+          display: flex;
+        }
+
+        @media (max-width: 1024px) {
+          .main-viewport-container {
             height: auto !important;
-            max-height: 450px !important;
-            flex-shrink: 0 !important;
+            min-height: 100vh !important;
+            overflow-y: auto !important;
           }
-          .video-player-pane {
-            padding: 12px 12px 16px !important;
+          .workspace-container {
+            grid-template-columns: 1fr !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          .left-pane-container {
+            overflow-y: visible !important;
+          }
+          .video-sidebar-pane.desktop-closed,
+          .video-sidebar-pane.desktop-open {
+            display: flex !important;
+            border-left: none !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow-y: visible !important;
           }
         }
 
         @media (max-width: 768px) {
-          .video-header {
-            height: auto !important;
-            flex-direction: column !important;
-            padding: 12px 16px !important;
-            gap: 10px !important;
-            align-items: stretch !important;
+          .top-navbar {
+            height: 48px !important;
+            padding: 0 12px !important;
           }
-          .video-header-left {
-            justify-content: space-between !important;
-            width: 100% !important;
-            display: flex !important;
-            align-items: center !important;
+          .header-title-container {
+            display: block !important;
+            max-width: 180px !important;
           }
-          .video-header-center {
-            text-align: left !important;
-            width: 100% !important;
-          }
-          .video-header-right {
+          .user-badge-text {
             display: none !important;
           }
-          .video-trace-bar {
-            flex-direction: row !important;
-            height: 46px !important;
-            padding: 0 16px !important;
-            justify-content: center !important;
-            align-items: center !important;
-          }
-          .video-badge-container {
-            display: none !important;
-          }
-          .drm-long-text {
-            display: none !important;
-          }
-          .drm-short-text {
-            display: inline !important;
-            font-size: 11px !important;
-            white-space: nowrap !important;
+          .left-pane-container {
+            padding: 12px !important;
+            gap: 12px !important;
           }
         }
 
-        @media (max-width: 480px) {
-          .video-volume-slider {
+        @media (max-width: 640px) {
+          .volume-slider-group {
+            display: none !important;
+          }
+          .tab-navigation-bar {
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+            padding-bottom: 8px !important;
+          }
+          .tab-btn {
+            padding: 8px 14px !important;
+            font-size: 12px !important;
+            flex-shrink: 0 !important;
+          }
+          .ctrl-btn {
+            padding: 6px 8px !important;
+            border-radius: 8px !important;
+          }
+          .play-main-btn {
+            width: 36px !important;
+            height: 36px !important;
+          }
+          .overview-card-container {
+            padding: 16px !important;
+            gap: 14px !important;
+            border-radius: 12px !important;
+          }
+          .meta-grid-container {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+          }
+          .meta-grid-card {
+            padding: 10px 12px !important;
+            border-radius: 10px !important;
+          }
+          .meta-grid-title {
+            font-size: 10px !important;
+          }
+          .meta-grid-value {
+            font-size: 11px !important;
+          }
+          .left-pane-container {
+            padding: 12px !important;
+            gap: 14px !important;
+          }
+        }
+
+        @media (max-width: 500px) {
+          .hide-on-mobile {
             display: none !important;
           }
         }
       `}</style>
 
-      {/* ─── DRM BLUR BLACKOUT OVERLAY (FOCUS LOST) ─── */}
       <div className="drm-blackout-overlay">
-        <ShieldAlert size={56} style={{ color: "#EF4444" }} />
-        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#EF4444", margin: 0 }}>
+        <ShieldAlert size={60} style={{ color: "#EF4444" }} />
+        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#EF4444", margin: 0 }}>
           🔒 DRM PLAYBACK SUSPENDED
         </h2>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 13, maxWidth: 440, lineHeight: 1.7, margin: 0 }}>
-          External screen recorder, screenshot software, or screen sharing active.
-          CampusConnect security rules prohibit recording or copying this academic content.
-          <br />
-          <strong style={{ color: "#10B981", marginTop: 8, display: "block" }}>
-            Click back inside this tab to resume video lecture.
-          </strong>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 14, maxWidth: 460, lineHeight: 1.6, margin: 0 }}>
+          Screen recording, window blur, or screen sharing detected.
+          CampusConnect DRM rules prohibit capturing or recording video lectures.
         </p>
+        <span style={{ color: "#10B981", fontWeight: 700, fontSize: 13, marginTop: 4 }}>
+          Click inside this browser tab to resume playback.
+        </span>
       </div>
 
-      {/* ─── CLIPBOARD / PRINTSCREEN BLACKOUT OVERLAY ─── */}
       <div className="drm-clipboard-overlay">
-        <ShieldAlert size={64} style={{ color: "#EF4444", animation: "pulse 1s infinite" }} />
+        <ShieldAlert size={64} style={{ color: "#EF4444" }} />
         <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, color: "#EF4444", margin: 0 }}>
-          SCREENSHOT ACTION NEUTRALIZED
+          SCREENSHOT BLOCKED
         </h2>
         <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF", fontSize: 14, margin: 0 }}>
-          System screenshot utilities have been blocked. Clipboard contents wiped.
+          System screenshot utility neutralized. Clipboard contents cleared.
         </p>
-        <style>{`@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}`}</style>
       </div>
 
-      {/* ─── NAVBAR ─── */}
-      <header className="video-header" style={{
-        height: 60, background: "#0a0d1a", borderBottom: "1.5px solid #1b233a",
-        display: "flex", alignItems: "center", padding: "0 24px", gap: 20, flexShrink: 0, zIndex: 100
-      }}>
-        <div className="video-header-left" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Back Link */}
+      <header className="top-navbar" style={{ height: 48, padding: "0 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, zIndex: 50, background: "rgba(10, 14, 26, 0.95)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Link href={`/marketplace/digital/${productId}`} style={{
-            display: "flex", alignItems: "center", gap: 6,
-            fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
-            textDecoration: "none",
-          }}>
+            display: "flex", alignItems: "center", gap: 6, color: "#9CA3AF", textDecoration: "none",
+            fontSize: 12, fontWeight: 600, transition: "color 0.2s"
+          }} className="ctrl-btn">
             <ChevronLeft size={16} />
-            {isPreview ? "Exit Preview" : "Exit Course"}
+            <span>Exit</span>
           </Link>
 
-          {/* Status Badges */}
-          {isPreview ? (
-            <div style={{
-              background: "rgba(245,158,11,0.12)", border: "1.5px solid rgba(245,158,11,0.3)",
-              borderRadius: 9999, padding: "4px 14px",
-              fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F59E0B",
-              display: "flex", alignItems: "center", gap: 6
-            }}>
-              <Lock size={12} /> DEMO PREVIEW MODE
-            </div>
-          ) : (
-            <div style={{
-              background: "rgba(16,185,129,0.12)", border: "1.5px solid rgba(16,185,129,0.3)",
-              borderRadius: 9999, padding: "4px 14px",
-              fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#10B981",
-              display: "flex", alignItems: "center", gap: 6
-            }}>
-              🛡️ SECURED CLASSROOM
-            </div>
+          {isPreview && (
+            <span style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", color: "#F59E0B", padding: "2px 8px", borderRadius: 9999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+              <Lock size={10} /> <span>PREVIEW</span>
+            </span>
           )}
         </div>
 
-        {/* Center Details */}
-        <div style={{ flex: 1, textAlign: "center" }} className="video-header-center">
-          <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF" }} className="video-header-title">
-            {product.title}
-          </p>
+        <div className="header-title-container" style={{ textAlign: "center", maxWidth: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {product?.title || "Video Course"}
+          </h1>
         </div>
 
-        {/* Security / User profile */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }} className="video-header-right">
-          <Bell size={17} style={{ color: "#6B7280", cursor: "pointer" }} />
-          <div style={{
-            width: 32, height: 32, borderRadius: "50%", background: "#10B981",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <User size={15} style={{ color: "#fff" }} />
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => setSidebarOpen(prev => !prev)}
+            className="ctrl-btn"
+            style={{
+              gap: 5, padding: "4px 10px", borderRadius: 8,
+              background: sidebarOpen ? "rgba(255,255,255,0.06)" : "rgba(16,185,129,0.12)",
+              color: sidebarOpen ? "#9CA3AF" : "#10B981",
+              border: sidebarOpen ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(16,185,129,0.3)",
+              fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center"
+            }}
+            title={sidebarOpen ? "Hide Course Syllabus" : "Show Course Syllabus"}
+          >
+            {sidebarOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+            <span className="hide-on-mobile">Syllabus</span>
+          </button>
+
+          <Link href="/marketplace/profile" style={{ textDecoration: "none" }} title="View Profile">
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "2px 6px", borderRadius: 9999,
+              transition: "all 0.2s ease",
+              cursor: "pointer"
+            }} className="profile-btn-hover">
+              <div className="user-badge-text" style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, color: "#F0F4FF" }}>{watermarkUser}</div>
+              </div>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, color: "#fff", boxShadow: "0 0 10px rgba(16,185,129,0.3)" }}>
+                {(watermarkUser[0] || "U").toUpperCase()}
+              </div>
+            </div>
+          </Link>
         </div>
       </header>
 
-      {/* Preview remaining time track progress bar */}
       {isPreview && (
-        <div style={{ height: 4, background: "#1b233a", flexShrink: 0, position: "relative" }}>
+        <div style={{ height: 4, background: "rgba(255,255,255,0.05)", width: "100%", flexShrink: 0 }}>
           <div style={{
             height: "100%",
-            width: `${((PREVIEW_LIMIT_SECS - Math.max(0, PREVIEW_LIMIT_SECS - elapsed)) / PREVIEW_LIMIT_SECS) * 100}%`,
-            background: expired
-              ? "#EF4444"
-              : `linear-gradient(90deg, #10B981 ${100 - (Math.max(0, PREVIEW_LIMIT_SECS - elapsed) / PREVIEW_LIMIT_SECS) * 100}%, #F59E0B)`,
-            transition: "width 1s linear",
+            width: `${Math.min((elapsed / PREVIEW_LIMIT_SECS) * 100, 100)}%`,
+            background: expired ? "#EF4444" : "#F59E0B",
+            transition: "width 0.5s ease"
           }} />
         </div>
       )}
 
-      {/* ─── MAIN WORKSPACE GRID (75/25 Layout) ─── */}
-      <div className="video-workspace-grid" style={{ display: "grid", gridTemplateColumns: "1fr 310px", flex: 1, minHeight: 0 }}>
+      <div style={{
+        position: "relative",
+        flex: 1, minHeight: 0, overflow: "hidden", background: "#000"
+      }} className="workspace-container">
 
-        {/* LEFT WORKSPACE — Video player & Active details */}
-        <div className="video-player-pane" style={{ display: "flex", flexDirection: "column", padding: "24px 24px 16px", overflowY: "auto" }}>
-
-          {/* HTML5 SECURE CUSTOM PLAYER FRAME */}
-          <div
-            ref={playerContainerRef}
-            style={{
-              position: "relative", width: "100%", aspectRatio: "16/9",
-              borderRadius: 12, overflow: "hidden", background: "#000",
-              boxShadow: "0 12px 48px rgba(0,0,0,0.7)", marginBottom: 16, flexShrink: 0,
-            }}
-          >
-            {/* The Simulation Screen */}
-            <canvas
-              ref={canvasRef}
-              style={{
-                width: "100%", height: "100%", display: "block"
-              }}
+        {/* Video Screen Container - Occupies 100% of Window Stage */}
+        <div
+          ref={playerContainerRef}
+          style={{
+            width: "100%",
+            height: "100%",
+            position: "relative",
+            background: "#000",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {productStatus === 'PROCESSING' ? (
+            <div style={{ textAlign: "center", padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+              <div style={{ width: 52, height: 52, border: "3px solid rgba(16,185,129,0.15)", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+              <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, color: "#10B981", fontWeight: 700 }}>Transcoding Video to 4-Second HLS Chunks...</div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", maxWidth: 380, lineHeight: 1.5 }}>
+                FFmpeg is generating adaptive streaming segments. This takes ~30-60 seconds.
+              </div>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+          ) : hlsLoading && !activeVideoUrl ? (
+            <div style={{ textAlign: "center", padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+              <div style={{ width: 44, height: 44, border: "3px solid rgba(59,130,246,0.15)", borderTopColor: "#3B82F6", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+              <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, color: "#60A5FA", fontWeight: 600 }}>Loading video stream...</div>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+          ) : activeVideoUrl ? (
+            <video
+              ref={videoRef}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onEnded={() => setPlaying(false)}
+              onClick={() => setPlaying(p => !p)}
+              playsInline
+              style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", cursor: "pointer" }}
             />
+          ) : (
+            <div style={{ textAlign: "center", padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 60, height: 60, borderRadius: 20, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
+                🎥
+              </div>
+              <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 700, color: "#F0F4FF" }}>Video Lecture Stream Ready</h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", maxWidth: 380, lineHeight: 1.6, margin: 0 }}>
+                This video course is connected to secure server streaming. Click play to start playback.
+              </p>
+            </div>
+          )}
 
-            {/* DYNAMIC SHIFTING WATERMARK OVERLAY */}
+          {/* Floating Watermark */}
+          {!expired && (
             <div style={{
               position: "absolute",
               ...WATERMARK_POSITIONS[wmIndex],
-              pointerEvents: "none", userSelect: "none",
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 10, color: "rgba(255, 255, 255, 0.45)",
-              background: "rgba(0, 0, 0, 0.5)", borderRadius: 6,
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              padding: "5px 10px",
-              transition: "all 0.5s ease-in-out",
-              zIndex: 25,
-              whiteSpace: "nowrap"
+              pointerEvents: "none",
+              userSelect: "none",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 12,
+              fontWeight: 500,
+              color: "rgba(255, 255, 255, 0.25)",
+              zIndex: 22,
+              transition: "all 1s ease-in-out",
+              whiteSpace: "nowrap",
+              letterSpacing: "0.4px"
             }}>
-              🔑 {watermarkEmail} ({watermarkUser}) • CampusConnect DRM
+              {watermarkEmail}
             </div>
+          )}
 
-            {/* Countdown Badge in Preview Mode */}
-            {isPreview && !expired && (
-              <div style={{
-                position: "absolute", top: 16, right: 16,
-                background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)",
-                borderRadius: 8, padding: "6px 14px",
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
-                color: (PREVIEW_LIMIT_SECS - elapsed) < 60 ? "#EF4444" : "#F59E0B",
-                fontWeight: 700,
-                border: `1.5px solid ${(PREVIEW_LIMIT_SECS - elapsed) < 60 ? "rgba(239,68,68,0.4)" : "rgba(245,158,11,0.4)"}`,
-                transition: "all 0.3s",
-                zIndex: 25
-              }}>
-                ⏱ Preview remaining: {formatTime(Math.max(0, PREVIEW_LIMIT_SECS - elapsed))}
+          {isPreview && !expired && (
+            <div style={{
+              position: "absolute", top: 16, right: 16,
+              background: "rgba(10, 14, 26, 0.85)", backdropFilter: "blur(12px)",
+              borderRadius: 10, padding: "6px 14px",
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+              color: (PREVIEW_LIMIT_SECS - elapsed) < 60 ? "#EF4444" : "#F59E0B",
+              fontWeight: 700,
+              border: `1px solid ${(PREVIEW_LIMIT_SECS - elapsed) < 60 ? "rgba(239,68,68,0.4)" : "rgba(245,158,11,0.4)"}`,
+              zIndex: 25, boxShadow: "0 4px 12px rgba(0,0,0,0.4)"
+            }}>
+              ⏱ Preview remaining: {formatTime(Math.max(0, PREVIEW_LIMIT_SECS - elapsed))}
+            </div>
+          )}
+
+          {expired && <VideoPaywall price={product?.price || 0} productId={productId} />}
+
+          {!expired && (
+            <div style={{
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              background: "linear-gradient(to top, rgba(5,8,19,0.96) 0%, rgba(5,8,19,0.6) 70%, transparent 100%)",
+              padding: "20px 22px 14px",
+              display: "flex", flexDirection: "column", gap: 12,
+              zIndex: 30
+            }}>
+              <div
+                onClick={handleSeek}
+                style={{
+                  width: "100%", height: 6, background: "rgba(255,255,255,0.18)",
+                  borderRadius: 9999, cursor: "pointer", position: "relative",
+                  transition: "height 0.2s"
+                }}
+                onMouseOver={e => e.currentTarget.style.height = "8px"}
+                onMouseOut={e => e.currentTarget.style.height = "6px"}
+              >
+                <div style={{
+                  height: "100%", width: `${progressPercent}%`,
+                  background: isPreview ? "linear-gradient(90deg, #F59E0B, #FBBF24)" : "linear-gradient(90deg, #10B981, #34D399)",
+                  borderRadius: 9999, transition: "width 0.1s linear",
+                  boxShadow: "0 0 10px rgba(16,185,129,0.5)"
+                }} />
               </div>
-            )}
 
-            {/* Paywall Overlay inside player container when preview expired */}
-            {expired && (
-              <VideoPaywall
-                productTitle={product.title}
-                price={product.price}
-                productId={productId}
-              />
-            )}
-
-            {/* CUSTOM INTERACTIVE CONTROL BAR */}
-            {!expired && (
-              <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0,
-                height: 70,
-                background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)",
-                display: "flex", flexDirection: "column", justifyContent: "flex-end",
-                padding: "0 18px 12px", zIndex: 28,
-              }}>
-                {/* Seek Timeline Track */}
-                <div
-                  onClick={handleSeek}
-                  style={{
-                    height: 5, background: "rgba(255,255,255,0.2)",
-                    borderRadius: 9999, marginBottom: 12, position: "relative", cursor: "pointer"
-                  }}
-                >
-                  <div style={{
-                    height: "100%", width: `${progressPercent}%`,
-                    background: isPreview ? "#F59E0B" : "#10B981",
-                    borderRadius: 9999
-                  }} />
-                  <div style={{
-                    position: "absolute", left: `${progressPercent}%`, top: -3,
-                    width: 11, height: 11, borderRadius: "50%",
-                    background: isPreview ? "#F59E0B" : "#10B981",
-                    transform: "translateX(-50%)",
-                    boxShadow: "0 0 8px rgba(0,0,0,0.5)"
-                  }} />
-                </div>
-
-                {/* Control Action Buttons */}
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  {/* Play/Pause */}
-                  <button
-                    onClick={() => setPlaying(p => !p)}
-                    style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center" }}
-                  >
-                    {playing ? <Pause size={18} /> : <Play size={18} />}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button className="play-main-btn" onClick={() => setPlaying(p => !p)} title={playing ? "Pause (Space)" : "Play (Space)"}>
+                    {playing ? <Pause size={20} style={{ color: "#fff" }} /> : <Play size={20} style={{ color: "#fff", marginLeft: 2 }} />}
                   </button>
 
-                  {/* Volume Slider */}
-                  <div className="video-volume-slider" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Volume2 size={16} style={{ color: "#d1d5db" }} />
+                  <button className="ctrl-btn hide-on-mobile" onClick={() => skipTime(-10)} title="Rewind 10s (Left Arrow)">
+                    <RotateCcw size={16} />
+                  </button>
+
+                  <button className="ctrl-btn hide-on-mobile" onClick={() => skipTime(10)} title="Forward 10s (Right Arrow)">
+                    <RotateCw size={16} />
+                  </button>
+
+                  <div className="volume-slider-group" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button className="ctrl-btn" onClick={() => setMuted(m => !m)} title={muted ? "Unmute (M)" : "Mute (M)"}>
+                      {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    </button>
+
                     <input
                       type="range"
                       min="0"
                       max="100"
-                      value={volume}
-                      onChange={e => setVolume(parseInt(e.target.value))}
-                      style={{ width: 60, accentColor: "#10B981", cursor: "pointer", height: 3 }}
+                      value={muted ? 0 : volume}
+                      onChange={e => { setVolume(Number(e.target.value)); setMuted(false); }}
+                      style={{ width: 70, accentColor: "#10B981", cursor: "pointer", height: 4 }}
                     />
                   </div>
 
-                  {/* Clock readout */}
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#d1d5db" }}>
-                    {formatTime(elapsed)} / {formatTime(totalLessonSecs)}
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "#9CA3AF", marginLeft: 4 }}>
+                    {formatTime(elapsed)} / {formatTime(totalSecs)}
                   </span>
+                </div>
 
-                  <div style={{ flex: 1 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {hlsLevels.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 8, padding: "3px 10px" }}>
+                      <Sparkles size={12} style={{ color: "#10B981" }} />
+                      <select
+                        value={selectedLevel}
+                        onChange={e => handleQualityChange(Number(e.target.value))}
+                        style={{ background: "transparent", border: "none", color: "#10B981", fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none", fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        {hlsLevels.map(lvl => (
+                          <option key={lvl.id} value={lvl.id} style={{ background: "#0D111E", color: "#fff" }}>
+                            {lvl.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-                  {/* Speed Selector */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "2px 8px" }}>
-                    <Settings size={12} style={{ color: "#8E9AA8" }} />
+                  <div className="hide-on-mobile" style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "3px 10px" }}>
+                    <Settings size={13} style={{ color: "#9CA3AF" }} />
                     <select
                       value={speed}
-                      onChange={e => setSpeed(parseFloat(e.target.value))}
-                      style={{ background: "none", border: "none", color: "#fff", fontFamily: "'DM Sans', sans-serif", fontSize: 11, cursor: "pointer", outline: "none" }}
+                      onChange={e => setSpeed(Number(e.target.value))}
+                      style={{ background: "transparent", border: "none", color: "#F0F4FF", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none", fontFamily: "'DM Sans', sans-serif" }}
                     >
-                      <option value="0.75" style={{ background: "#0a0d1a" }}>0.75x</option>
-                      <option value="1.0" style={{ background: "#0a0d1a" }}>1.0x (Normal)</option>
-                      <option value="1.25" style={{ background: "#0a0d1a" }}>1.25x</option>
-                      <option value="1.5" style={{ background: "#0a0d1a" }}>1.5x</option>
-                      <option value="2.0" style={{ background: "#0a0d1a" }}>2.0x</option>
+                      <option value={0.75} style={{ background: "#0D111E" }}>0.75x</option>
+                      <option value={1.0} style={{ background: "#0D111E" }}>1.0x (Normal)</option>
+                      <option value={1.25} style={{ background: "#0D111E" }}>1.25x</option>
+                      <option value={1.5} style={{ background: "#0D111E" }}>1.5x</option>
+                      <option value={2.0} style={{ background: "#0D111E" }}>2.0x</option>
                     </select>
                   </div>
 
-                  {/* Maximize Frame */}
-                  <button
-                    onClick={toggleFullscreen}
-                    style={{ background: "none", border: "none", color: "#d1d5db", cursor: "pointer" }}
-                    title="Fullscreen"
-                  >
-                    <Maximize2 size={16} />
+                  <button className="ctrl-btn" onClick={toggleFullscreen} title="Toggle Fullscreen (F)">
+                    <Maximize2 size={18} />
                   </button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          {/* Lesson description details panel */}
-          <div style={{
-            background: "#0d1120", border: "1.5px solid #1b233a",
-            borderRadius: 12, padding: "20px 24px", marginBottom: 16,
-          }}>
-            <span style={{
-              background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)",
-              color: "#10B981", borderRadius: 6, padding: "2px 8px",
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
-              textTransform: "uppercase", letterSpacing: "0.5px"
-            }}>
-              Now Streaming: Lesson {currentLessonId}
-            </span>
+        {/* Backdrop for closing Syllabus Drawer when clicking outside */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: "fixed", top: 48, left: 0, right: 380, bottom: 0,
+              zIndex: 85, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)"
+            }}
+          />
+        )}
 
-            <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700, color: "#F0F4FF", margin: "10px 0 6px" }}>
-              {activeLesson.title}
-            </h2>
+        {/* Slide-over Syllabus Drawer */}
+        <div style={{
+          position: "fixed",
+          top: 48,
+          right: 0,
+          bottom: 0,
+          width: 380,
+          zIndex: 90,
+          background: "rgba(8, 12, 22, 0.96)",
+          backdropFilter: "blur(20px)",
+          borderLeft: "1px solid rgba(255,255,255,0.1)",
+          boxShadow: "-12px 0 40px rgba(0,0,0,0.85)",
+          display: "flex",
+          flexDirection: "column",
+          transform: sidebarOpen ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)"
+        }}>
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, color: "#F0F4FF", margin: "0 0 4px" }}>
+                Video Course Syllabus
+              </h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#9CA3AF", margin: 0 }}>
+                {unifiedSyllabus.filter(a => a.type === "video").length} Video Lectures
+              </p>
+            </div>
 
-            <p style={{
-              fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF",
-              lineHeight: 1.7, marginBottom: 14, textAlign: "justify"
-            }}>
-              {isPreview
-                ? "You are playing in free preview mode. Get complete course access to download standard slide notes, mathematical homework sheets, source simulators, and interactive lessons."
-                : "This masterclass session models quantum structures directly on your browser canvas. Analyze how parameters inside the Schrödinger Equation interact with finite potentials and tunneling barriers in the graphical lecture above."}
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "3px 8px", borderRadius: 6, fontWeight: 700 }}>
+                {Math.round(progressPercent)}% DONE
+              </span>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {["SECURED HTML5 STREAM", "SCHRÖDINGER SIM", "INTERACTIVE LAB"].map(t => (
-                <span key={t} style={{
-                  background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)",
-                  borderRadius: 6, padding: "3px 10px",
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 700, color: "#8E9AA8",
-                  letterSpacing: "0.5px",
-                }}>{t}</span>
-              ))}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="ctrl-btn"
+                style={{ width: 32, height: 32, borderRadius: 8, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+                title="Close Syllabus"
+              >
+                <X size={18} />
+              </button>
             </div>
           </div>
 
-        </div>
-
-        {/* RIGHT OUTLINE DRAWER — Course Syllabus Lessons */}
-        <div className="video-sidebar" style={{
-          background: "#0a0d1a", borderLeft: "1px solid #1b233a",
-          display: "flex", flexDirection: "column", overflowY: "auto",
-        }}>
-          {/* Header title */}
-          <div style={{ padding: "20px 20px 14px", borderBottom: "1px solid #1b233a" }}>
-            <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 800, color: "#F0F4FF", letterSpacing: "0.5px" }}>
-              COURSE SYLLABUS
-            </p>
-            {isPreview && (
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#F59E0B", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                <Lock size={9} /> Clicks on lessons 2+ are locked
-              </p>
-            )}
-          </div>
-
-          {/* Clicks list */}
-          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-            {SYLLABUS_LESSONS.map(l => {
-              const lockedInPreview = isPreview && l.id > 1;
-              const isCurrent = l.id === currentLessonId;
+          <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1, overflowY: "auto" }}>
+            {unifiedSyllabus.filter(asset => asset.type === "video").map((asset, idx) => {
+              const vIndex = asset.videoIdx ?? 0;
+              const isSelected = vIndex === currentLessonIdx;
+              const isLocked = isPreview && vIndex > 0;
 
               return (
                 <div
-                  key={l.id}
-                  onClick={() => handleLessonClick(l.id)}
+                  key={`unified-${asset.id}-${idx}`}
+                  className="lesson-card"
+                  onClick={() => {
+                    if (isLocked) {
+                      setExpired(true);
+                      setPlaying(false);
+                      return;
+                    }
+                    setCurrentLessonIdx(vIndex);
+                    setElapsed(0);
+                    setExpired(false);
+                    setPlaying(true);
+                  }}
                   style={{
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    background: isCurrent && !lockedInPreview
-                      ? "rgba(16,185,129,0.08)"
-                      : "rgba(255,255,255,0.02)",
-                    border: `1.5px solid ${isCurrent && !lockedInPreview ? "rgba(16,185,129,0.25)" : "transparent"}`,
-                    cursor: lockedInPreview ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    opacity: lockedInPreview ? 0.45 : 1,
-                    transition: "all 0.15s ease",
+                    padding: "14px 16px",
+                    borderRadius: 12,
+                    background: isSelected ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${isSelected ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.05)"}`,
+                    cursor: isLocked ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: 12,
+                    opacity: isLocked ? 0.55 : 1,
                   }}
                 >
-                  {/* YouTube style Video Thumbnail */}
                   <div style={{
-                    width: 90,
-                    height: 52,
-                    borderRadius: 6,
-                    background: "#0d0f1a",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    position: "relative",
-                    flexShrink: 0,
-                    overflow: "hidden",
-                    border: "1.5px solid rgba(255, 255, 255, 0.08)",
+                    width: 34, height: 34, borderRadius: 10,
+                    background: isSelected ? "linear-gradient(135deg, #10B981, #059669)" : "rgba(255,255,255,0.05)",
+                    color: isSelected ? "#fff" : "#9CA3AF",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontWeight: 700, fontSize: 12, flexShrink: 0
                   }}>
-                    {/* Lesson Index Tag */}
-                    <span style={{
-                      position: "absolute",
-                      top: 4,
-                      left: 4,
-                      background: "rgba(0,0,0,0.6)",
-                      padding: "1px 4px",
-                      borderRadius: 3,
-                      fontSize: 8,
-                      color: "#fff",
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontWeight: 700,
-                    }}>L{l.id}</span>
-
-                    {lockedInPreview ? (
-                      <Lock size={14} style={{ color: "#9CA3AF" }} />
-                    ) : isCurrent ? (
-                      <Play size={14} style={{ color: "#10B981" }} />
+                    {isSelected ? (
+                      playing ? <Pause size={14} style={{ color: "#fff" }} /> : <Play size={14} style={{ color: "#fff", marginLeft: 1 }} />
+                    ) : isLocked ? (
+                      <Lock size={12} style={{ color: "#EF4444" }} />
                     ) : (
-                      <CheckCircle size={14} style={{ color: "#3B82F6" }} />
+                      <span>{String(idx + 1).padStart(2, "0")}</span>
                     )}
-
-                    {/* Time duration badge */}
-                    <span style={{
-                      position: "absolute",
-                      bottom: 4,
-                      right: 4,
-                      background: "rgba(0,0,0,0.75)",
-                      padding: "1px 4px",
-                      borderRadius: 3,
-                      fontSize: 8,
-                      color: "#fff",
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontWeight: 700,
-                    }}>{l.duration}</span>
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: 12,
-                      fontWeight: isCurrent && !lockedInPreview ? 700 : 500,
-                      color: isCurrent && !lockedInPreview ? "#F0F4FF" : "#9CA3AF",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                    <div style={{
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700,
+                      color: isSelected ? "#10B981" : "#F0F4FF",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
                     }}>
-                      {l.title}
-                    </p>
-                    <p style={{ fontSize: 10, color: "#4B5563", marginTop: 2 }}>
-                      {lockedInPreview ? "Premium Lecture" : "Ready to play"}
-                    </p>
+                      {asset.title}
+                    </div>
+                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: isSelected ? "#10B981" : "#9CA3AF", marginTop: 2, opacity: 0.8 }}>
+                      {isLocked ? "🔒 Locked Preview" : "🎥 Video Lecture Stream"}
+                    </div>
                   </div>
                 </div>
               );
             })}
-          </div>
 
-          {/* Secure Purchase bottom lock wall */}
-          {isPreview && (
-            <div style={{ padding: "16px 12px", borderTop: "1px solid #1b233a" }}>
-              <Link href={`/marketplace/digital/${productId}`} style={{ textDecoration: "none" }}>
-                <button style={{
-                  width: "100%", height: 42, borderRadius: 8,
-                  background: "rgba(16,185,129,0.1)", border: "1.5px solid rgba(16,185,129,0.3)",
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700, color: "#10B981",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                  boxShadow: "0 2px 10px rgba(16,185,129,0.05)"
-                }}>
-                  🔓 Buy & Unlock Course Pack
-                </button>
-              </Link>
-            </div>
-          )}
-
-          {/* Secure Course Attachments */}
-          <div style={{ padding: "16px 20px", borderTop: "1px solid #1b233a" }}>
-            <p style={{
-              fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 800,
-              letterSpacing: "1px", color: "#8E9AA8", marginBottom: 10,
-            }}>COURSE DOWNLOADS</p>
-            {[
-              { icon: "📄", label: "Lecture Slides Notes", locked: isPreview },
-              { icon: "🧪", label: "Interactive Simulation Lab", locked: isPreview },
-            ].map((r, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 10, padding: "10px 0",
-                borderBottom: "1px solid #1b233a",
-                opacity: r.locked ? 0.35 : 1,
-              }}>
-                <span style={{ fontSize: 14 }}>{r.locked ? "🔒" : r.icon}</span>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#9CA3AF" }}>{r.label}</span>
+            {isPreview && (
+              <div style={{ padding: 16, borderTop: "1px solid rgba(255,255,255,0.07)", background: "rgba(245,158,11,0.04)", marginTop: 12 }}>
+                <Link href={`/marketplace/digital/${productId}`} style={{ textDecoration: "none" }}>
+                  <button className="cta-btn-primary">
+                    🔓 Unlock Full Video Course
+                  </button>
+                </Link>
               </div>
-            ))}
+            )}
           </div>
-
         </div>
+
       </div>
 
-      {/* ─── BOTTOM TRACEABLE META SECURITY BAR ─── */}
-      {!isPreview && (
-        <div className="video-trace-bar" style={{
-          flexShrink: 0, padding: "12px 28px",
-          background: "#10B981",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          zIndex: 90
-        }}>
-          <p className="video-watermark-text" style={{ margin: 0, letterSpacing: "0.2px" }}>
-            <span className="drm-long-text">
-              🛡️ <strong>Traceable DRM Active:</strong> Unauthorized video streams recording is strictly traceable to: <strong>{watermarkEmail} ({watermarkUser})</strong>.
-            </span>
-            <span className="drm-short-text">
-              🛡️ Traceable DRM: <strong>{watermarkEmail} ({watermarkUser})</strong>
-            </span>
-          </p>
-          <div className="video-badge-container" style={{ display: "flex", gap: 20 }}>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 700 }}>
-              VERIFIED ENROLLMENT ACCESS
-            </span>
+
+
+      {/* Inline PDF Viewer Overlay Modal */}
+      {selectedPdfUrl && (
+        <div onClick={() => setSelectedPdfUrl(null)} style={{ position: "fixed", inset: 0, zIndex: 99995, background: "rgba(5,8,19,0.95)", backdropFilter: "blur(20px)", display: "flex", flexDirection: "column" }}>
+          <div onClick={e => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
+            <div style={{ height: 52, padding: "0 24px", background: "rgba(10,14,26,0.98)", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <FileText size={20} style={{ color: "#A78BFA" }} />
+                <div>
+                  <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#F0F4FF", margin: 0 }}>
+                    CampusConnect Secure DRM PDF Reader
+                  </h3>
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#9CA3AF" }}>{product?.title}</span>
+                </div>
+              </div>
+
+              <button onClick={() => setSelectedPdfUrl(null)} className="ctrl-btn" style={{ padding: "6px 12px", borderRadius: 8, gap: 6, cursor: "pointer" }}>
+                <X size={16} /> Close Reader
+              </button>
+            </div>
+
+            <iframe
+              src={selectedPdfUrl.startsWith("/") ? selectedPdfUrl : `/marketplace/viewer/pdf?id=${productId}${isPreview ? "&preview=true" : ""}`}
+              style={{ flex: 1, width: "100%", height: "calc(100vh - 52px)", border: "none" }}
+              title="Secure PDF Viewer"
+            />
           </div>
         </div>
       )}
+
     </div>
   );
 }
@@ -1347,8 +1529,9 @@ function VideoViewerInner() {
 export default function VideoViewerPage() {
   return (
     <Suspense fallback={
-      <div style={{ background: "#0A0E1A", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#9CA3AF" }}>Decrypting server stream...</p>
+      <div style={{ background: "#050811", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 36, height: 36, border: "3px solid rgba(255,255,255,0.1)", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     }>
       <VideoViewerInner />

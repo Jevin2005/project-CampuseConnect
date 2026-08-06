@@ -103,9 +103,11 @@ model Product {
   digitalSubType String?
   status         String          @default("pending_review")
   isApproved     Boolean         @default(false)
-  views          Int             @default(0)
-  listingFeePaid Boolean         @default(false)
-  createdAt      DateTime        @default(now())
+  views           Int             @default(0)
+  posterUrl       String?         // R2 key for HLS thumbnail, e.g. "hls/{productId}/poster.jpg"
+  durationSeconds Int?            // video duration in seconds, populated after HLS processing
+  listingFeePaid  Boolean         @default(false)
+  createdAt       DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   sellerId       String
   collegeId      String
@@ -185,6 +187,7 @@ model Order {
   product           Product       @relation(fields: [productId], references: [id])
   seller            Student       @relation("SellerOrders", fields: [sellerId], references: [id])
   sellerPayout      SellerPayout?
+  watchProgress     WatchProgress?
 }
 
 model SellerPayout {
@@ -253,4 +256,14 @@ model Advertisement {
   collegeId   String
   admin       Admin     @relation(fields: [adminId], references: [id])
   college     College   @relation(fields: [collegeId], references: [id])
+}
+
+// Tracks buyer watch progress for video products (used for resume playback)
+model WatchProgress {
+  id                  String   @id @default(cuid())
+  order               Order    @relation(fields: [orderId], references: [id])
+  orderId             String   @unique
+  lastPositionSeconds Int      @default(0)
+  durationSeconds     Int?
+  updatedAt           DateTime @updatedAt
 }

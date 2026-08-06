@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   ChevronRight, Star, ShieldCheck, MessageCircle, ShoppingBag,
@@ -48,6 +48,7 @@ const isImageUrl = (url: string) => {
 
 export default function PhysicalProductPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -72,6 +73,13 @@ export default function PhysicalProductPage() {
     const loadData = async () => {
       try {
         const res = await api.get(`/api/marketplace/products/${id}`);
+
+        // If product is actually digital, redirect to digital product page
+        if ((res.data?.productType || "").toLowerCase() === "digital") {
+          router.replace(`/marketplace/digital/${id}`);
+          return;
+        }
+
         setProduct(res.data);
         if (res.data?.title) {
           document.title = `${res.data.title} | CampusConnect`;

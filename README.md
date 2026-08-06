@@ -179,6 +179,130 @@ erDiagram
 
 ---
 
+## 🎬 Video DRM Streaming Pipeline
+
+### Overview
+
+CampusConnect uses a **signed-URL batch delivery** model for HLS video content — not a live per-segment proxy. All segment URLs are pre-signed at playlist-request time with a shared 1200-second TTL, keeping backend load low while retaining R2 access control.
+
+```
+Browser → PUT raw video → R2 (raw/{productId}/filename)
+                   ↓
+       Bull worker picks up job
+                   ↓
+  ffmpeg: transcode → 720p HLS + poster
+                   ↓
+Upload hls/{productId}/*.ts + master.m3u8 + poster.jpg → R2
+                   ↓
+Delete raw/{productId}/ from R2
+                   ↓
+Product.status → 'active', posterUrl + durationSeconds set
+                   ↓
+Buyer: GET /api/student/content/:orderId
+       → Rewritten master.m3u8 (all segment lines → signed URLs)
+       → resumeAtSeconds from WatchProgress
+```
+
+### Environment Variables
+
+No new env vars required. The pipeline reuses existing vars:
+
+| Variable | Purpose |
+|---|---|
+| `R2_ACCOUNT_ID` | Cloudflare R2 endpoint |
+| `R2_ACCESS_KEY_ID` | R2 credentials |
+| `R2_SECRET_ACCESS_KEY` | R2 credentials |
+| `R2_BUCKET_NAME` | Target bucket (all content is private) |
+| `REDIS_URL` | Bull queue + view-flag idempotency (Upstash Redis) |
+
+Optional ffmpeg overrides (only needed locally if not on PATH):
+```
+FFMPEG_PATH=/usr/bin/ffmpeg
+FFPROBE_PATH=/usr/bin/ffprobe
+```
+
+### New API Endpoints
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/student/upload/video-init` | Student JWT | Get presigned PUT URL for raw upload |
+| `POST` | `/api/student/upload/video-complete` | Student JWT | Enqueue HLS processing job |
+| `GET` | `/api/student/content/:orderId` | Student JWT (buyer) | Get signed playlist + resume position |
+| `PATCH` | `/api/student/content/:orderId/progress` | Student JWT (buyer) | Save watch position |
+
+### Resume-Progress Throttling Contract
+
+The `PATCH /progress` endpoint **must be called on a throttled interval** (~every 15 seconds while playing), not on every `timeupdate` event from the HLS.js player. `timeupdate` fires ~4× per second — calling the API that frequently would flood the backend.
+
+**Frontend contract:**
+- Call `PATCH /progress` every **15 seconds** while video is actively playing
+- Also call it on: **pause**, **seek**, **tab close / page unload** (`visibilitychange` + `beforeunload`)
+- Do NOT call on every `timeupdate`
+
+**Resume flow:** On `GET /content/:orderId`, the response includes `resumeAtSeconds`. Set the HLS.js player's `startPosition` to this value before calling `hls.loadSource()`.
+
+### Local Test Walkthrough
+
+```bash
+# 0. Prerequisites: ffmpeg installed and on PATH, Redis running, R2 bucket configured
+
+# 1. Install new dependencies
+cd backend && npm install
+
+# 2. Apply schema migration
+npx prisma migrate dev --name add_video_pipeline
+
+# 3. Start the backend
+npm run dev
+
+# 4. Upload a sample video (replace TOKEN, PRODUCT_ID)
+# Step A: Get presigned URL
+curl -X POST http://localhost:5000/api/student/upload/video-init \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"productId":"PRODUCT_ID","filename":"sample.mp4","contentType":"video/mp4"}'
+# → { "uploadUrl": "https://...", "r2Key": "raw/PRODUCT_ID/sample.mp4" }
+
+# Step B: PUT the file directly to R2
+curl -X PUT "UPLOAD_URL_FROM_ABOVE" \
+  -H "Content-Type: video/mp4" \
+  --data-binary @/path/to/sample.mp4
+
+# Step C: Trigger processing
+curl -X POST http://localhost:5000/api/student/upload/video-complete \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"productId":"PRODUCT_ID","rawR2Key":"raw/PRODUCT_ID/sample.mp4"}'
+# → { "status": "queued", "jobId": "video-PRODUCT_ID" }
+
+# Step D: Poll product status (should go PROCESSING → active)
+curl http://localhost:5000/api/marketplace/products/PRODUCT_ID \
+  -H "Authorization: Bearer TOKEN"
+
+# 5. Buy the product and get an order ID, then:
+curl http://localhost:5000/api/student/content/ORDER_ID \
+  -H "Authorization: Bearer BUYER_TOKEN"
+# → { playlistText, buyerUsername, resumeAtSeconds: 0, durationSeconds }
+
+# 6. Save progress
+curl -X PATCH http://localhost:5000/api/student/content/ORDER_ID/progress \
+  -H "Authorization: Bearer BUYER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"positionSeconds": 42}'
+
+# 7. Re-fetch content → resumeAtSeconds should now be 42
+# 8. Re-fetch within same calendar day → Product.views should NOT increment again
+```
+
+### Security Notes
+
+- Raw videos are **never stored permanently** — they exist only in R2 `raw/` during processing, then deleted
+- All R2 objects are **private** — only signed URLs are ever returned to clients
+- Signed segment URLs expire after **1200 seconds (20 min)**. A URL scraped from the playlist is valid until TTL — this is an intentional tradeoff vs. a live proxy
+- The `raw/{productId}/` key prefix is validated server-side before queuing to prevent key injection
+
+---
+
 ## 📄 License
 
 Distributed under the **MIT License**. See `LICENSE` for details.
