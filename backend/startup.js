@@ -75,8 +75,18 @@ try {
   }
 }
 
+// ── Step 3: Automatically Seed Initial Data (MasterAdmin, Demo College) 
+console.log('\n🌱 [Startup] Seeding database...');
+try {
+  run('node seed.js');
+  console.log('✅ [Startup] Database seeded successfully');
+} catch (seedErr) {
+  console.error('⚠️ [Startup] Database seeding notice:', seedErr.stderr?.toString() || seedErr.message);
+}
+
 console.log('\n🚀 [Startup] Starting server...\n');
 
 // Hand off to the actual server
 require('./server.js');
+
 
