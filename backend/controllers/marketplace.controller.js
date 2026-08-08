@@ -1058,8 +1058,9 @@ exports.getPendingProducts = async (req, res) => {
 /** GET /api/marketplace/me — current user's marketplace stats */
 exports.getMyProfile = async (req, res) => {
   try {
-    const [listed, sold, purchased] = await Promise.all([
+    const [listed, activeListings, sold, purchased] = await Promise.all([
       prisma.product.count({ where: { sellerId: req.user.id } }),
+      prisma.product.count({ where: { sellerId: req.user.id, status: 'active', isApproved: true } }),
       prisma.order.count({ where: { sellerId: req.user.id, status: 'COMPLETED' } }),
       prisma.order.count({ where: { buyerId: req.user.id, status: 'COMPLETED' } }),
     ]);
@@ -1073,9 +1074,9 @@ exports.getMyProfile = async (req, res) => {
 
     const recentListings = await prisma.product.findMany({
       where: { sellerId: req.user.id },
-      take: 5,
+      take: 20,
       orderBy: { createdAt: 'desc' },
-      select: { id: true, title: true, price: true, status: true, views: true, images: true, productType: true },
+      select: { id: true, title: true, price: true, status: true, isApproved: true, views: true, images: true, productType: true },
     });
 
     const recentPurchases = await prisma.order.findMany({
@@ -1088,6 +1089,7 @@ exports.getMyProfile = async (req, res) => {
     res.json({
       stats: {
         listed,
+        activeListings,   // only status=active AND isApproved=true
         sold,
         purchased,
         revenue: totalRevenue,
@@ -1100,6 +1102,7 @@ exports.getMyProfile = async (req, res) => {
     res.status(500).json({ message: 'Error fetching profile' });
   }
 };
+
 
 /** GET /api/marketplace/earnings — current student's digital seller earnings & payouts */
 exports.getMyEarnings = async (req, res) => {

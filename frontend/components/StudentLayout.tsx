@@ -143,9 +143,16 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
     api.get("/api/marketplace/me")
       .then(res => {
         const d = res.data;
-        if (d?.stats) setStats({ listed: d.stats.listed, sold: d.stats.sold, revenue: d.stats.revenue });
+        if (d?.stats) {
+          setStats({
+            listed: d.stats.activeListings ?? d.stats.listed,  // prefer accurate activeListings count
+            sold: d.stats.sold,
+            revenue: d.stats.revenue
+          });
+        }
       })
       .catch(() => { });
+
 
     // Fetch initial and setup interval to pull notifications
     const fetchNotifs = () => {

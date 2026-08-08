@@ -46,12 +46,16 @@ const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
 };
 
 function statusLabel(l: Listing): string {
-  const s = l.status?.toLowerCase();
+  const s = (l.status || "").toLowerCase();
+  // Video products start as PROCESSING until HLS encode is done — treat as Pending Review
+  if (s === "processing") return "Pending Review";
   if (s === "active" && l.isApproved) return "Active";
+  // Not yet approved (regardless of raw status)
   if (s === "pending_review" || !l.isApproved) return "Pending Review";
   if (s === "sold" || s === "deal_done" || s === "completed") return "Sold";
   if (s === "removed") return "Removed";
-  return l.status;
+  // Fallback: show raw status so it's visible instead of disappearing
+  return l.status || "Unknown";
 }
 
 /* ── Thumbnail component ─────────────────────────────────────────────── */
@@ -89,7 +93,10 @@ export default function MyListingsPage() {
     setLoading(true);
     api.get("/api/marketplace/my-listings")
       .then(res => setListings(Array.isArray(res.data) ? res.data : []))
-      .catch(() => { })
+      .catch((err) => {
+        // Log the actual error so we can debug why listings aren't loading
+        console.error("[My Listings] Failed to load listings:", err?.response?.status, err?.response?.data || err?.message);
+      })
       .finally(() => setLoading(false));
   }, [user, authLoading]);
 
