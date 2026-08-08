@@ -5,7 +5,9 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl is optional — only set it if your cloud DB uses a connection pooler (e.g. Supabase, Neon)
+  // If not set, DATABASE_URL is used directly for both pooled and direct connections
+  // directUrl = env("DIRECT_URL")
 }
 
 model MasterAdmin {

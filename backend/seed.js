@@ -66,9 +66,10 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e);
-    process.exit(1);
+    console.error('❌ Seed failed:', e.message);
+    // Do NOT call process.exit(1) here — that kills startup.js and prevents the server from starting
   })
   .finally(async () => {
     await prisma.$disconnect();
   });
+
