@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "start": "cd frontend && npm run start"
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
   },
   "dependencies": {
-    "@vercel/speed-insights": "^2.0.0",
-    "next": "16.2.4"
+    "next": "16.2.4",
+    "@vercel/speed-insights": "^2.0.0"
   }
 }
