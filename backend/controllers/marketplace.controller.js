@@ -153,8 +153,11 @@ exports.getProducts = async (req, res) => {
 
     res.json({ products, total, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
-    console.error('[getProducts]', err);
-    res.status(500).json({ message: 'Error fetching products' });
+    console.error('[getProducts Error]:', err?.message || err);
+    res.status(500).json({
+      message: 'Error fetching products',
+      error: err?.message || String(err)
+    });
   }
 };
 
