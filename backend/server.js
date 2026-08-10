@@ -178,6 +178,7 @@ app.get('/api/run-migration', async (req, res) => {
     '20260511185004_add_student_password',
     '20260512123636_add_student_auth_fields',
     '20260519162355_add_wishlist_and_orders_v2',
+    '20260601000000_add_poster_and_duration',
   ];
 
   const runCmd = (cmd) => execSync(cmd, { cwd: __dirname, stdio: 'pipe' }).toString();

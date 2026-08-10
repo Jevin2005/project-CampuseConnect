@@ -19,6 +19,7 @@ const MIGRATIONS = [
   '20260511185004_add_student_password',
   '20260512123636_add_student_auth_fields',
   '20260519162355_add_wishlist_and_orders_v2',
+  '20260601000000_add_poster_and_duration',
 ];
 
 function run(cmd) {
@@ -97,6 +98,24 @@ async function runSeed() {
   const prisma = new PrismaClient();
 
   try {
+    // ── Auto-sync any columns added to schema.prisma but missing in DB ───────
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE public."Product" ADD COLUMN IF NOT EXISTS "posterUrl" TEXT;
+        ALTER TABLE public."Product" ADD COLUMN IF NOT EXISTS "durationSeconds" INTEGER;
+        ALTER TABLE public."Product" ADD COLUMN IF NOT EXISTS "listingFeePaid" BOOLEAN DEFAULT false;
+        ALTER TABLE public."Product" ADD COLUMN IF NOT EXISTS "digitalSubType" TEXT;
+        ALTER TABLE public."Admin" ADD COLUMN IF NOT EXISTS "isEmailVerified" BOOLEAN DEFAULT false;
+        ALTER TABLE public."Student" ADD COLUMN IF NOT EXISTS "isEmailVerified" BOOLEAN DEFAULT false;
+        ALTER TABLE public."Student" ADD COLUMN IF NOT EXISTS "password" TEXT;
+        ALTER TABLE public."Student" ADD COLUMN IF NOT EXISTS "enrollmentId" TEXT;
+        ALTER TABLE public."Student" ADD COLUMN IF NOT EXISTS "phone" TEXT;
+      `);
+      console.log('   ✅ DB schema columns synced (posterUrl, durationSeconds, etc.)');
+    } catch (colErr) {
+      console.warn('   ⚠️ DB column sync skipped:', colErr.message);
+    }
+
     const masterEmail    = process.env.MASTER_EMAIL    || 'admin@campusconnect.in';
     const masterPassword = process.env.MASTER_PASSWORD || 'MasterAdmin@2024!';
     const rounds         = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);

@@ -1,0 +1,14 @@
+-- AlterTable Product
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "posterUrl" TEXT;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "durationSeconds" INTEGER;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "listingFeePaid" BOOLEAN DEFAULT false;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "digitalSubType" TEXT;
+
+-- AlterTable Admin
+ALTER TABLE "Admin" ADD COLUMN IF NOT EXISTS "isEmailVerified" BOOLEAN DEFAULT false;
+
+-- AlterTable Student
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "isEmailVerified" BOOLEAN DEFAULT false;
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "password" TEXT;
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "enrollmentId" TEXT;
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "phone" TEXT;
