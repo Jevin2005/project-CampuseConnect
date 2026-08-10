@@ -120,43 +120,68 @@ exports.getSettings = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     const { category, type, search, sort = 'newest', page = 1, limit = 20, collegeId: qCollegeId } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const parsedPage = Math.max(1, parseInt(String(page), 10) || 1);
+    const parsedLimit = Math.min(200, Math.max(1, parseInt(String(limit), 10) || 20));
+    const skip = (parsedPage - 1) * parsedLimit;
 
     const where = { isApproved: true, status: 'active' };
 
     // College scoping: prefer req.user.collegeId (from JWT), then query param, else show all
     const collegeId = (req.user && req.user.collegeId) || qCollegeId || null;
-    if (collegeId) {
-      where.collegeId = collegeId;
+    if (collegeId && typeof collegeId === 'string' && collegeId.trim()) {
+      where.collegeId = collegeId.trim();
     }
 
-    if (category) where.category = category;
-    if (type) where.productType = type;
-    if (search) where.title = { contains: search, mode: 'insensitive' };
+    if (category) where.category = String(category);
+    if (type) where.productType = String(type);
+    if (search) where.title = { contains: String(search), mode: 'insensitive' };
 
     let orderBy = { createdAt: 'desc' };
     if (sort === 'price_asc') orderBy = { price: 'asc' };
     if (sort === 'price_desc') orderBy = { price: 'desc' };
     if (sort === 'popular') orderBy = { views: 'desc' };
 
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where, orderBy, skip, take: parseInt(limit),
-        include: {
-          seller: { select: { id: true, name: true, email: true } },
-          college: { select: { name: true } },
-          _count: { select: { buyRequests: true } },
-        },
-      }),
-      prisma.product.count({ where }),
-    ]);
+    let products = [];
+    let total = 0;
 
-    res.json({ products, total, page: parseInt(page), limit: parseInt(limit) });
+    try {
+      [products, total] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          orderBy,
+          skip,
+          take: parsedLimit,
+          include: {
+            seller: { select: { id: true, name: true, email: true } },
+            college: { select: { name: true } },
+            _count: { select: { buyRequests: true } },
+          },
+        }),
+        prisma.product.count({ where }),
+      ]);
+    } catch (relationErr) {
+      console.warn('[getProducts Relation Fallback]:', relationErr?.message);
+      // Fallback query without relations if a relation column/table failed
+      [products, total] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          orderBy,
+          skip,
+          take: parsedLimit,
+        }),
+        prisma.product.count({ where }),
+      ]);
+    }
+
+    return res.json({ products, total, page: parsedPage, limit: parsedLimit });
   } catch (err) {
-    console.error('[getProducts Error]:', err?.message || err);
-    res.status(500).json({
+    console.error('[getProducts Fatal Error]:', err?.message || err);
+    return res.status(500).json({
       message: 'Error fetching products',
-      error: err?.message || String(err)
+      error: err?.message || String(err),
+      products: [],
+      total: 0
     });
   }
 };
@@ -332,17 +357,35 @@ exports.deleteProduct = async (req, res) => {
 /** GET /api/marketplace/my-listings */
 exports.getMyListings = async (req, res) => {
   try {
-    const products = await prisma.product.findMany({
-      where: { sellerId: req.user.id },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: { select: { buyRequests: true, orders: true } },
-      },
-    });
-    res.json(products);
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'User ID missing from token' });
+    }
+
+    let products = [];
+    try {
+      products = await prisma.product.findMany({
+        where: { sellerId: userId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: { select: { buyRequests: true, orders: true } },
+        },
+      });
+    } catch (relationErr) {
+      console.warn('[getMyListings Fallback]:', relationErr?.message);
+      products = await prisma.product.findMany({
+        where: { sellerId: userId },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    return res.json(products);
   } catch (err) {
-    console.error('[getMyListings]', err);
-    res.status(500).json({ message: 'Error fetching listings' });
+    console.error('[getMyListings Error]:', err?.message || err);
+    return res.status(500).json({
+      message: 'Error fetching listings',
+      error: err?.message || String(err)
+    });
   }
 };
 
@@ -1061,38 +1104,43 @@ exports.getPendingProducts = async (req, res) => {
 /** GET /api/marketplace/me — current user's marketplace stats */
 exports.getMyProfile = async (req, res) => {
   try {
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'User ID missing from token' });
+    }
+
     const [listed, activeListings, sold, purchased] = await Promise.all([
-      prisma.product.count({ where: { sellerId: req.user.id } }),
-      prisma.product.count({ where: { sellerId: req.user.id, status: 'active', isApproved: true } }),
-      prisma.order.count({ where: { sellerId: req.user.id, status: 'COMPLETED' } }),
-      prisma.order.count({ where: { buyerId: req.user.id, status: 'COMPLETED' } }),
+      prisma.product.count({ where: { sellerId: userId } }),
+      prisma.product.count({ where: { sellerId: userId, status: 'active', isApproved: true } }),
+      prisma.order.count({ where: { sellerId: userId, status: 'COMPLETED' } }),
+      prisma.order.count({ where: { buyerId: userId, status: 'COMPLETED' } }),
     ]);
 
-    // Calculate actual net revenue for the seller (excluding platform buyer fee surcharge and including seller commission cuts)
+    // Calculate actual net revenue for the seller
     const completedOrders = await prisma.order.findMany({
-      where: { sellerId: req.user.id, status: 'COMPLETED' },
+      where: { sellerId: userId, status: 'COMPLETED' },
       select: { amount: true, netSellerAmt: true }
     });
     const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.netSellerAmt ?? o.amount), 0);
 
     const recentListings = await prisma.product.findMany({
-      where: { sellerId: req.user.id },
+      where: { sellerId: userId },
       take: 20,
       orderBy: { createdAt: 'desc' },
       select: { id: true, title: true, price: true, status: true, isApproved: true, views: true, images: true, productType: true },
     });
 
     const recentPurchases = await prisma.order.findMany({
-      where: { buyerId: req.user.id, status: 'COMPLETED' },
+      where: { buyerId: userId, status: 'COMPLETED' },
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: { product: { select: { id: true, title: true, images: true, productType: true } } },
     });
 
-    res.json({
+    return res.json({
       stats: {
         listed,
-        activeListings,   // only status=active AND isApproved=true
+        activeListings,
         sold,
         purchased,
         revenue: totalRevenue,
@@ -1101,8 +1149,8 @@ exports.getMyProfile = async (req, res) => {
       recentPurchases,
     });
   } catch (err) {
-    console.error('[getMyProfile]', err);
-    res.status(500).json({ message: 'Error fetching profile' });
+    console.error('[getMyProfile Error]:', err?.message || err);
+    return res.status(500).json({ message: 'Error fetching profile', error: err?.message || String(err) });
   }
 };
 
