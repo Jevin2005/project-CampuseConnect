@@ -110,6 +110,48 @@ async function runSeed() {
     });
     console.log(`   ✅ MasterAdmin ready: ${master.email}`);
 
+    // Ensure RNGPIT College & Admin exist (for testing / deployed site)
+    let rngpit = await prisma.college.findFirst({
+      where: { OR: [{ code: 'RNGPIT123' }, { emailDomain: 'rngpit.ac.in' }] }
+    });
+    if (!rngpit) {
+      rngpit = await prisma.college.create({
+        data: {
+          name: 'rngpit',
+          code: 'RNGPIT123',
+          emailDomain: 'rngpit.ac.in',
+          city: 'Surat',
+          type: 'Engineering',
+          isApproved: true,
+        },
+      });
+      console.log('   ✅ RNGPIT College created (RNGPIT123 / rngpit.ac.in)');
+    } else {
+      console.log(`   ✅ RNGPIT College exists: ${rngpit.code}`);
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL || 'jevingoti005@gmail.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@2024!';
+    const hashedAdminPassword = await bcrypt.hash(adminPassword, rounds);
+
+    const admin = await prisma.admin.upsert({
+      where: { email: adminEmail },
+      update: {
+        isApproved: true,
+        isEmailVerified: true,
+        collegeId: rngpit.id,
+      },
+      create: {
+        name: 'JEVIN',
+        email: adminEmail,
+        password: hashedAdminPassword,
+        collegeId: rngpit.id,
+        isApproved: true,
+        isEmailVerified: true,
+      },
+    });
+    console.log(`   ✅ College Admin ready: ${admin.email} (College Code: ${rngpit.code})`);
+
     // Ensure Demo College exists (for testing / first-time login)
     const demoCollege = await prisma.college.findFirst({ where: { emailDomain: 'demo.edu' } });
     if (!demoCollege) {

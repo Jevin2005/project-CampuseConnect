@@ -210,7 +210,7 @@ async function login(req, res) {
     }
 
     // Verify college code matches admin's college
-    if (admin.college.code !== normalizedCode) {
+    if ((admin.college?.code || '').trim().toUpperCase() !== normalizedCode) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
