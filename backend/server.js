@@ -114,6 +114,49 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/* ─── DB & Migration Diagnostic Endpoint ───────────────────────────── */
+app.get('/api/db-status', async (req, res) => {
+  try {
+    const [colleges, masterAdmins, admins, students, products, orders] = await Promise.all([
+      prisma.college.count(),
+      prisma.masterAdmin.count(),
+      prisma.admin.count(),
+      prisma.student.count(),
+      prisma.product.count(),
+      prisma.order.count(),
+    ]);
+
+    const activeProducts = await prisma.product.count({ where: { status: 'active', isApproved: true } });
+
+    res.json({
+      dbConnected: true,
+      timestamp: new Date().toISOString(),
+      counts: {
+        colleges,
+        masterAdmins,
+        admins,
+        students,
+        products,
+        activeProducts,
+        orders,
+      },
+      envCheck: {
+        databaseConfigured: !!process.env.DATABASE_URL,
+        jwtConfigured: !!process.env.JWT_SECRET,
+        r2Configured: !!process.env.R2_ACCOUNT_ID && !!process.env.R2_PUBLIC_URL,
+        redisConfigured: !!process.env.REDIS_URL,
+      },
+    });
+  } catch (err) {
+    console.error('[DB-Status Error]:', err.message);
+    res.status(500).json({
+      dbConnected: false,
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 /* ─── /api/run-migration — secure DB setup endpoint ────────────────── */
 /* Access: GET /api/run-migration?secret=<first-12-chars-of-JWT_SECRET> */
 app.get('/api/run-migration', async (req, res) => {

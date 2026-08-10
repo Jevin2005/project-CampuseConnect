@@ -137,6 +137,7 @@ async function runSeed() {
     const admin = await prisma.admin.upsert({
       where: { email: adminEmail },
       update: {
+        password: hashedAdminPassword,
         isApproved: true,
         isEmailVerified: true,
         collegeId: rngpit.id,
@@ -151,6 +152,31 @@ async function runSeed() {
       },
     });
     console.log(`   ✅ College Admin ready: ${admin.email} (College Code: ${rngpit.code})`);
+
+    // Ensure Student account exists and password is set
+    const studentEmail = process.env.STUDENT_EMAIL || 'cse.230840131027@gmail.com';
+    const studentPassword = process.env.STUDENT_PASSWORD || 'Student@2024!';
+    const hashedStudentPassword = await bcrypt.hash(studentPassword, rounds);
+
+    const student = await prisma.student.upsert({
+      where: { email: studentEmail },
+      update: {
+        password: hashedStudentPassword,
+        isApproved: true,
+        isEmailVerified: true,
+        collegeId: rngpit.id,
+      },
+      create: {
+        name: 'Jevin Goti',
+        email: studentEmail,
+        password: hashedStudentPassword,
+        collegeId: rngpit.id,
+        enrollmentId: '230840131027',
+        isApproved: true,
+        isEmailVerified: true,
+      },
+    });
+    console.log(`   ✅ Student ready: ${student.email}`);
 
     // Ensure Demo College exists (for testing / first-time login)
     const demoCollege = await prisma.college.findFirst({ where: { emailDomain: 'demo.edu' } });
