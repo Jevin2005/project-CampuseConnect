@@ -81,17 +81,24 @@ function createRedisClient(extraOpts = {}) {
   const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
   const isTls    = redisUrl.startsWith('rediss://');
 
-  return new IORedis(redisUrl, {
+  const client = new IORedis(redisUrl, {
     tls:                  isTls ? {} : undefined, // enable TLS for rediss://
     maxRetriesPerRequest: null,   // required by Bull — don't cap retries
     enableReadyCheck:     false,  // Upstash: skip the READY ping handshake
+    connectTimeout:       1000,   // 1s connect timeout
     lazyConnect:          false,
     retryStrategy: (times) => {
-      // Backoff reconnect attempts (1s -> 10s max) to prevent log flooding when Redis DNS fails
-      return Math.min(times * 1000, 10000);
+      // Stop retrying after 3 attempts if Redis is offline locally
+      if (times > 3) return null;
+      return Math.min(times * 1000, 5000);
     },
     ...extraOpts,
   });
+
+  // Attach silent error handler so offline socket disconnects never emit uncaught exceptions
+  client.on('error', () => {});
+
+  return client;
 }
 
 /** @type {import('bull').Queue} */

@@ -173,6 +173,27 @@ function VideoViewerInner() {
   const [elapsed, setElapsed] = useState(0);
   const [duration, setDuration] = useState(0);
   const [wmIndex, setWmIndex] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [bufferPercent, setBufferPercent] = useState(0);
+
+  const updateBufferProgress = () => {
+    const video = videoRef.current;
+    if (!video || !video.duration || isNaN(video.duration) || video.duration === 0) return;
+    const buffered = video.buffered;
+    if (buffered && buffered.length > 0) {
+      let currentEnd = 0;
+      for (let i = 0; i < buffered.length; i++) {
+        if (buffered.start(i) <= video.currentTime + 1 && video.currentTime <= buffered.end(i) + 1) {
+          currentEnd = buffered.end(i);
+          break;
+        }
+      }
+      if (currentEnd > 0) {
+        const percent = Math.min(Math.round((currentEnd / video.duration) * 100), 100);
+        setBufferPercent(percent);
+      }
+    }
+  };
   const [expired, setExpired] = useState(false);
   const [muted, setMuted] = useState(false);
 
@@ -514,15 +535,15 @@ function VideoViewerInner() {
 
       const hlsInstance = new HlsClass({
         capLevelToPlayerSize: true,
-        autoStartLoad: false,
-        maxBufferLength: 1,
-        maxMaxBufferLength: 4,
-        maxBufferSize: 512 * 1024,
-        backBufferLength: 0,
-        maxBufferHole: 0.1,
+        autoStartLoad: true,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        maxBufferSize: 60 * 1024 * 1024,
+        backBufferLength: 30,
+        maxBufferHole: 0.5,
         startLevel: -1,
         enableWorker: true,
-        lowLatencyMode: false,
+        lowLatencyMode: true,
         xhrSetup: (xhr: XMLHttpRequest) => {
           xhr.withCredentials = false;
         },
@@ -531,6 +552,14 @@ function VideoViewerInner() {
       hlsRef.current = hlsInstance;
       hlsInstance.loadSource(activeVideoUrl);
       hlsInstance.attachMedia(video);
+
+      hlsInstance.on(HlsClass.Events.FRAG_LOADING, () => {
+        setIsBuffering(true);
+      });
+      hlsInstance.on(HlsClass.Events.FRAG_BUFFERED, () => {
+        setIsBuffering(false);
+        updateBufferProgress();
+      });
 
       hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (_event: any, data: any) => {
         if (data.levels && data.levels.length > 0) {
@@ -1012,8 +1041,17 @@ function VideoViewerInner() {
             display: none !important;
           }
           .left-pane-container {
-            padding: 12px !important;
+            padding: 8px !important;
             gap: 12px !important;
+          }
+          .video-player-frame {
+            border-radius: 10px !important;
+            aspect-ratio: 16 / 9 !important;
+            width: 100% !important;
+          }
+          .video-control-bar {
+            padding: 8px 10px !important;
+            gap: 8px !important;
           }
         }
 
@@ -1025,6 +1063,7 @@ function VideoViewerInner() {
             overflow-x: auto !important;
             white-space: nowrap !important;
             padding-bottom: 8px !important;
+            -webkit-overflow-scrolling: touch !important;
           }
           .tab-btn {
             padding: 8px 14px !important;
@@ -1032,16 +1071,17 @@ function VideoViewerInner() {
             flex-shrink: 0 !important;
           }
           .ctrl-btn {
-            padding: 6px 8px !important;
+            padding: 8px 10px !important;
             border-radius: 8px !important;
+            min-height: 36px !important;
           }
           .play-main-btn {
-            width: 36px !important;
-            height: 36px !important;
+            width: 40px !important;
+            height: 40px !important;
           }
           .overview-card-container {
-            padding: 16px !important;
-            gap: 14px !important;
+            padding: 14px !important;
+            gap: 12px !important;
             border-radius: 12px !important;
           }
           .meta-grid-container {
@@ -1199,15 +1239,50 @@ function VideoViewerInner() {
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
             </div>
           ) : activeVideoUrl ? (
-            <video
-              ref={videoRef}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onEnded={() => setPlaying(false)}
-              onClick={() => setPlaying(p => !p)}
-              playsInline
-              style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", cursor: "pointer" }}
-            />
+            <>
+              <video
+                ref={videoRef}
+                onTimeUpdate={() => { handleTimeUpdate(); updateBufferProgress(); }}
+                onLoadedMetadata={handleLoadedMetadata}
+                onWaiting={() => setIsBuffering(true)}
+                onSeeking={() => setIsBuffering(true)}
+                onLoadStart={() => setIsBuffering(true)}
+                onStalled={() => setIsBuffering(true)}
+                onCanPlay={() => { setIsBuffering(false); updateBufferProgress(); }}
+                onPlaying={() => { setIsBuffering(false); updateBufferProgress(); }}
+                onProgress={updateBufferProgress}
+                onEnded={() => setPlaying(false)}
+                onClick={() => setPlaying(p => !p)}
+                playsInline
+                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", cursor: "pointer" }}
+              />
+
+              {/* Simple Centered Video Spinner Loader */}
+              {isBuffering && !expired && (
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  pointerEvents: "none",
+                  zIndex: 25
+                }}>
+                  <div style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    background: "rgba(10, 14, 26, 0.6)",
+                    backdropFilter: "blur(8px)",
+                    border: "3.5px solid rgba(255, 255, 255, 0.15)",
+                    borderTopColor: "#10B981",
+                    animation: "spin 0.8s linear infinite",
+                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)"
+                  }} />
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
+            </>
           ) : (
             <div style={{ textAlign: "center", padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
               <div style={{ width: 60, height: 60, borderRadius: 20, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
@@ -1507,9 +1582,20 @@ function VideoViewerInner() {
                 </div>
               </div>
 
-              <button onClick={() => setSelectedPdfUrl(null)} className="ctrl-btn" style={{ padding: "6px 12px", borderRadius: 8, gap: 6, cursor: "pointer" }}>
-                <X size={16} /> Close Reader
-              </button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <a
+                  href={selectedPdfUrl.startsWith("/") ? selectedPdfUrl : `/marketplace/viewer/pdf?id=${productId}${isPreview ? "&preview=true" : ""}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ctrl-btn"
+                  style={{ padding: "6px 12px", borderRadius: 8, gap: 6, cursor: "pointer", textDecoration: "none", color: "#A78BFA", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.3)", display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700 }}
+                >
+                  <ExternalLink size={14} /> Open Reader in New Tab ↗
+                </a>
+                <button onClick={() => setSelectedPdfUrl(null)} className="ctrl-btn" style={{ padding: "6px 12px", borderRadius: 8, gap: 6, cursor: "pointer" }}>
+                  <X size={16} /> Close Reader
+                </button>
+              </div>
             </div>
 
             <iframe

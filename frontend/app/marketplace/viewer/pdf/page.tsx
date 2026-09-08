@@ -919,17 +919,21 @@ function PdfViewerInner() {
             gap: 4px !important;
           }
           .pdf-workspace {
-            padding: 12px 8px !important;
+            padding: 8px 4px !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
           }
           .pdf-document-card {
             width: 100% !important;
             max-width: 100% !important;
-            min-height: unset !important;
-            aspect-ratio: 640/860 !important;
-            font-size: clamp(0.48em, 2.2vw, 1em) !important;
+            min-height: auto !important;
+            height: auto !important;
+            aspect-ratio: auto !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
           }
           .pdf-page-container {
-            padding: 16px 18px !important;
+            padding: 14px 14px !important;
           }
           .pdf-bottom-bar {
             flex-direction: row !important;

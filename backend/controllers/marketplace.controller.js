@@ -120,7 +120,7 @@ exports.getSettings = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     const { category, type, search, sort = 'newest', page = 1, limit = 20, collegeId: qCollegeId } = req.query;
-    
+
     const parsedPage = Math.max(1, parseInt(String(page), 10) || 1);
     const parsedLimit = Math.min(200, Math.max(1, parseInt(String(limit), 10) || 20));
     const skip = (parsedPage - 1) * parsedLimit;
@@ -230,7 +230,7 @@ exports.createProduct = async (req, res) => {
     // All media URLs (R2 gives absolute URLs; disk gives relative /uploads/... paths)
     const allMedia = [...images, ...documents, ...videos];
 
-    const isVideoProduct = (productType === 'digital') && 
+    const isVideoProduct = (productType === 'digital') &&
       (digitalSubType === 'video' || digitalSubType === 'both' || digitalSubType === 'bundle' || videos.length > 0);
 
     const initialStatus = (isVideoProduct && videos.length > 0) ? 'PROCESSING' : 'active';
@@ -268,7 +268,7 @@ exports.createProduct = async (req, res) => {
             }
             try {
               rawR2Key = decodeURIComponent(rawR2Key);
-            } catch (_) {}
+            } catch (_) { }
 
             await videoQueue.add(
               { productId: product.id, rawR2Key, videoIndex: vIdx },
@@ -1514,18 +1514,18 @@ exports.streamProductFile = async (req, res) => {
       }
     } else {
       // ── Stream from local disk ─────────────────────────────────────────────
-      const fs   = require('fs');
+      const fs = require('fs');
       const path = require('path');
-      const relPath      = targetFile.replace(/^\/uploads\//, '');
+      const relPath = targetFile.replace(/^\/uploads\//, '');
       const absolutePath = path.join(__dirname, '..', 'uploads', relPath);
 
       if (!fs.existsSync(absolutePath)) {
         return res.status(404).json({ message: 'Local secure file not found.' });
       }
 
-      const stat     = fs.statSync(absolutePath);
+      const stat = fs.statSync(absolutePath);
       const fileSize = stat.size;
-      const range    = req.headers.range;
+      const range = req.headers.range;
 
       const extMap = {
         mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg',

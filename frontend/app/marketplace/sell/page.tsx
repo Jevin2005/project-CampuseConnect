@@ -74,6 +74,8 @@ export default function SellProductPage() {
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState("");
   const [payModal, setPayModal] = useState(false);
   const [payError, setPayError] = useState("");
   const [errorToast, setErrorToast] = useState("");
@@ -380,8 +382,17 @@ export default function SellProductPage() {
     }
 
     try {
+      setUploadPercent(0);
+      setUploadStatusMsg("Initiating server upload connection...");
       const res = await api.post("/api/marketplace/products", fd, {
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadPercent(pct);
+            setUploadStatusMsg(`Uploading product media files (${pct}% completed)...`);
+          }
+        }
       });
       setPayModal(false);
 
@@ -725,6 +736,39 @@ export default function SellProductPage() {
         )}
 
 
+
+        {/* Live Upload Progress Modal */}
+        {submitting && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(3, 7, 18, 0.92)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}>
+            <div style={{ background: "#0F172A", border: "1.5px solid #1E293B", borderRadius: 24, padding: "36px", maxWidth: 440, width: "90%", textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6)" }}>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(59, 130, 246, 0.12)", border: "1px solid rgba(59, 130, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: "#3B82F6" }}>
+                <Upload size={32} style={{ animation: "spin 1.5s linear infinite" }} />
+              </div>
+              <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>
+                Uploading Product Files
+              </h2>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#94A3B8", marginBottom: 24, minHeight: 36 }}>
+                {uploadStatusMsg || "Uploading video lectures & documents to server..."}
+              </p>
+
+              {/* Live Progress Bar */}
+              <div style={{ background: "#1E293B", borderRadius: 9999, height: 12, overflow: "hidden", marginBottom: 12, position: "relative" }}>
+                <div style={{
+                  height: "100%",
+                  width: `${uploadPercent !== null ? uploadPercent : 25}%`,
+                  background: "linear-gradient(90deg, #3B82F6, #10B981)",
+                  borderRadius: 9999,
+                  transition: "width 0.3s ease"
+                }} />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: "#10B981", fontWeight: 700 }}>
+                <span>STATUS: UPLOADING</span>
+                <span>{uploadPercent !== null ? `${uploadPercent}% COMPLETE` : "PROCESSING..."}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Success / Finished Screen */}
         {submitted ? (

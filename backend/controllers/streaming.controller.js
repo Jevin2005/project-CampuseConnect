@@ -436,7 +436,7 @@ exports.proxyHlsSegment = async (req, res) => {
     }
 
     // 2. HMAC Signature & Expiry check
-    const ALLOWED_KEY_PREFIXES = ['hls/', 'videos/', 'raw/', 'uploads/'];
+    const ALLOWED_KEY_PREFIXES = ['hls/', 'videos/', 'raw/', 'uploads/', 'documents/', 'images/', 'media/'];
     const isAllowedPrefix = ALLOWED_KEY_PREFIXES.some(prefix => typeof key === 'string' && key.startsWith(prefix));
 
     if (!key || typeof key !== 'string' || !isAllowedPrefix || !verifySegmentSignature(key, exp, sig)) {
@@ -463,10 +463,45 @@ exports.proxyHlsSegment = async (req, res) => {
       return res.send(lines.join('\n'));
     }
 
-    const objStream = await r2.getObjectStream(key);
+    const fs = require('fs');
+    const localPath = r2.resolveLocalPath ? r2.resolveLocalPath(key) : null;
     const contentType = ext === 'mp4' ? 'video/mp4' : (ext === 'webm' ? 'video/webm' : 'video/mp2t');
+
+    if (localPath && fs.existsSync(localPath)) {
+      const stat = fs.statSync(localPath);
+      const fileSize = stat.size;
+      const range = req.headers.range;
+
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunksize = (end - start) + 1;
+
+        const fileStream = fs.createReadStream(localPath, { start, end });
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize,
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400',
+        });
+        return fileStream.pipe(res);
+      } else {
+        res.writeHead(200, {
+          'Content-Length': fileSize,
+          'Accept-Ranges': 'bytes',
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400',
+        });
+        return fs.createReadStream(localPath).pipe(res);
+      }
+    }
+
+    const objStream = await r2.getObjectStream(key);
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     return objStream.pipe(res);
   } catch (err) {
     console.error('[proxyHlsSegment Error]', req.query?.key || req.params?.filename, err.message);

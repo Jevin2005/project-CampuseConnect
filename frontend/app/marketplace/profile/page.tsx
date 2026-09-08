@@ -18,23 +18,23 @@ function fmt(d: string) {
 
 interface MarketplaceProfile {
   stats: { listed: number; sold: number; purchased: number; revenue: number };
-  recentListings:  { id: string; title: string; price: number; status: string; views: number; images: string[]; productType: string }[];
+  recentListings: { id: string; title: string; price: number; status: string; views: number; images: string[]; productType: string }[];
   recentPurchases: { id: string; amount: number; createdAt: string; product: { id: string; title: string; images: string[]; productType: string } }[];
 }
 
 const NOTIF_DEFS = [
-  { id: "n1", icon: <Mail size={13} />,    label: "Email Alerts"        },
-  { id: "n2", icon: <Bell size={13} />,    label: "Marketplace Updates" },
-  { id: "n3", icon: <Bell size={13} />,    label: "Purchase Receipts"   },
+  { id: "n1", icon: <Mail size={13} />, label: "Email Alerts" },
+  { id: "n2", icon: <Bell size={13} />, label: "Marketplace Updates" },
+  { id: "n3", icon: <Bell size={13} />, label: "Purchase Receipts" },
 ];
 
 export default function ProfilePage() {
-  const user     = useAuthStore(s => s.user);
+  const user = useAuthStore(s => s.user);
   const [profile, setProfile] = useState<MarketplaceProfile | null>(null);
   const [editing, setEditing] = useState(false);
-  const [name,    setName]    = useState("");
-  const [saved,   setSaved]   = useState(false);
-  const [notifs,  setNotifs]  = useState<Record<string, boolean>>({ n1: true, n2: true, n3: false });
+  const [name, setName] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [notifs, setNotifs] = useState<Record<string, boolean>>({ n1: true, n2: true, n3: false });
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -56,10 +56,10 @@ export default function ProfilePage() {
     </button>
   );
 
-  const displayName  = name || user?.name || "Student";
+  const displayName = name || user?.name || "Student";
   const displayEmail = user?.email || "";
   const displayInits = initials(displayName);
-  const memberSince  = user?.id ? "2024" : "–";
+  const memberSince = user?.id ? "2024" : "–";
   const activeListings = profile?.recentListings.filter(l => l.status === "active") || [];
 
   return (
@@ -160,10 +160,10 @@ export default function ProfilePage() {
         {/* Stats row */}
         <div className="profile-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
           {[
-            { icon: <Package size={18} />,     label: "Listed",       value: String(profile?.stats.listed ?? "–"),     color: "#4F8EF7", href: null },
-            { icon: <TrendingUp size={18} />,  label: "Sold",         value: String(profile?.stats.sold ?? "–"),       color: "#10B981", href: null },
-            { icon: <ShoppingBag size={18} />, label: "Purchased",    value: String(profile?.stats.purchased ?? "–"),  color: "#A78BFA", href: null },
-            { icon: <Calendar size={18} />,    label: "Revenue",      value: profile ? `₹${profile.stats.revenue.toLocaleString("en-IN")}` : "–", color: "#F7C948", href: "/marketplace/earnings" },
+            { icon: <Package size={18} />, label: "Listed", value: String(profile?.stats.listed ?? "–"), color: "#4F8EF7", href: null },
+            { icon: <TrendingUp size={18} />, label: "Sold", value: String(profile?.stats.sold ?? "–"), color: "#10B981", href: null },
+            { icon: <ShoppingBag size={18} />, label: "Purchased", value: String(profile?.stats.purchased ?? "–"), color: "#A78BFA", href: null },
+            { icon: <Calendar size={18} />, label: "Revenue", value: profile ? `₹${profile.stats.revenue.toLocaleString("en-IN")}` : "–", color: "#F7C948", href: "/marketplace/earnings" },
           ].map(s => {
             const cardContent = (
               <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", height: "100%" }}>

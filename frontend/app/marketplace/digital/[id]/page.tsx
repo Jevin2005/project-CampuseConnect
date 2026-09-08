@@ -461,29 +461,29 @@ export default function DigitalProductPage() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
                   {sub === "notes" || sub === "both" ? (
-                    <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                    <Link href={`/marketplace/viewer/pdf?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                       <button className="btn btn-primary" style={{ background: "var(--accent-purple)", width: "100%", gap: 8, height: 46, cursor: "pointer" }}>
-                        <FileText size={15} /> Launch Secure PDF Reader
+                        <FileText size={15} /> Launch Secure PDF Reader ↗
                       </button>
                     </Link>
                   ) : null}
                   {sub === "video" || sub === "both" ? (
-                    <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                    <Link href={`/marketplace/viewer/video?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                       <button className="btn btn-primary" style={{ background: "var(--accent-green)", width: "100%", gap: 8, height: 46, cursor: "pointer" }}>
-                        <PlayCircle size={15} /> Launch Secure Video Player
+                        <PlayCircle size={15} /> Launch Secure Video Player ↗
                       </button>
                     </Link>
                   ) : null}
                   {sub === "bundle" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <Link href={`/marketplace/viewer/pdf?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                         <button className="btn btn-primary" style={{ background: "var(--accent-purple)", width: "100%", gap: 8, height: 44, cursor: "pointer" }}>
-                          📖 Read Bundled Notes (PDF)
+                          📖 Read Bundled Notes (PDF) ↗
                         </button>
                       </Link>
-                      <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <Link href={`/marketplace/viewer/video?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                         <button className="btn btn-primary" style={{ background: "var(--accent-green)", width: "100%", gap: 8, height: 44, cursor: "pointer" }}>
-                          🎥 Watch Bundled Lectures
+                          🎥 Watch Bundled Lectures ↗
                         </button>
                       </Link>
                     </div>
@@ -620,29 +620,29 @@ export default function DigitalProductPage() {
               {isPurchased ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {sub === "notes" || sub === "both" ? (
-                    <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                    <Link href={`/marketplace/viewer/pdf?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                       <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-purple)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                        📖 Launch Secure PDF Reader
+                        📖 Launch Secure PDF Reader ↗
                       </button>
                     </Link>
                   ) : null}
                   {sub === "video" || sub === "both" ? (
-                    <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                    <Link href={`/marketplace/viewer/video?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                       <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-green)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                        🎥 Launch Secure Video Player
+                        🎥 Launch Secure Video Player ↗
                       </button>
                     </Link>
                   ) : null}
                   {sub === "bundle" && (
                     <>
-                      <Link href={`/marketplace/viewer/pdf?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <Link href={`/marketplace/viewer/pdf?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                         <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-purple)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 }}>
-                          📖 Read Bundled Notes (PDF)
+                          📖 Read Bundled Notes (PDF) ↗
                         </button>
                       </Link>
-                      <Link href={`/marketplace/viewer/video?id=${product.id}`} style={{ textDecoration: "none", width: "100%" }}>
+                      <Link href={`/marketplace/viewer/video?id=${product.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                         <button className="btn btn-primary btn-lg" style={{ width: "100%", background: "var(--accent-green)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                          🎥 Watch Bundled Lectures
+                          🎥 Watch Bundled Lectures ↗
                         </button>
                       </Link>
                     </>
@@ -659,16 +659,16 @@ export default function DigitalProductPage() {
                   </button>
 
                   {sub === "notes" || sub === "both" || sub === "bundle" ? (
-                    <Link href={`/marketplace/viewer/pdf?id=${product.id}&preview=true`} style={{ textDecoration: "none", width: "100%" }}>
+                    <Link href={`/marketplace/viewer/pdf?id=${product.id}&preview=true`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                       <button className="btn btn-outline-white" style={{ width: "100%", height: 42, borderColor: themeColor, color: themeColor, background: "transparent", border: "1.5px solid", borderRadius: 9999, fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                        📖 Read Free Preview (2 Pages)
+                        📖 Read Free Preview (2 Pages) ↗
                       </button>
                     </Link>
                   ) : null}
                   {sub === "video" || sub === "both" ? (
-                    <Link href={`/marketplace/viewer/video?id=${product.id}&preview=true`} style={{ textDecoration: "none", width: "100%" }}>
+                    <Link href={`/marketplace/viewer/video?id=${product.id}&preview=true`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
                       <button className="btn btn-outline-white" style={{ width: "100%", height: 42, borderColor: themeColor, color: themeColor, background: "transparent", border: "1.5px solid", borderRadius: 9999, fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                        🎬 Watch Free Preview (5 Mins)
+                        🎬 Watch Free Preview (5 Mins) ↗
                       </button>
                     </Link>
                   ) : null}

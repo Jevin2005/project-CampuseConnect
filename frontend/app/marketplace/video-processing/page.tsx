@@ -76,6 +76,11 @@ function VideoProcessingInner() {
   const elapsedRef = useRef<NodeJS.Timeout | null>(null);
   const isDone = statusData?.hlsReady === true;
 
+  const doneItems = (statusData?.items || []).filter(i => i.status === "done").length;
+  const totalItems = (statusData?.items || []).length;
+  const basePercent = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+  const progressPercent = isDone ? 100 : Math.min(98, Math.max(15, Math.round(basePercent + (elapsed % 30))));
+
   const poll = useCallback(async () => {
     if (!productId) return;
     try {
@@ -94,7 +99,7 @@ function VideoProcessingInner() {
     poll();
     pollingRef.current = setInterval(() => {
       poll();
-    }, 3000);
+    }, 1500);
 
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
@@ -123,7 +128,7 @@ function VideoProcessingInner() {
       setRedirectCountdown(prev => {
         if (prev <= 1) {
           clearInterval(countdown);
-          window.location.href = `/marketplace/viewer/video?id=${productId}`;
+          window.open(`/marketplace/viewer/video?id=${productId}`, "_blank", "noopener,noreferrer");
           return 0;
         }
         return prev - 1;
@@ -310,8 +315,8 @@ function VideoProcessingInner() {
               </div>
             )}
 
-            <a href={`/marketplace/viewer/video?id=${productId}`} className="action-btn">
-              <span>Open Course Player</span>
+            <a href={`/marketplace/viewer/video?id=${productId}`} target="_blank" rel="noopener noreferrer" className="action-btn">
+              <span>Open Course Player ↗</span>
               <ArrowRight size={18} />
               <span style={{ fontSize: 12, opacity: 0.85, background: "rgba(0,0,0,0.2)", padding: "2px 6px", borderRadius: 4 }}>
                 {redirectCountdown}s

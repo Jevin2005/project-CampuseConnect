@@ -88,7 +88,7 @@ function processVideoToHLS(inputPath, outputDir) {
 
         ffmpeg(inputPath)
           .videoCodec('libx264')
-          .addOption('-vf', `scale=${r.width}:${r.height}:force_original_aspect_ratio=decrease,pad=${r.width}:${r.height}:(ow-iw)/2:(oh-ih)/2`)
+          .addOption('-vf', `scale=${r.width}:-2`)
           .addOption('-profile:v', 'main')
           .addOption('-b:v', r.bv)
           .addOption('-maxrate', r.maxrate)
@@ -96,7 +96,8 @@ function processVideoToHLS(inputPath, outputDir) {
           .addOption('-g', '48')
           .addOption('-keyint_min', '48')
           .addOption('-sc_threshold', '0')
-          .addOption('-preset', 'fast')
+          .addOption('-preset', 'ultrafast')
+          .addOption('-threads', '0')
           .audioCodec('aac')
           .addOption('-b:a', r.ba)
           .addOption('-ac', '2')
@@ -120,11 +121,9 @@ function processVideoToHLS(inputPath, outputDir) {
     };
 
     try {
-      // Run transcoding for renditions
-      console.log('[HLS] Starting Adaptive Multi-Bitrate transcode...');
-      for (const r of RENDITIONS) {
-        await transcodeRendition(r);
-      }
+      // Run transcoding for renditions in parallel
+      console.log('[HLS] Starting Parallel Adaptive Multi-Bitrate transcode...');
+      await Promise.all(RENDITIONS.map(r => transcodeRendition(r)));
 
       // Generate master.m3u8 multi-variant playlist
       const masterContent = [

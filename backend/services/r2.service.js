@@ -118,43 +118,113 @@ function isConfigured() {
   return true;
 }
 
-/** Stream an object from R2 by key */
+/** Resolves the local absolute path of a key if it exists on disk */
+function resolveLocalPath(key) {
+  if (!key) return null;
+  let cleanKey = key;
+  if (cleanKey.startsWith('http://') || cleanKey.startsWith('https://')) {
+    try {
+      cleanKey = new URL(cleanKey).pathname.replace(/^\//, '');
+    } catch (_) {
+      cleanKey = cleanKey.replace(/^\//, '');
+    }
+  } else {
+    cleanKey = cleanKey.replace(/^\//, '');
+  }
+  try {
+    cleanKey = decodeURIComponent(cleanKey);
+  } catch (_) {}
+
+  const possiblePaths = [
+    path.join(__dirname, '../', cleanKey),
+    path.join(__dirname, '../uploads', cleanKey.replace(/^uploads\//, '')),
+    path.join(__dirname, '../uploads/videos', cleanKey.replace(/^(uploads\/|videos\/)/, '')),
+    path.join(__dirname, '../uploads/documents', cleanKey.replace(/^(uploads\/|documents\/)/, '')),
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      return p;
+    }
+  }
+  return null;
+}
+
+/** Stream an object from local disk or R2 by key */
 async function getObjectStream(key) {
   let cleanKey = key;
   if (!cleanKey) throw new Error('Object key is required');
   if (cleanKey.startsWith('http://') || cleanKey.startsWith('https://')) {
-    cleanKey = new URL(cleanKey).pathname.replace(/^\//, '');
+    try {
+      cleanKey = new URL(cleanKey).pathname.replace(/^\//, '');
+    } catch (_) {
+      cleanKey = cleanKey.replace(/^\//, '');
+    }
   } else {
     cleanKey = cleanKey.replace(/^\//, '');
   }
   try {
     cleanKey = decodeURIComponent(cleanKey);
   } catch (_) {}
-  const response = await R2.send(new GetObjectCommand({ Bucket: BUCKET, Key: cleanKey }));
-  return response.Body; // This is a readable stream (SDK v3 returns a stream for Node.js)
+
+  // 1. Check local disk storage first (e.g. uploads/videos/..., uploads/images/..., hls/...)
+  const localPath = resolveLocalPath(cleanKey);
+  if (localPath) {
+    return fs.createReadStream(localPath);
+  }
+
+  // 2. Fall back to Cloudflare R2 S3 SDK if configured
+  if (isConfigured()) {
+    const response = await R2.send(new GetObjectCommand({ Bucket: BUCKET, Key: cleanKey }));
+    return response.Body;
+  }
+
+  throw new Error(`File asset not found on local disk or R2: ${cleanKey}`);
 }
 
-/** Fetch an object text content directly from R2 */
+/** Fetch object text content from local disk or R2 */
 async function getObjectText(key) {
   let cleanKey = key;
   if (!cleanKey) throw new Error('Object key is required');
   if (cleanKey.startsWith('http://') || cleanKey.startsWith('https://')) {
-    cleanKey = new URL(cleanKey).pathname.replace(/^\//, '');
+    try {
+      cleanKey = new URL(cleanKey).pathname.replace(/^\//, '');
+    } catch (_) {
+      cleanKey = cleanKey.replace(/^\//, '');
+    }
   } else {
     cleanKey = cleanKey.replace(/^\//, '');
   }
   try {
     cleanKey = decodeURIComponent(cleanKey);
   } catch (_) {}
-  const response = await R2.send(new GetObjectCommand({ Bucket: BUCKET, Key: cleanKey }));
-  if (response.Body && typeof response.Body.transformToString === 'function') {
-    return await response.Body.transformToString();
+
+  // 1. Check local disk storage first
+  const possiblePaths = [
+    path.join(__dirname, '../', cleanKey),
+    path.join(__dirname, '../uploads', cleanKey.replace(/^uploads\//, '')),
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      return fs.readFileSync(p, 'utf-8');
+    }
   }
-  const chunks = [];
-  for await (const chunk of response.Body) {
-    chunks.push(chunk);
+
+  // 2. Fall back to Cloudflare R2 S3 SDK if configured
+  if (isConfigured()) {
+    const response = await R2.send(new GetObjectCommand({ Bucket: BUCKET, Key: cleanKey }));
+    if (response.Body && typeof response.Body.transformToString === 'function') {
+      return await response.Body.transformToString();
+    }
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks).toString('utf-8');
   }
-  return Buffer.concat(chunks).toString('utf-8');
+
+  throw new Error(`Text asset not found on local disk or R2: ${cleanKey}`);
 }
 
 /** Stream an object from R2 by public URL */
@@ -236,29 +306,74 @@ async function getSignedGetUrl(key, expiresInSeconds = 1200) {
   return getSignedUrl(R2, cmd, { expiresIn: expiresInSeconds });
 }
 
+const LIST_OBJECTS_CACHE = new Map();
+const LIST_CACHE_TTL_MS = 600000; // 10 minutes
+
 /**
- * Lists all object keys under a given prefix. Used by the streaming
- * controller to enumerate .ts segments and master.m3u8 before signing.
+ * Lists all object keys under a given prefix from local disk or R2 with instant in-memory caching.
  *
  * @param {string} prefix - R2 key prefix (e.g. "hls/{productId}/")
  * @returns {Promise<string[]>} Array of R2 object keys
  */
 async function listObjects(prefix) {
+  const cached = LIST_OBJECTS_CACHE.get(prefix);
+  if (cached && Date.now() - cached.timestamp < LIST_CACHE_TTL_MS) {
+    return cached.keys;
+  }
+
   const keys = [];
-  let continuationToken;
-  do {
-    const response = await R2.send(
-      new ListObjectsV2Command({
-        Bucket: BUCKET,
-        Prefix: prefix,
-        ContinuationToken: continuationToken,
-      }),
-    );
-    (response.Contents || []).forEach((obj) => {
-      if (obj.Key) keys.push(obj.Key);
-    });
-    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
-  } while (continuationToken);
+
+  // 1. Check local disk directory first (e.g., uploads/hls/{productId}/ or hls/{productId}/)
+  const possibleDirs = [
+    path.join(__dirname, '../', prefix),
+    path.join(__dirname, '../uploads', prefix.replace(/^uploads\//, '')),
+  ];
+
+  for (const dirPath of possibleDirs) {
+    if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+      const readDirRecursive = (currentDir, relBase) => {
+        const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullP = path.join(currentDir, entry.name);
+          const relP = path.join(relBase, entry.name).replace(/\\/g, '/');
+          if (entry.isDirectory()) {
+            readDirRecursive(fullP, relP);
+          } else {
+            keys.push(relP);
+          }
+        }
+      };
+      readDirRecursive(dirPath, prefix.replace(/\/$/, ''));
+      if (keys.length > 0) {
+        LIST_OBJECTS_CACHE.set(prefix, { timestamp: Date.now(), keys });
+        return keys;
+      }
+    }
+  }
+
+  // 2. Fall back to Cloudflare R2 S3 SDK if configured
+  if (isConfigured()) {
+    try {
+      let continuationToken;
+      do {
+        const response = await R2.send(
+          new ListObjectsV2Command({
+            Bucket: BUCKET,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          }),
+        );
+        (response.Contents || []).forEach((obj) => {
+          if (obj.Key) keys.push(obj.Key);
+        });
+        continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+      } while (continuationToken);
+    } catch (s3Err) {
+      console.warn('[R2] S3 listObjects network warning:', s3Err.message);
+    }
+  }
+
+  LIST_OBJECTS_CACHE.set(prefix, { timestamp: Date.now(), keys });
   return keys;
 }
 
@@ -299,6 +414,7 @@ module.exports = {
   getObjectStream,
   getObjectText,
   getObjectStreamByUrl,
+  resolveLocalPath,
   // HLS pipeline
   getUploadPresignedUrl,
   uploadFile,
