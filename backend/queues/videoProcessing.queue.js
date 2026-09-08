@@ -42,6 +42,25 @@ try {
   return; // stop executing this file
 }
 
+// Patch Bull's setWorkerName so that if isRedisReady rejects with undefined or an error without .message,
+// it never throws "TypeError: Cannot read properties of undefined (reading 'message')"
+if (Bull && Bull.prototype && typeof Bull.prototype.setWorkerName === 'function') {
+  const originalSetWorkerName = Bull.prototype.setWorkerName;
+  Bull.prototype.setWorkerName = function () {
+    try {
+      return originalSetWorkerName.call(this).catch((err) => {
+        if (!err || !err.message) return;
+        const clientCommandMessageReg = /ERR unknown command ['`]\s*client\s*['`]/;
+        if (!clientCommandMessageReg.test(err.message)) {
+          console.warn('[VideoQueue] Worker setWorkerName notice:', err.message);
+        }
+      });
+    } catch (_) {
+      return Promise.resolve();
+    }
+  };
+}
+
 const path   = require('path');
 const fs     = require('fs');
 const { pipeline } = require('stream/promises');
@@ -78,19 +97,23 @@ const IORedis = require('ioredis');
  * @param {object} [extraOpts] - extra ioredis options (e.g. { enableReadyCheck: false })
  */
 function createRedisClient(extraOpts = {}) {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  const isTls    = redisUrl.startsWith('rediss://');
+  const rawUrl   = process.env.REDIS_URL || 'redis://localhost:6379';
+  const isUpstash = rawUrl.includes('upstash.io');
+  const isTls    = rawUrl.startsWith('rediss://') || isUpstash;
+  const redisUrl = isTls && rawUrl.startsWith('redis://')
+    ? rawUrl.replace('redis://', 'rediss://')
+    : rawUrl;
 
   const client = new IORedis(redisUrl, {
-    tls:                  isTls ? {} : undefined, // enable TLS for rediss://
+    tls:                  isTls ? { rejectUnauthorized: false } : undefined, // enable TLS for rediss:// or Upstash
     maxRetriesPerRequest: null,   // required by Bull — don't cap retries
     enableReadyCheck:     false,  // Upstash: skip the READY ping handshake
-    connectTimeout:       1000,   // 1s connect timeout
+    connectTimeout:       10000,  // 10s connect timeout for cloud TLS
     lazyConnect:          false,
     retryStrategy: (times) => {
-      // Stop retrying after 3 attempts if Redis is offline locally
-      if (times > 3) return null;
-      return Math.min(times * 1000, 5000);
+      // Reconnect with backoff up to 10 attempts
+      if (times > 10) return null;
+      return Math.min(times * 500, 5000);
     },
     ...extraOpts,
   });
@@ -118,6 +141,11 @@ const videoQueue = new Bull('video-processing', {
       default:
         return createRedisClient();
     }
+  },
+  settings: {
+    stalledInterval: 60000, // 60s check interval for cloud Redis
+    guardInterval: 5000,
+    drainDelay: 5,
   },
   defaultJobOptions: {
     attempts:         3,

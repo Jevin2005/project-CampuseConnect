@@ -5,10 +5,19 @@
 
 const nodemailer = require('nodemailer');
 
+const emailPort = parseInt(process.env.EMAIL_PORT || '587');
+const isSecurePort = emailPort === 465;
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT || '587'),
-  secure: false,
+  port: emailPort,
+  secure: isSecurePort,
+  pool: true,
+  maxConnections: 3,
+  maxMessages: 100,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
   family: 4, // Force IPv4 to prevent IPv6 ENETUNREACH on Render
   auth: {
     user: process.env.EMAIL_USER,
@@ -63,6 +72,11 @@ async function sendRegisterVerificationEmail(to, name, otp) {
     </html>
   `;
 
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn(`[Email] ⚠️ EMAIL credentials missing. Skipping email dispatch to ${to}. OTP: ${otp}`);
+    return;
+  }
+
   try {
     await transporter.sendMail({
       from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
@@ -70,6 +84,7 @@ async function sendRegisterVerificationEmail(to, name, otp) {
       subject: `${otp} is your CampusConnect Verification Code`,
       html,
     });
+    console.log(`[Email] ✅ Registration verification OTP sent to ${to}`);
   } catch (err) {
     console.error('[Email] Failed to send registration verification:', err.message);
   }
@@ -118,6 +133,11 @@ async function sendOtpEmail(to, otp) {
     </html>
   `;
 
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn(`[Email] ⚠️ EMAIL credentials missing. Skipping OTP dispatch to ${to}. OTP: ${otp}`);
+    return;
+  }
+
   try {
     await transporter.sendMail({
       from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
@@ -125,6 +145,7 @@ async function sendOtpEmail(to, otp) {
       subject: `${otp} is your CampusConnect OTP`,
       html,
     });
+    console.log(`[Email] ✅ Login OTP sent to ${to}`);
   } catch (err) {
     console.error('[Email] Failed to send OTP:', err.message);
     // Don't throw — in dev we just log; won't block the flow

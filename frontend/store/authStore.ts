@@ -29,11 +29,14 @@ interface AuthState {
   // Temp state used across S1→S2 navigation (replaces sessionStorage / URL param)
   pendingEmail: string | null;
   maskedEmail: string | null;
+  devOtp: string | null;
+  instantMessage: string | null;
 
   setAuth: (token: string, user: AuthUser, role: Role, collegeId?: string) => void;
   clearAuth: () => void;
   setLoading: (v: boolean) => void;
-  setPendingEmail: (email: string, masked: string) => void;
+  setPendingEmail: (email: string, masked: string, devOtp?: string, instantMessage?: string) => void;
+  clearPendingOtp: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -45,6 +48,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   pendingEmail: null,
   maskedEmail: null,
+  devOtp: null,
+  instantMessage: null,
 
   setAuth: (token, user, role, collegeId) => {
     if (typeof window !== "undefined") {
@@ -68,6 +73,19 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setLoading: (v) => set({ isLoading: v }),
 
-  setPendingEmail: (email, masked) =>
-    set({ pendingEmail: email, maskedEmail: masked }),
+  setPendingEmail: (email, masked, devOtp, instantMessage) =>
+    set({
+      pendingEmail: email,
+      maskedEmail: masked,
+      devOtp: devOtp ?? null,
+      instantMessage: instantMessage ?? null,
+    }),
+
+  clearPendingOtp: () =>
+    set({
+      pendingEmail: null,
+      maskedEmail: null,
+      devOtp: null,
+      instantMessage: null,
+    }),
 }));

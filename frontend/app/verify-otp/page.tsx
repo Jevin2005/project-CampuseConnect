@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowLeft, RefreshCw, Clock, Video, FileText, Laptop, MailOpen } from "lucide-react";
+import { ArrowRight, ArrowLeft, RefreshCw, Clock, Video, FileText, Laptop, MailOpen, Zap, Sparkles, CheckCircle2 } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
@@ -154,7 +154,7 @@ function useTimer(initial: number) {
 /* ═══ S2 CONTENT ══════════════════════════════════════════════════ */
 function OtpContent() {
   const rtr = useRouter();
-  const { pendingEmail, maskedEmail, setPendingEmail, setAuth } = useAuthStore();
+  const { pendingEmail, maskedEmail, devOtp, instantMessage, setPendingEmail, setAuth } = useAuthStore();
 
   // Fall back gracefully if store is empty (e.g. hard refresh to /verify-otp)
   const displayEmail = maskedEmail ?? pendingEmail ?? "your.name@college.edu";
@@ -164,7 +164,7 @@ function OtpContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const refs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
-  const timer = useTimer(5 * 60); // 5 min per spec (S2 shows 4:00 min countdown)
+  const timer = useTimer(30); // 30s quick resend timer
 
   const setValue = (idx: number, val: string) => {
     const next = [...otp];
@@ -174,6 +174,13 @@ function OtpContent() {
       refs[idx + 1].current?.focus();
       setFocusIdx(idx + 1);
     }
+  };
+
+  const handleAutofill = (code: string) => {
+    const digits = code.split("").slice(0, 6);
+    const padded = [...digits, ...Array(6 - digits.length).fill("")].slice(0, 6);
+    setOtp(padded);
+    refs[5].current?.focus();
   };
 
   const handleKeyDown = (idx: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -195,8 +202,8 @@ function OtpContent() {
 
   const filled = otp.every(d => d !== "");
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerify = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!filled) return;
     setLoading(true);
     setError("");
@@ -226,14 +233,24 @@ function OtpContent() {
     }
   };
 
+  // Auto-submit when all 6 digits are entered
+  useEffect(() => {
+    if (otp.every(d => d !== "") && !loading) {
+      handleVerify();
+    }
+  }, [otp]);
+
   const handleResend = async () => {
     if (!pendingEmail) return;
     try {
-      const { data } = await api.post<{ message: string; maskedEmail: string }>(
-        "/api/auth/student/send-otp",
-        { email: pendingEmail }
-      );
-      setPendingEmail(pendingEmail, data.maskedEmail);
+      const { data } = await api.post<{
+        message: string;
+        maskedEmail: string;
+        devOtp?: string;
+        instantMessage?: string;
+      }>("/api/auth/student/send-otp", { email: pendingEmail });
+
+      setPendingEmail(pendingEmail, data.maskedEmail, data.devOtp, data.instantMessage);
       timer.reset();
       setOtp(["", "", "", "", "", ""]);
       setError("");
@@ -262,6 +279,44 @@ function OtpContent() {
         <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800, color: "#F0F4FF" }}>Campus</span>
         <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 800, color: "#4F8EF7" }}>Connect</span>
       </Link>
+
+      {/* Instant Notification Banner */}
+      <div style={{
+        background: "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(79,142,247,0.12))",
+        border: "1px solid rgba(16,185,129,0.3)",
+        borderRadius: 14, padding: "14px 18px", marginBottom: 28,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, flexWrap: "wrap",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Zap size={20} style={{ color: "#10B981", flexShrink: 0 }} />
+          <div>
+            <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#10B981" }}>
+              Instant Message
+            </div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#9CA3AF" }}>
+              {instantMessage || "Verification code dispatched. Check inbox or spam folder."}
+            </div>
+          </div>
+        </div>
+        {devOtp && (
+          <button
+            type="button"
+            onClick={() => handleAutofill(devOtp)}
+            style={{
+              background: "#10B981", color: "#003824", border: "none",
+              padding: "6px 14px", borderRadius: 9999, fontSize: 12, fontWeight: 700,
+              cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+              boxShadow: "0 2px 10px rgba(16,185,129,0.3)",
+              transition: "transform 0.15s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.04)")}
+            onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+          >
+            <Sparkles size={13} /> Auto-fill ({devOtp})
+          </button>
+        )}
+      </div>
 
       {/* heading */}
       <div style={{ marginBottom: 16 }}>

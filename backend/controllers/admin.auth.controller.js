@@ -6,6 +6,7 @@
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
+const otpService = require('../services/otp.service');
 const { sendApprovalEmail, notifyMasterAdminRegistration, sendRegisterVerificationEmail } = require('../services/email.service');
 
 const prisma = new PrismaClient();
@@ -24,16 +25,7 @@ function signRefreshToken(payload) {
   });
 }
 
-function setRefreshCookie(res, refreshToken) {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: isProd,                      // must be true when sameSite='none'
-    sameSite: isProd ? 'none' : 'lax',  // 'none' = cross-domain; 'lax' = local dev
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/',
-  });
-}
+const { setRefreshCookie, clearRefreshCookie } = require('../services/cookie.service');
 
 /* ─── GET /api/auth/admin/check-code ──────────────────────────────── */
 async function checkCollegeCode(req, res) {
@@ -145,41 +137,22 @@ async function register(req, res) {
       });
     }
 
-    // Generate Verification OTP
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const hashedOtp = await bcrypt.hash(otp, 10);
+    // Generate Verification OTP via otpService
+    const otp = otpService.generateOtp();
+    await otpService.storeOtp('reg-otp', normalizedEmail, otp, 600);
 
-    const redis = require('../services/redis.service');
-    // Store in Redis / memory fallback
-    try {
-      await redis.setex(`reg-otp:${normalizedEmail}`, 600, hashedOtp);
-    } catch (err) {
-      console.warn('[Reg-OTP] Redis unavailable, using memory store:', err.message);
-      global._regOtpStore = global._regOtpStore || {};
-      global._regOtpStore[normalizedEmail] = {
-        hash: hashedOtp,
-        expires: Date.now() + 600 * 1000,
-      };
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`\n[DEV] Admin Reg OTP for ${normalizedEmail}: ${otp}\n`);
-    }
-
-    // Send verification email
-    await sendRegisterVerificationEmail(normalizedEmail, result.admin.name || 'Admin', otp);
-
-    const maskEmail = (email) => {
-      const [local, domain] = email.split('@');
-      const masked = local.slice(0, 3) + '***';
-      return `${masked}@${domain}`;
-    };
+    // Send verification email asynchronously
+    sendRegisterVerificationEmail(normalizedEmail, result.admin.name || 'Admin', otp).catch((err) => {
+      console.error('[adminRegister] Email background error:', err.message);
+    });
 
     return res.status(200).json({
       status: 'VERIFICATION_REQUIRED',
-      message: 'A verification OTP has been sent to your email. Please verify your email to complete college registration.',
-      maskedEmail: maskEmail(normalizedEmail),
+      message: '⚡ A verification code has been sent to your email.',
+      instantMessage: `A 6-digit verification code was sent to ${otpService.maskEmail(normalizedEmail)}.`,
+      maskedEmail: otpService.maskEmail(normalizedEmail),
       email: normalizedEmail,
+      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
     });
   } catch (err) {
     console.error('[adminRegister] Error:', err);
@@ -270,13 +243,7 @@ async function login(req, res) {
 
 /* ─── POST /api/auth/admin/logout ─────────────────────────────────── */
 async function logout(req, res) {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    path: '/',
-  });
+  clearRefreshCookie(res);
   return res.json({ message: 'Logged out successfully' });
 }
 
@@ -291,32 +258,13 @@ async function verifyRegisterOtp(req, res) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const redis = require('../services/redis.service');
-    // Retrieve OTP hash from Redis or global store
-    let storedHash = null;
-    try {
-      storedHash = await redis.get(`reg-otp:${normalizedEmail}`);
-    } catch {
-      const stored = global._regOtpStore?.[normalizedEmail];
-      if (stored && stored.expires > Date.now()) {
-        storedHash = stored.hash;
+    // Verify OTP using bulletproof otpService
+    const verification = await otpService.verifyOtp('reg-otp', normalizedEmail, otp);
+    if (!verification.valid) {
+      if (verification.reason === 'EXPIRED') {
+        return res.status(400).json({ message: 'Verification OTP expired or not found. Please request a new one.' });
       }
-    }
-
-    if (!storedHash) {
-      return res.status(400).json({ message: 'Verification OTP expired or not found. Please request a new one.' });
-    }
-
-    const isValid = await bcrypt.compare(otp.toString(), storedHash);
-    if (!isValid) {
       return res.status(400).json({ message: 'Invalid verification OTP. Please try again.' });
-    }
-
-    // Delete OTP
-    try {
-      await redis.del(`reg-otp:${normalizedEmail}`);
-    } catch {
-      if (global._regOtpStore) delete global._regOtpStore[normalizedEmail];
     }
 
     // Find admin and college
@@ -370,36 +318,18 @@ async function resendRegisterOtp(req, res) {
       return res.status(400).json({ message: 'This email is already verified.' });
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const hashedOtp = await bcrypt.hash(otp, 10);
+    const otp = otpService.generateOtp();
+    await otpService.storeOtp('reg-otp', normalizedEmail, otp, 600);
 
-    const redis = require('../services/redis.service');
-    // Store in Redis / memory fallback
-    try {
-      await redis.setex(`reg-otp:${normalizedEmail}`, 600, hashedOtp);
-    } catch {
-      global._regOtpStore = global._regOtpStore || {};
-      global._regOtpStore[normalizedEmail] = {
-        hash: hashedOtp,
-        expires: Date.now() + 600 * 1000,
-      };
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`\n[DEV] Admin Reg OTP for ${normalizedEmail}: ${otp}\n`);
-    }
-
-    await sendRegisterVerificationEmail(normalizedEmail, admin.name || 'Admin', otp);
-
-    const maskEmail = (email) => {
-      const [local, domain] = email.split('@');
-      const masked = local.slice(0, 3) + '***';
-      return `${masked}@${domain}`;
-    };
+    sendRegisterVerificationEmail(normalizedEmail, admin.name || 'Admin', otp).catch((err) => {
+      console.error('[adminResendRegisterOtp] Email background error:', err.message);
+    });
 
     return res.json({
-      message: 'Verification OTP resent successfully.',
-      maskedEmail: maskEmail(normalizedEmail),
+      message: '⚡ Verification code resent successfully.',
+      instantMessage: `A new code was dispatched to ${otpService.maskEmail(normalizedEmail)}.`,
+      maskedEmail: otpService.maskEmail(normalizedEmail),
+      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
     });
   } catch (err) {
     console.error('[adminResendRegisterOtp] Error:', err);

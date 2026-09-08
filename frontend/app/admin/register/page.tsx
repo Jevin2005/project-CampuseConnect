@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, AlertCircle, Key, Eye, EyeOff, Info, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Key, Eye, EyeOff, Info, Clock, Loader2, Zap, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
@@ -21,9 +21,11 @@ export default function AdminRegisterPage() {
   const [showVerification, setShowVerification] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [maskedEmail, setMaskedEmail] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [instantMessage, setInstantMessage] = useState<string | null>(null);
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
   const [verifying, setVerifying] = useState(false);
-  const [resendTimer, setResendTimer] = useState(60);
+  const [resendTimer, setResendTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [verificationError, setVerificationError] = useState('');
 
@@ -154,7 +156,9 @@ export default function AdminRegisterPage() {
       if (data.status === 'VERIFICATION_REQUIRED') {
         setVerificationEmail(data.email);
         setMaskedEmail(data.maskedEmail);
-        setResendTimer(60);
+        setDevOtp(data.devOtp || null);
+        setInstantMessage(data.instantMessage || data.message || null);
+        setResendTimer(30);
         setCanResend(false);
         setOtp(Array(6).fill(''));
         setVerificationError('');
@@ -200,16 +204,24 @@ export default function AdminRegisterPage() {
     if (!canResend) return;
     setVerificationError('');
     setCanResend(false);
-    setResendTimer(60);
+    setResendTimer(30);
     try {
-      await api.post('/api/auth/admin/register/resend', {
+      const { data } = await api.post<{ devOtp?: string; instantMessage?: string }>('/api/auth/admin/register/resend', {
         email: verificationEmail,
       });
+      setDevOtp(data.devOtp || null);
+      setInstantMessage(data.instantMessage || 'Verification code resent!');
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Failed to resend OTP. Please try again.';
       setVerificationError(msg);
       setCanResend(true);
     }
+  };
+
+  const handleAutofill = (code: string) => {
+    const digits = code.split('').slice(0, 6);
+    setOtp(digits);
+    otpInputsRef.current[5]?.focus();
   };
 
   // Auto-submit OTP when 6 digits are complete
@@ -649,6 +661,36 @@ export default function AdminRegisterPage() {
         {/* OTP VERIFICATION STEP */}
         {!submitted && showVerification && (
           <div className="form-card verification-card">
+            {/* Instant Notification Banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(79,142,247,0.12))',
+              border: '1px solid rgba(16,185,129,0.3)',
+              borderRadius: 12, padding: '12px 16px', marginBottom: 20,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 12, flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Zap size={18} style={{ color: '#10B981', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#10B981' }}>Instant Message</div>
+                  <div style={{ fontSize: 12, color: '#9CA3AF' }}>{instantMessage || 'Verification code sent to your email.'}</div>
+                </div>
+              </div>
+              {devOtp && (
+                <button
+                  type="button"
+                  onClick={() => handleAutofill(devOtp)}
+                  style={{
+                    background: '#10B981', color: '#003824', border: 'none',
+                    padding: '6px 14px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <Sparkles size={12} /> Auto-fill ({devOtp})
+                </button>
+              )}
+            </div>
+
             <h2 className="card-title" style={{ textAlign: 'center', marginBottom: 8 }}>Verify Your Email</h2>
             <p style={{ color: 'var(--text-soft)', fontSize: 14, lineHeight: 1.6, textAlign: 'center', marginBottom: 20 }}>
               We have sent a 6-digit verification code to <strong style={{ color: 'var(--accent-green)' }}>{maskedEmail}</strong>. Please enter it below to complete registration.

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
 import { CircleDollarSign, Percent, ShoppingCart, Download } from 'lucide-react';
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com'}/api/admin`;
+const API = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin`;
 
 interface RevenueData {
   stats: { totalSales: string; totalCut: string; totalOrders: number };

@@ -401,10 +401,13 @@ export default function StudentLoginPage() {
     e.preventDefault(); if (!otpEmail.trim()) return;
     setOtpLoading(true); setOtpError("");
     try {
-      const { data } = await api.post<{ message: string; maskedEmail: string }>(
-        "/api/auth/student/send-otp", { email: otpEmail.trim() }
-      );
-      setPendingEmail(otpEmail.trim(), data.maskedEmail);
+      const { data } = await api.post<{
+        message: string;
+        maskedEmail: string;
+        devOtp?: string;
+        instantMessage?: string;
+      }>("/api/auth/student/send-otp", { email: otpEmail.trim() });
+      setPendingEmail(otpEmail.trim(), data.maskedEmail, data.devOtp, data.instantMessage);
       router.push("/verify-otp");
     } catch (err: unknown) {
       setOtpError((err as any)?.response?.data?.message ?? "Failed to send OTP. Try again.");

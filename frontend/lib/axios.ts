@@ -10,13 +10,40 @@
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
 
+export const getApiBaseUrl = (): string => {
+  if (typeof window !== "undefined") {
+    // 1. Localhost development on developer's machine
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      const envUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (envUrl && (envUrl.includes("localhost") || envUrl.includes("127.0.0.1"))) {
+        return envUrl;
+      }
+      return "http://localhost:5000";
+    }
+
+    // 2. Production in cloud (e.g. *.vercel.app or custom domain)
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL;
+    }
+    // Safe cloud default if Vercel env variable is omitted
+    return "https://project-campuseconnect.onrender.com";
+  }
+
+  // 3. Server-side rendering (SSR / Next.js pre-render)
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+};
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000",
   withCredentials: true, // needed for HTTP-only refresh cookie
+  timeout: 15000,        // Never hang indefinitely; fail fast if server is unresponsive
 });
 
-/* ── Request: attach access token ───────────────────────────────── */
+/* ── Request: attach access token + ensure local dev routing ───── */
 api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    config.baseURL = getApiBaseUrl();
+  }
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers = config.headers ?? {};
@@ -37,9 +64,9 @@ api.interceptors.response.use(
       try {
         // Use a plain axios call (not the intercepted `api`) to avoid loops
         const { data } = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"}/api/auth/refresh`,
+          `${getApiBaseUrl()}/api/auth/refresh`,
           {},
-          { withCredentials: true }
+          { withCredentials: true, timeout: 10000 }
         );
 
         const { accessToken, user, role, collegeId } = data as {
@@ -77,9 +104,9 @@ api.interceptors.response.use(
           // Clear the server-side cookie
           try {
             await axios.post(
-              `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"}/api/auth/logout`,
+              `${getApiBaseUrl()}/api/auth/logout`,
               {},
-              { withCredentials: true }
+              { withCredentials: true, timeout: 5000 }
             );
           } catch { /* ignore */ }
           // Redirect to the correct login page based on current path

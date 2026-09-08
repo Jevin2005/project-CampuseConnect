@@ -6,15 +6,23 @@
 
 const Redis = require('ioredis');
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  connectTimeout: 500,        // 500ms max connect attempt
+const rawRedisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const isUpstash = rawRedisUrl.includes('upstash.io');
+const isTls = rawRedisUrl.startsWith('rediss://') || isUpstash;
+const redisUrl = isTls && rawRedisUrl.startsWith('redis://')
+  ? rawRedisUrl.replace('redis://', 'rediss://')
+  : rawRedisUrl;
+
+const redis = new Redis(redisUrl, {
+  connectTimeout: 5000,       // 5s connect timeout for cloud TLS
   maxRetriesPerRequest: 1,    // Fail requests immediately when disconnected
   enableOfflineQueue: false,  // Don't queue commands when disconnected
+  tls: isTls ? { rejectUnauthorized: false } : undefined,
   retryStrategy: (times) => {
-    if (times >= 2) {
+    if (times >= 3) {
       return null; // Stop retrying quickly to avoid blocking API requests & OTPs
     }
-    return 100;
+    return 200;
   },
 });
 

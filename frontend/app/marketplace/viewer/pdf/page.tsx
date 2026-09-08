@@ -7,7 +7,7 @@ import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Lock,
   ShoppingCart, ShieldAlert, Eye, FileText, Download, CheckCircle
 } from "lucide-react";
-import api from "@/lib/axios";
+import api, { getApiBaseUrl } from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
 /* ─── Dynamic Academic Notes Content Mock Database ─────────────────────────── */
@@ -317,7 +317,7 @@ const isDocumentUrl = (url: string) => {
 const getFileUrl = (url: string) => {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+  const baseUrl = getApiBaseUrl();
   return `${baseUrl.replace(/\/$/, "")}${url}`;
 };
 

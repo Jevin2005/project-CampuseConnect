@@ -155,8 +155,6 @@ function VideoProcessingInner() {
     return `${m}:${s}`;
   };
 
-  const progressPercent = isDone ? 100 : Math.min(((stageIndex + 1) / STAGES.length) * 100, 90);
-
   return (
     <div style={{
       minHeight: "100vh",

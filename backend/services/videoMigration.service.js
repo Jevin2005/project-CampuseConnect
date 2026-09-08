@@ -46,6 +46,13 @@ async function convertLegacyVideosToHLS() {
             rawR2Key = rawVideoUrl.replace(/^\//, '');
           }
 
+          // Check if the raw file exists in R2 before attempting conversion
+          const rawObjects = await r2.listObjects(rawR2Key).catch(() => []);
+          if (rawObjects.length === 0) {
+            // Raw file is not in R2 (e.g. mock or removed asset) — skip
+            continue;
+          }
+
           if (videoQueue && typeof videoQueue.add === 'function') {
             console.log(`[VideoMigration] Enqueuing legacy video product ${product.id} ("${product.title}") for HLS chunking...`);
             await videoQueue.add(

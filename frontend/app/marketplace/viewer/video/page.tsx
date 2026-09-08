@@ -10,7 +10,7 @@ import {
   RotateCcw, RotateCw, BookOpen, Info, HelpCircle, Download,
   PanelRightClose, PanelRightOpen, Monitor, Award, Layers, X, Search, ExternalLink
 } from "lucide-react";
-import api from "@/lib/axios";
+import api, { getApiBaseUrl } from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
 /* ─── Format seconds to MM:SS ─── */
@@ -233,7 +233,7 @@ function VideoViewerInner() {
 
   const PREVIEW_LIMIT_SECS = 300; 
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+  const baseUrl = getApiBaseUrl();
   const buildStreamUrl = (preview: boolean) => {
     if (!productId || !accessToken) return "";
     const params = new URLSearchParams();

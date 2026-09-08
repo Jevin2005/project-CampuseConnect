@@ -93,7 +93,7 @@ export default function CollegeRequestsPage() {
   const [modal, setModal] = useState<string | null>(null);
   const { accessToken } = useAuthStore();
 
-  const BASE = process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com';
+  const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   const fetchColleges = async () => {
     try {

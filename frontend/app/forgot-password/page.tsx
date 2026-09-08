@@ -2,15 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com';
+import { useRouter } from 'next/navigation';
+import api from '@/lib/axios';
+import { useAuthStore } from '@/store/authStore';
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
+  const { setPendingEmail } = useAuthStore();
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<'input' | 'sent'>('input');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [maskedEmail, setMaskedEmail] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [instantMessage, setInstantMessage] = useState<string | null>(null);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,20 +23,18 @@ export default function ForgotPasswordPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/auth/student/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMaskedEmail(data.maskedEmail || email);
-        setStep('sent');
-      } else {
-        setError(data.message || 'Failed to send OTP. Please try again.');
-      }
-    } catch {
-      setError('Network error. Please check your connection.');
+      const { data } = await api.post<{ message: string; maskedEmail: string; devOtp?: string; instantMessage?: string }>(
+        '/api/auth/student/send-otp',
+        { email: email.trim().toLowerCase() }
+      );
+      setMaskedEmail(data.maskedEmail || email);
+      setDevOtp(data.devOtp || null);
+      setInstantMessage(data.instantMessage || 'Login OTP dispatched to your email.');
+      setPendingEmail(email.trim().toLowerCase(), data.maskedEmail || email, data.devOtp, data.instantMessage);
+      setStep('sent');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to send OTP. Please try again.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -245,15 +248,34 @@ export default function ForgotPasswordPage() {
             <>
               <div className="success-icon">✉️</div>
               <div className="success-title">Check your email!</div>
+
+              {/* Instant Message Banner */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(79,142,247,0.12))',
+                border: '1px solid rgba(16,185,129,0.3)',
+                borderRadius: 12, padding: '12px 16px', marginBottom: 20, textAlign: 'left',
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  ⚡ Instant Message
+                </div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+                  {instantMessage || 'One-Time Password has been dispatched to your email.'}
+                </div>
+                {devOtp && (
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>Test Code:</span>
+                    <code style={{ background: '#1a2235', padding: '2px 8px', borderRadius: 6, color: '#F0F4FF', fontSize: 13, letterSpacing: '1px' }}>{devOtp}</code>
+                  </div>
+                )}
+              </div>
+
               <p className="success-text">
                 We sent a login OTP to{' '}
                 <span className="email-highlight">{maskedEmail}</span>.
-                <br /><br />
-                Use that code on the login page under <strong>"Login with OTP"</strong> to sign in, then change your password from your profile settings.
               </p>
 
-              <Link href="/login">
-                <button className="btn btn-green">Go to Login Page →</button>
+              <Link href="/verify-otp" style={{ textDecoration: 'none' }}>
+                <button className="btn btn-green">Enter Code &amp; Log In →</button>
               </Link>
 
               <button

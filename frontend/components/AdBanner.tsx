@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X, MapPin, Phone, ExternalLink, Star, Building2, Megaphone, GraduationCap, ChevronRight, School, Globe, Home, Bed, Zap, Briefcase, Handshake, Ticket, Laptop } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/axios";
 
 export function getAdIcon(iconStr: string, size = 18): React.ReactNode {
   switch (iconStr) {
@@ -24,7 +25,7 @@ export function getAdIcon(iconStr: string, size = 18): React.ReactNode {
 
 const trackAdClick = (adId?: string) => {
   if (adId) {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const API_URL = getApiBaseUrl();
     fetch(`${API_URL}/api/marketplace/ads/${adId}/click`, { method: 'POST' }).catch(() => {});
   }
 };
@@ -93,7 +94,7 @@ interface AdDetailModalProps {
 function AdDetailModal({ ad, onClose }: AdDetailModalProps) {
   useEffect(() => {
     if (ad.adId) {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const API_URL = getApiBaseUrl();
       fetch(`${API_URL}/api/marketplace/ads/${ad.adId}/click`, { method: 'POST' }).catch(() => {});
     }
   }, [ad.adId]);
@@ -104,7 +105,7 @@ function AdDetailModal({ ad, onClose }: AdDetailModalProps) {
     }
   };
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = getApiBaseUrl();
   const imgUrl = ad.bannerUrl ? (ad.bannerUrl.startsWith("http") || ad.bannerUrl.startsWith("data:") ? ad.bannerUrl : `${API_URL}${ad.bannerUrl}`) : null;
 
   return (
@@ -327,7 +328,7 @@ function AdDetailModal({ ad, onClose }: AdDetailModalProps) {
 function useTrackView(adId?: string) {
   useEffect(() => {
     if (adId) {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const API_URL = getApiBaseUrl();
       fetch(`${API_URL}/api/marketplace/ads/${adId}/view`, { method: 'POST' }).catch(() => {});
     }
   }, [adId]);
@@ -341,7 +342,7 @@ export function AdStrip({ ad }: { ad: AdData }) {
   const [dismissed, setDismissed] = useState(false);
   useTrackView(ad.adId);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = getApiBaseUrl();
   const imgUrl = ad.bannerUrl ? (ad.bannerUrl.startsWith("http") || ad.bannerUrl.startsWith("data:") ? ad.bannerUrl : `${API_URL}${ad.bannerUrl}`) : null;
 
   if (dismissed) return null;
@@ -443,7 +444,7 @@ export function AdBannerHorizontal({ ad }: { ad: AdData }) {
   const [dismissed, setDismissed] = useState(false);
   useTrackView(ad.adId);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = getApiBaseUrl();
   const imgUrl = ad.bannerUrl ? (ad.bannerUrl.startsWith("http") || ad.bannerUrl.startsWith("data:") ? ad.bannerUrl : `${API_URL}${ad.bannerUrl}`) : null;
 
   if (dismissed) return null;
@@ -573,7 +574,7 @@ export function AdCard({ ad }: { ad: AdData }) {
   const [dismissed, setDismissed] = useState(false);
   useTrackView(ad.adId);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = getApiBaseUrl();
   const imgUrl = ad.bannerUrl ? (ad.bannerUrl.startsWith("http") || ad.bannerUrl.startsWith("data:") ? ad.bannerUrl : `${API_URL}${ad.bannerUrl}`) : null;
 
   if (dismissed) return null;
@@ -664,7 +665,7 @@ export function AdSquare({ ad }: { ad: AdData }) {
   const [dismissed, setDismissed] = useState(false);
   useTrackView(ad.adId);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = getApiBaseUrl();
   const imgUrl = ad.bannerUrl ? (ad.bannerUrl.startsWith("http") || ad.bannerUrl.startsWith("data:") ? ad.bannerUrl : `${API_URL}${ad.bannerUrl}`) : null;
 
   if (dismissed) return null;
@@ -740,7 +741,7 @@ export function AdPortrait({ ad }: { ad: AdData }) {
   const [dismissed, setDismissed] = useState(false);
   useTrackView(ad.adId);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = getApiBaseUrl();
   const imgUrl = ad.bannerUrl ? (ad.bannerUrl.startsWith("http") || ad.bannerUrl.startsWith("data:") ? ad.bannerUrl : `${API_URL}${ad.bannerUrl}`) : null;
 
   if (dismissed) return null;

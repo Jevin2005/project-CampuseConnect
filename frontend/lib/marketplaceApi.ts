@@ -3,15 +3,15 @@
  * Connects to backend at NEXT_PUBLIC_API_URL via central Axios instance
  */
 
-import api from "./axios";
+import api, { getApiBaseUrl } from "./axios";
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const getMediaBase = () => getApiBaseUrl();
 
 /* ─── URL helper ─────────────────────────────────────────────────────── */
 export function mediaUrl(path: string | null | undefined): string | null {
   if (!path) return null;
   if (path.startsWith('http')) return path;
-  return `${API}${path}`;
+  return `${getMediaBase()}${path}`;
 }
 
 export function isVideoPath(path: string): boolean {

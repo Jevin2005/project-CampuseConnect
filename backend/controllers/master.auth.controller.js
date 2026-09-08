@@ -21,16 +21,7 @@ function signRefreshToken(payload) {
   });
 }
 
-function setRefreshCookie(res, refreshToken) {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: isProd,                      // must be true when sameSite='none'
-    sameSite: isProd ? 'none' : 'lax',  // 'none' = cross-domain; 'lax' = local dev
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/',
-  });
-}
+const { setRefreshCookie } = require('../services/cookie.service');
 
 /* ─── POST /api/auth/master/login ─────────────────────────────────── */
 async function login(req, res) {
@@ -110,13 +101,8 @@ async function logout(req, res) {
     }).catch(() => {});
   }
 
-  const isProd = process.env.NODE_ENV === 'production';
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    path: '/',
-  });
+  const { clearRefreshCookie } = require('../services/cookie.service');
+  clearRefreshCookie(res);
   return res.json({ message: 'Logged out successfully' });
 }
 

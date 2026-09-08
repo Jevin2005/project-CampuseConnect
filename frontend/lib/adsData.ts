@@ -1,6 +1,5 @@
 import type { AdData } from "@/components/AdBanner";
-
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { getApiBaseUrl } from "@/lib/axios";
 
 /**
  * Map a DB Advertisement record to the AdData shape used by AdBanner components.
@@ -9,7 +8,7 @@ function mapDbAdToAdData(ad: any): AdData {
   const isOwn = ad.scope === "own";
   const collegeName = ad.college?.name || "";
   const bannerUrl = ad.bannerUrl
-    ? (ad.bannerUrl.startsWith("http") ? ad.bannerUrl : `${API}${ad.bannerUrl}`)
+    ? (ad.bannerUrl.startsWith("http") ? ad.bannerUrl : `${getApiBaseUrl()}${ad.bannerUrl}`)
     : undefined;
 
   return {
@@ -47,6 +46,7 @@ function mapDbAdToAdData(ad: any): AdData {
  */
 export async function fetchLiveAds(collegeId?: string): Promise<AdData[]> {
   try {
+    const API = getApiBaseUrl();
     const url = collegeId
       ? `${API}/api/marketplace/ads?collegeId=${encodeURIComponent(collegeId)}`
       : `${API}/api/marketplace/ads`;

@@ -112,9 +112,9 @@ app.use('/uploads', (req, res, next) => {
 /* ─── Trust proxy (for rate limiting via IP) ───────────────────────── */
 app.set('trust proxy', 1);
 
-/* ─── Live Health & Performance Diagnostic Endpoint ───────────────── */
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+/* ─── Live Health & Performance Diagnostic Endpoints ──────────────── */
+app.get(['/', '/health', '/api/health'], (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'CampusConnect API', timestamp: new Date().toISOString() });
 });
 
 /* ─── Comprehensive Multi-Service Health & Latency Performance Test ────── */
@@ -550,7 +550,8 @@ process.on('unhandledRejection', (reason) => {
     lowerMsg.includes('econnreset') ||
     lowerMsg.includes('connection is closed') ||
     lowerMsg.includes('redis connection closed') ||
-    lowerMsg.includes('redis connection')
+    lowerMsg.includes('redis connection') ||
+    lowerMsg.includes("cannot read properties of undefined (reading 'message')")
   );
   if (isNetworkReset) {
     // Soft log throttled background connection warning
