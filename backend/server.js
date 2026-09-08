@@ -39,6 +39,7 @@ const marketplaceRoutes = require('./routes/marketplace.routes');
 const paymentRoutes     = require('./routes/payment.routes');
 const uploadRoutes      = require('./routes/upload.routes');
 const streamingRoutes   = require('./routes/streaming.routes');
+const { startKeepAlive } = require('./services/keepAlive.service');
 
 // Register the video processing queue processor on startup.
 // Bull connects to Redis via REDIS_URL and begins consuming jobs immediately.
@@ -503,6 +504,10 @@ app.listen(PORT, () => {
   console.log(`\n🚀 CampusConnect API running on http://localhost:${PORT}`);
   console.log(`   Auth endpoints: http://localhost:${PORT}/api/auth/*`);
   console.log(`   Health check:   http://localhost:${PORT}/api/health\n`);
+
+  // Start keep-alive pings to prevent Neon DB + Upstash Redis from sleeping
+  const redis = require('./services/redis.service');
+  startKeepAlive(prisma, redis);
 });
 
 
