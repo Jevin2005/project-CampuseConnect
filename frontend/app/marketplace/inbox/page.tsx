@@ -2,10 +2,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
-import api from "@/lib/axios";
+import api, { getApiBaseUrl } from "@/lib/axios";
 import { Send, Search, Check, CheckCheck, Package, Smile, RefreshCw, MessageSquare, Power, Lock, AlertCircle, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 
 function getCurrentUserId(): string {
   return useAuthStore.getState().user?.id || "";

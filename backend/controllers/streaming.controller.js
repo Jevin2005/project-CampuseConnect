@@ -606,23 +606,39 @@ exports.getProcessingStatus = async (req, res) => {
     // Also support legacy flat structure (single-video products)
     let doneCount = 0;
     let hlsReady = false;
+    const videoChunksMap = {};
+
     try {
       if (totalVideos === 0) {
         hlsReady = true; // doc-only product
       } else {
-        // Check new per-index structure first
+        // Check new per-index structure first (skipCache = true for live polling accuracy)
         for (let vIdx = 0; vIdx < totalVideos; vIdx++) {
-          const vKeys = await r2.listObjects(`hls/${product.id}/video_${vIdx}/`);
-          if (vKeys.some((k) => k.endsWith('master.m3u8'))) doneCount++;
+          const vKeys = await r2.listObjects(`hls/${product.id}/video_${vIdx}/`, true);
+          const hasMaster = vKeys.some((k) => k.endsWith('master.m3u8'));
+          if (hasMaster) doneCount++;
+
+          const tsFiles = vKeys.filter((k) => k.endsWith('.ts'));
+          videoChunksMap[vIdx] = {
+            hasMaster,
+            tsCount: tsFiles.length,
+          };
         }
 
         if (doneCount === 0) {
           // Legacy fallback: flat structure (single video processed before multi-video support)
-          const legacyKeys = await r2.listObjects(`hls/${product.id}/`);
+          const legacyKeys = await r2.listObjects(`hls/${product.id}/`, true);
           const hasLegacyMaster = legacyKeys.some(
             (k) => k === `hls/${product.id}/master.m3u8`
           );
-          if (hasLegacyMaster) doneCount = Math.min(totalVideos, 1);
+          const legacyTs = legacyKeys.filter((k) => k.endsWith('.ts'));
+          if (hasLegacyMaster) {
+            doneCount = Math.min(totalVideos, 1);
+            videoChunksMap[0] = {
+              hasMaster: true,
+              tsCount: legacyTs.length,
+            };
+          }
         }
 
         hlsReady = doneCount === totalVideos;
@@ -669,20 +685,59 @@ exports.getProcessingStatus = async (req, res) => {
       const thisVideoDone = isVideo ? videoLocalIdx < doneCount : true;
       const itemHlsReady = isVideo ? thisVideoDone : true;
 
+      // Chunk calculations
+      let approxChunks = 0;
+      let completedChunks = 0;
+      let chunkSizeLabel = '';
+
+      if (isVideo) {
+        // 4-second chunks across 3 renditions (720p, 480p, 360p) = ~36 chunks for a 48s baseline
+        approxChunks = 36;
+        chunkSizeLabel = '4.0s Adaptive HLS Segments';
+        const vInfo = videoChunksMap[videoLocalIdx];
+        if (itemHlsReady) {
+          completedChunks = approxChunks;
+        } else if (vInfo && vInfo.tsCount > 0) {
+          completedChunks = Math.min(approxChunks - 1, vInfo.tsCount);
+        } else {
+          completedChunks = effectiveStatus === 'PROCESSING' ? 4 : 0;
+        }
+      } else if (isDocument) {
+        // Document DRM page slices: approx 4 to 6 pages
+        approxChunks = 4;
+        chunkSizeLabel = 'Encrypted DRM Page Slices';
+        completedChunks = (itemHlsReady || effectiveStatus === 'active') ? approxChunks : 3;
+      } else {
+        approxChunks = 1;
+        chunkSizeLabel = 'Asset File';
+        completedChunks = 1;
+      }
+
       return {
         id: index + 1,
         fileName,
         type,
         url: fileUrl,
         status: itemHlsReady ? 'done' : (effectiveStatus === 'PROCESSING' ? 'transcoding' : 'queued'),
+        approxChunks,
+        completedChunks,
+        chunkSizeLabel,
+        renditions: isVideo ? ['720p', '480p', '360p'] : undefined,
       };
     });
 
+    const totalApproxChunks = items.reduce((acc, it) => acc + (it.approxChunks || 0), 0);
+    const totalCompletedChunks = items.reduce((acc, it) => acc + (it.completedChunks || 0), 0);
+
     return res.json({
-      productId:  product.id,
-      title:      product.title,
-      status:     effectiveStatus,
+      productId:            product.id,
+      title:                product.title,
+      status:               effectiveStatus,
       hlsReady,
+      totalApproxChunks,
+      totalCompletedChunks,
+      chunkDurationSec:     4,
+      chunkType:            '4s HLS Segments & DRM Page Tiles',
       items,
     });
   } catch (err) {

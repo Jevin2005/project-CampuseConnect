@@ -230,6 +230,33 @@ export default function PhysicalProductPage() {
         .spec-row:nth-child(even) {
           background: rgba(255, 255, 255, 0.02);
         }
+
+        @media (max-width: 768px) {
+          .pd-page { padding: 12px 14px 80px !important; }
+          .pd-grid { display: flex !important; flex-direction: column !important; gap: 20px !important; }
+          .pd-col-left, .pd-col-right { display: contents !important; }
+          .pd-order-media { order: 1 !important; }
+          .pd-order-cta { order: 2 !important; }
+          .pd-order-desc { order: 3 !important; }
+          .pd-order-specs { order: 4 !important; }
+          .pd-order-seller { order: 5 !important; }
+          .pd-panel { padding: 18px 16px !important; }
+          .pd-hero-frame { height: 260px !important; }
+          .spec-row {
+            grid-template-columns: 1fr !important;
+            gap: 4px !important;
+            padding: 10px 14px !important;
+          }
+          .pd-modal-content {
+            padding: 20px 16px !important;
+            width: 94% !important;
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .pd-hero-frame { height: 220px !important; }
+        }
       `}</style>
 
       {/* Toast Notification */}
@@ -242,7 +269,7 @@ export default function PhysicalProductPage() {
       {/* Send Request Modal */}
       {showRequest && (
         <div onClick={() => { if (!reqLoading) setShowRequest(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-          <div onClick={e => e.stopPropagation()} className="glass-panel" style={{ padding: "28px 32px", maxWidth: 460, width: "90%", animation: "modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <div onClick={e => e.stopPropagation()} className="glass-panel pd-modal-content" style={{ padding: "28px 32px", maxWidth: 460, width: "90%", animation: "modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
             {!reqSent ? (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -332,13 +359,13 @@ export default function PhysicalProductPage() {
         </div>
 
         {/* Core Layout Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="md:grid-cols-[1fr_380px] grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="pd-grid md:grid-cols-[1fr_380px] grid">
 
           {/* LEFT COLUMN: Media Showcase, Description, Technical Specifications */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          <div className="pd-col-left" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
             {/* Visual Header Panel */}
-            <div className="glass-panel" style={{ padding: "24px", position: "relative", overflow: "hidden" }}>
+            <div className="glass-panel pd-panel pd-order-media" style={{ padding: "24px", position: "relative", overflow: "hidden" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <span className={`badge ${product.isApproved ? "badge-green" : "badge-orange"}`} style={{ display: "inline-flex", gap: 6 }}>
                   {product.isApproved ? (
@@ -360,7 +387,7 @@ export default function PhysicalProductPage() {
               </div>
 
               {/* Core Hero Frame */}
-              <div style={{ borderRadius: 12, overflow: "hidden", background: "rgba(0,0,0,0.35)", height: 380, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", marginBottom: 16 }}>
+              <div className="pd-hero-frame" style={{ borderRadius: 12, overflow: "hidden", background: "rgba(0,0,0,0.35)", height: 380, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", marginBottom: 16 }}>
                 {displayedImages.length > 0 ? (
                   <img src={displayedImages[mainThumb]} alt={product.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 ) : (
@@ -389,7 +416,7 @@ export default function PhysicalProductPage() {
             </div>
 
             {/* Description & Technical specifications */}
-            <div className="glass-panel" style={{ padding: "28px" }}>
+            <div className="glass-panel pd-panel pd-order-desc" style={{ padding: "28px" }}>
               <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>About this product</h2>
               <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-soft)", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
                 {userDesc || "No manual description provided by the seller."}
@@ -405,7 +432,7 @@ export default function PhysicalProductPage() {
 
             {/* Structured Specifications Grid */}
             {specsList.length > 0 && (
-              <div className="glass-panel" style={{ padding: "28px" }}>
+              <div className="glass-panel pd-panel pd-order-specs" style={{ padding: "28px" }}>
                 <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>Structured Specifications</h3>
                 <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--border)" }}>
                   {specsList.map((spec, i) => (
@@ -420,10 +447,10 @@ export default function PhysicalProductPage() {
           </div>
 
           {/* RIGHT COLUMN: Sidebar details, Pricing, CTA request, Seller details */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="pd-col-right" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* Purchase CTA Card */}
-            <div className="glass-panel" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="glass-panel pd-panel pd-order-cta" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span className="badge badge-blue">📦 Physical Item</span>
                 {product.status === "active" ? (
@@ -496,7 +523,7 @@ export default function PhysicalProductPage() {
             </div>
 
             {/* Seller Contact Card */}
-            <div className="glass-panel" style={{ padding: "20px" }}>
+            <div className="glass-panel pd-panel pd-order-seller" style={{ padding: "20px" }}>
               <p style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Listed by Seller</p>
 
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>

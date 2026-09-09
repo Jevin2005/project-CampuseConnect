@@ -489,9 +489,72 @@ export default function AdminRegisterPage() {
           cursor: not-allowed;
         }
 
-        @media (max-width: 700px) {
-          .form-grid { grid-template-columns: 1fr; }
-          .form-group.full { grid-column: auto; }
+        @media (max-width: 768px) {
+          .page-wrap {
+            padding: 24px 16px 40px !important;
+          }
+          .page-title {
+            font-size: 24px !important;
+          }
+          .page-subtitle {
+            font-size: 13px !important;
+          }
+          .page-header {
+            margin-bottom: 24px !important;
+          }
+          .step-indicator {
+            margin-bottom: 24px !important;
+          }
+          .step-label {
+            font-size: 11px !important;
+          }
+          .step-circle {
+            width: 28px !important;
+            height: 28px !important;
+            font-size: 11px !important;
+          }
+          .step-connector {
+            margin: 0 8px !important;
+          }
+          .form-card {
+            padding: 20px 16px !important;
+            border-radius: 14px !important;
+          }
+          .card-title {
+            font-size: 18px !important;
+          }
+          .card-desc {
+            font-size: 12px !important;
+          }
+          .form-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+          .form-group.full {
+            grid-column: auto !important;
+          }
+          .form-input, .form-select {
+            height: 46px !important;
+            font-size: 14px !important;
+          }
+          .btn-primary {
+            padding: 12px 20px !important;
+            height: 48px !important;
+          }
+          /* Responsive OTP boxes that cleanly fit ANY mobile screen (even 320px) */
+          .otp-container {
+            gap: 6px !important;
+            margin: 20px 0 14px 0 !important;
+          }
+          .otp-input {
+            width: min(44px, calc((100% - 30px) / 6)) !important;
+            height: 52px !important;
+            font-size: 22px !important;
+            border-radius: 10px !important;
+          }
+          .info-card {
+            padding: 14px 16px !important;
+          }
         }
       `}</style>
 

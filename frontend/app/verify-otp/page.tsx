@@ -119,13 +119,13 @@ function OtpBox({ idx, value, focused, onChange, onKeyDown, inputRef }: {
       value={value}
       onChange={e => onChange(e.target.value.replace(/\D/g, "").slice(-1))}
       onKeyDown={onKeyDown}
+      className="otp-box-input"
       style={{
-        width: 52, height: 62,
         background: "#1a2235",
         border: focused ? "2px solid #4F8EF7" : `2px solid ${value ? "#4F8EF7aa" : "#1e2d45"}`,
         borderRadius: 10, outline: "none",
         fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 26, fontWeight: 700,
+        fontWeight: 700,
         color: "#F0F4FF", textAlign: "center",
         boxShadow: focused ? "0 0 0 3px rgba(79,142,247,0.18)" : "none",
         transition: "border-color 0.18s, box-shadow 0.18s",
@@ -263,7 +263,7 @@ function OtpContent() {
   };
 
   return (
-    <div style={{
+    <div className="otp-content-card" style={{
       display: "flex", flexDirection: "column",
       justifyContent: "center", padding: "60px 72px",
       background: "#111827", position: "relative", overflow: "hidden",
@@ -354,6 +354,7 @@ function OtpContent() {
       <form onSubmit={handleVerify}>
         {/* OTP boxes */}
         <div
+          className="otp-boxes-row"
           style={{ display: "flex", gap: 10, marginBottom: 20 }}
           onPaste={handlePaste}
         >
@@ -468,21 +469,88 @@ function OtpContent() {
 /* ═══ PAGE ════════════════════════════════════════════════════════ */
 export default function OtpPage() {
   return (
-    <div style={{
-      display: "grid", gridTemplateColumns: "1fr 1fr",
-      minHeight: "100vh", background: "#0A0E1A",
-    }}>
-      <AuthLeftPanel />
-      <Suspense fallback={
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: "#111827",
-        }}>
-          <div style={{ color: "#6B7280", fontFamily: "'DM Sans', sans-serif" }}>Loading…</div>
+    <>
+      <style>{`
+        .otp-page-container {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          min-height: 100vh;
+          background: #0A0E1A;
+        }
+        .otp-right-panel {
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+        }
+        .otp-boxes-row {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 20px;
+          width: 100%;
+        }
+        .otp-box-input {
+          width: 52px;
+          height: 62px;
+          font-size: 26px;
+        }
+
+        @media (max-width: 768px) {
+          .otp-page-container {
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 100vh !important;
+          }
+          .otp-left-panel {
+            display: none !important;
+          }
+          .otp-right-panel {
+            flex: 1 !important;
+            width: 100% !important;
+          }
+          .otp-content-card {
+            padding: 36px 18px 48px !important;
+            justify-content: flex-start !important;
+            min-height: 100vh !important;
+          }
+          .otp-boxes-row {
+            gap: 6px !important;
+            justify-content: space-between !important;
+          }
+          .otp-box-input {
+            width: min(46px, calc((100% - 30px) / 6)) !important;
+            height: 54px !important;
+            font-size: 22px !important;
+            border-radius: 8px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .otp-content-card {
+            padding: 24px 14px 40px !important;
+          }
+          .otp-box-input {
+            width: min(42px, calc((100% - 25px) / 6)) !important;
+            height: 50px !important;
+            font-size: 20px !important;
+          }
+        }
+      `}</style>
+      <div className="otp-page-container">
+        <div className="otp-left-panel">
+          <AuthLeftPanel />
         </div>
-      }>
-        <OtpContent />
-      </Suspense>
-    </div>
+        <div className="otp-right-panel">
+          <Suspense fallback={
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "#111827", flex: 1, minHeight: "100vh",
+            }}>
+              <div style={{ color: "#6B7280", fontFamily: "'DM Sans', sans-serif" }}>Loading…</div>
+            </div>
+          }>
+            <OtpContent />
+          </Suspense>
+        </div>
+      </div>
+    </>
   );
 }

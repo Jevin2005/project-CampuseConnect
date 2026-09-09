@@ -115,7 +115,7 @@ export default function PendingApprovalPage() {
       }} />
 
       {/* logo */}
-      <div style={{
+      <div className="pa-header" style={{
         width: "100%", padding: "24px 40px",
         borderBottom: "1px solid #1e2d45",
         display: "flex", alignItems: "center",
@@ -127,7 +127,7 @@ export default function PendingApprovalPage() {
       </div>
 
       {/* main content area */}
-      <div style={{
+      <div className="pa-content" style={{
         flex: 1, display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
         padding: "60px 24px",
@@ -148,7 +148,7 @@ export default function PendingApprovalPage() {
         </div>
 
         {/* heading */}
-        <h1 style={{
+        <h1 className="pa-title" style={{
           fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800,
           letterSpacing: "-1px", color: "#F0F4FF",
           marginBottom: 10, textAlign: "center",
@@ -328,7 +328,7 @@ export default function PendingApprovalPage() {
         </div>
 
         {/* action buttons */}
-        <div style={{ display: "flex", gap: 12, width: "100%", flexWrap: "wrap" }}>
+        <div className="pa-actions" style={{ display: "flex", gap: 12, width: "100%", flexWrap: "wrap" }}>
           <Link
             href="/login"
             style={{
@@ -382,6 +382,13 @@ export default function PendingApprovalPage() {
         @keyframes fade-in {
           from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
           to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @media (max-width: 640px) {
+          :global(.pa-header) { padding: 18px 16px !important; }
+          :global(.pa-content) { padding: 32px 16px 48px !important; }
+          :global(.pa-title) { font-size: 24px !important; }
+          :global(.pa-actions) { flex-direction: column !important; }
+          :global(.pa-actions a) { width: 100% !important; min-width: unset !important; }
         }
       `}</style>
     </div>

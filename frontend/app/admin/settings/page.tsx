@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
+import { getApiBaseUrl } from '@/lib/axios';
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin`;
+const API = `${typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com')}/api/admin`;
 
 interface SettingsData {
   admin: { id: string; name: string; email: string };

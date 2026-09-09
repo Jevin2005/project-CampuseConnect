@@ -5,8 +5,9 @@ import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import { Heart, Trash2, ShoppingBag, Search, Check, RefreshCw, Package, IndianRupee, HeartOff, FileText } from "lucide-react";
 import { fetchWishlist, removeFromWishlist, type WishlistItem } from "@/lib/marketplaceApi";
+import { getApiBaseUrl } from "@/lib/axios";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 
 export default function WishlistPage() {
   const [items,   setItems]   = useState<WishlistItem[]>([]);

@@ -66,13 +66,13 @@ function getOriginalFileName(url: string, fallbackTitle?: string, defaultPrefix 
 }
 
 const WATERMARK_POSITIONS: React.CSSProperties[] = [
-  { top: "18px", right: "24px" },
-  { top: "18px", left: "200px" },
-  { bottom: "75px", right: "24px" },
-  { bottom: "75px", left: "24px" },
-  { top: "40%", right: "30px" },
-  { top: "25%", left: "30px" },
-  { bottom: "35%", right: "40px" },
+  { top: "12%", right: "6%" },
+  { top: "12%", left: "6%" },
+  { bottom: "22%", right: "6%" },
+  { bottom: "22%", left: "6%" },
+  { top: "45%", right: "8%" },
+  { top: "35%", left: "8%" },
+  { bottom: "36%", right: "10%" },
 ];
 
 interface LessonItem {
@@ -203,6 +203,33 @@ function VideoViewerInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
 
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
+  const [doubleTapEffect, setDoubleTapEffect] = useState<{ type: "rewind" | "forward"; key: number } | null>(null);
+
+  const showControlsTemporarily = () => {
+    setControlsVisible(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (playing) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setControlsVisible(false);
+      }, 3500);
+    }
+  };
+
+  useEffect(() => {
+    if (playing) {
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = setTimeout(() => {
+        setControlsVisible(false);
+      }, 3500);
+    } else {
+      setControlsVisible(true);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    }
+  }, [playing]);
+
   const [focusLost, setFocusLost] = useState(false);
   const [devToolsOpen, setDevToolsOpen] = useState(false);
   const [clipboardAttacked, setClipboardAttacked] = useState(false);
@@ -272,6 +299,27 @@ function VideoViewerInner() {
   const [hlsUrlCache, setHlsUrlCache] = useState<Record<number, string>>({});
   const [hlsSupported, setHlsSupported] = useState(false);
   const [productStatus, setProductStatus] = useState<string>("");
+  const [processingChunks, setProcessingChunks] = useState<{ approx: number; completed: number } | null>(null);
+
+  useEffect(() => {
+    if (productStatus !== 'PROCESSING' || !productId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/api/student/content/product/${productId}/status`);
+        if (res.data?.totalApproxChunks) {
+          setProcessingChunks({
+            approx: res.data.totalApproxChunks,
+            completed: res.data.totalCompletedChunks || 0,
+          });
+        }
+        if (res.data?.hlsReady || res.data?.status === 'active') {
+          setProductStatus('active');
+          window.location.reload();
+        }
+      } catch (_) {}
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [productStatus, productId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -377,6 +425,10 @@ function VideoViewerInner() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        if (videoRef.current && !videoRef.current.paused) {
+          videoRef.current.pause();
+          setPlaying(false);
+        }
         setFocusLost(true);
       } else {
         setFocusLost(false);
@@ -685,6 +737,72 @@ function VideoViewerInner() {
     }
     videoRef.current.currentTime = targetTime;
     setElapsed(targetTime);
+  };
+
+  const handleTouchSeek = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    showControlsTemporarily();
+    if (expired || !videoRef.current || !duration) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickPos = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+    const targetTime = clickPos * duration;
+
+    if (isPreview && targetTime >= PREVIEW_LIMIT_SECS) {
+      setExpired(true);
+      setPlaying(false);
+      return;
+    }
+    videoRef.current.currentTime = targetTime;
+    setElapsed(targetTime);
+  };
+
+  const handleVideoTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = touch.clientX;
+    const relX = clientX - rect.left;
+    const width = rect.width;
+    const now = Date.now();
+    const timeDiff = now - lastTapRef.current.time;
+
+    if (timeDiff < 320 && Math.abs(clientX - lastTapRef.current.x) < 55) {
+      // Double tap detected!
+      if (relX < width * 0.38) {
+        // Rewind 10s
+        skipTime(-10);
+        setDoubleTapEffect({ type: "rewind", key: Date.now() });
+        setTimeout(() => setDoubleTapEffect(null), 650);
+        lastTapRef.current = { time: 0, x: 0 };
+        return;
+      } else if (relX > width * 0.62) {
+        // Forward 10s
+        skipTime(10);
+        setDoubleTapEffect({ type: "forward", key: Date.now() });
+        setTimeout(() => setDoubleTapEffect(null), 650);
+        lastTapRef.current = { time: 0, x: 0 };
+        return;
+      }
+    }
+
+    // Single tap -> toggle controls with auto-fade
+    lastTapRef.current = { time: now, x: clientX };
+    setControlsVisible(prev => {
+      const next = !prev;
+      if (next) {
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        if (playing) {
+          controlsTimeoutRef.current = setTimeout(() => {
+            setControlsVisible(false);
+          }, 3500);
+        }
+      } else {
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      }
+      return next;
+    });
   };
 
   if (authLoading || loading) {
@@ -1028,6 +1146,47 @@ function VideoViewerInner() {
           }
         }
 
+        @keyframes rippleFeedback {
+          0% { opacity: 0; transform: translateY(-50%) scale(0.65); }
+          50% { opacity: 1; transform: translateY(-50%) scale(1.05); }
+          100% { opacity: 0; transform: translateY(-50%) scale(1.25); }
+        }
+
+        .double-tap-bubble {
+          position: absolute;
+          top: 50%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          background: rgba(10, 14, 26, 0.88);
+          backdrop-filter: blur(10px);
+          border: 1.5px solid rgba(16, 185, 129, 0.5);
+          color: #fff;
+          padding: 12px 18px;
+          border-radius: 9999px;
+          pointer-events: none;
+          z-index: 40;
+          animation: rippleFeedback 0.65s ease-out forwards;
+        }
+
+        .video-control-bar {
+          transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .controls-hidden {
+          opacity: 0 !important;
+          pointer-events: none !important;
+          transform: translateY(8px) !important;
+        }
+
+        .controls-visible {
+          opacity: 1 !important;
+          pointer-events: auto !important;
+          transform: translateY(0) !important;
+        }
+
         @media (max-width: 768px) {
           .top-navbar {
             height: 48px !important;
@@ -1035,7 +1194,7 @@ function VideoViewerInner() {
           }
           .header-title-container {
             display: block !important;
-            max-width: 180px !important;
+            max-width: 140px !important;
           }
           .user-badge-text {
             display: none !important;
@@ -1050,8 +1209,23 @@ function VideoViewerInner() {
             width: 100% !important;
           }
           .video-control-bar {
-            padding: 8px 10px !important;
-            gap: 8px !important;
+            padding: 12px 12px 10px !important;
+            gap: 6px !important;
+          }
+          .video-syllabus-drawer {
+            width: 100% !important;
+            max-width: 100vw !important;
+            right: 0 !important;
+            border-left: none !important;
+          }
+          .video-syllabus-backdrop {
+            right: 0 !important;
+          }
+          .floating-watermark {
+            font-size: 10px !important;
+            max-width: 80vw !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
           }
         }
 
@@ -1071,13 +1245,13 @@ function VideoViewerInner() {
             flex-shrink: 0 !important;
           }
           .ctrl-btn {
-            padding: 8px 10px !important;
+            padding: 6px 8px !important;
             border-radius: 8px !important;
-            min-height: 36px !important;
+            min-height: 32px !important;
           }
           .play-main-btn {
-            width: 40px !important;
-            height: 40px !important;
+            width: 36px !important;
+            height: 36px !important;
           }
           .overview-card-container {
             padding: 14px !important;
@@ -1212,6 +1386,8 @@ function VideoViewerInner() {
         {/* Video Screen Container - Occupies 100% of Window Stage */}
         <div
           ref={playerContainerRef}
+          onTouchEnd={handleVideoTouchEnd}
+          onMouseMove={showControlsTemporarily}
           style={{
             width: "100%",
             height: "100%",
@@ -1221,16 +1397,85 @@ function VideoViewerInner() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            touchAction: "manipulation",
           }}
+          onContextMenu={e => e.preventDefault()}
         >
           {productStatus === 'PROCESSING' ? (
-            <div style={{ textAlign: "center", padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-              <div style={{ width: 52, height: 52, border: "3px solid rgba(16,185,129,0.15)", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-              <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 15, color: "#10B981", fontWeight: 700 }}>Transcoding Video to 4-Second HLS Chunks...</div>
-              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", maxWidth: 380, lineHeight: 1.5 }}>
-                FFmpeg is generating adaptive streaming segments. This takes ~30-60 seconds.
+            <div style={{
+              textAlign: "center", padding: "32px 24px", maxWidth: 520, width: "90%",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+              background: "rgba(10, 14, 26, 0.88)", border: "1.5px solid rgba(59, 130, 246, 0.35)",
+              borderRadius: 16, backdropFilter: "blur(14px)", boxShadow: "0 10px 40px rgba(0,0,0,0.6)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#3B82F6", boxShadow: "0 0 12px #3B82F6", animation: "spin 1s linear infinite" }} />
+                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 11, fontWeight: 700, color: "#60A5FA", letterSpacing: 1, textTransform: "uppercase" }}>
+                  Active HLS Stream Chunking
+                </span>
               </div>
-              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+              <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 800, color: "#F9FAFB", margin: 0 }}>
+                Transcoding Video to 4-Second HLS Chunks
+              </h3>
+
+              {/* Chunk progress counter badge */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(59, 130, 246, 0.12)", border: "1px solid rgba(59, 130, 246, 0.3)", padding: "6px 16px", borderRadius: 9999 }}>
+                <Layers size={14} style={{ color: "#60A5FA" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: "#93C5FD" }}>
+                  {processingChunks ? `${processingChunks.completed} / ~${processingChunks.approx} Chunks Ready` : "Compiling ~36 Chunks (Est.)"}
+                </span>
+              </div>
+
+              {/* Visual Segment Mini-Matrix */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(12, 1fr)",
+                gap: 5,
+                width: "100%",
+                padding: "8px 0"
+              }}>
+                {Array.from({ length: 24 }).map((_, i) => {
+                  const comp = processingChunks ? processingChunks.completed : Math.min(23, Math.max(2, Math.floor(elapsed / 2)));
+                  const isDoneChunk = i < comp;
+                  const isCur = i === comp;
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        height: 18,
+                        borderRadius: 4,
+                        background: isDoneChunk
+                          ? "rgba(16, 185, 129, 0.4)"
+                          : isCur
+                          ? "rgba(59, 130, 246, 0.8)"
+                          : "rgba(255, 255, 255, 0.05)",
+                        border: `1px solid ${isDoneChunk ? "#10B981" : isCur ? "#60A5FA" : "rgba(255,255,255,0.1)"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 8,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        color: isDoneChunk ? "#34D399" : isCur ? "#fff" : "#6B7280"
+                      }}
+                    >
+                      {isDoneChunk ? "✓" : isCur ? "⏳" : `${i + 1}`}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#9CA3AF", margin: 0, lineHeight: 1.6 }}>
+                FFmpeg is generating 720p, 480p, and 360p adaptive stream chunks. Player will launch automatically once stream manifest is written.
+              </p>
+
+              <Link href={`/marketplace/video-processing?id=${productId}`} style={{ textDecoration: "none" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  Open Detailed Chunking Operations Studio ↗
+                </span>
+              </Link>
             </div>
           ) : hlsLoading && !activeVideoUrl ? (
             <div style={{ textAlign: "center", padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
@@ -1252,10 +1497,28 @@ function VideoViewerInner() {
                 onPlaying={() => { setIsBuffering(false); updateBufferProgress(); }}
                 onProgress={updateBufferProgress}
                 onEnded={() => setPlaying(false)}
-                onClick={() => setPlaying(p => !p)}
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth > 768) {
+                    setPlaying(p => !p);
+                  }
+                }}
                 playsInline
                 style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", cursor: "pointer" }}
               />
+
+              {/* Double-tap seek visual feedback bubbles */}
+              {doubleTapEffect?.type === "rewind" && (
+                <div className="double-tap-bubble" style={{ left: "15%" }}>
+                  <RotateCcw size={22} style={{ color: "#10B981" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: "#10B981" }}>-10s</span>
+                </div>
+              )}
+              {doubleTapEffect?.type === "forward" && (
+                <div className="double-tap-bubble" style={{ right: "15%" }}>
+                  <RotateCw size={22} style={{ color: "#10B981" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: "#10B981" }}>+10s</span>
+                </div>
+              )}
 
               {/* Simple Centered Video Spinner Loader */}
               {isBuffering && !expired && (
@@ -1295,22 +1558,26 @@ function VideoViewerInner() {
             </div>
           )}
 
-          {/* Floating Watermark */}
+          {/* Floating Watermark with Responsive Boundaries */}
           {!expired && (
-            <div style={{
-              position: "absolute",
-              ...WATERMARK_POSITIONS[wmIndex],
-              pointerEvents: "none",
-              userSelect: "none",
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: 12,
-              fontWeight: 500,
-              color: "rgba(255, 255, 255, 0.25)",
-              zIndex: 22,
-              transition: "all 1s ease-in-out",
-              whiteSpace: "nowrap",
-              letterSpacing: "0.4px"
-            }}>
+            <div
+              className="floating-watermark"
+              style={{
+                position: "absolute",
+                ...WATERMARK_POSITIONS[wmIndex],
+                pointerEvents: "none",
+                userSelect: "none",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 12,
+                fontWeight: 500,
+                color: "rgba(255, 255, 255, 0.22)",
+                zIndex: 22,
+                transition: "all 1s ease-in-out",
+                whiteSpace: "nowrap",
+                letterSpacing: "0.4px",
+                textShadow: "0 1px 4px rgba(0,0,0,0.8)"
+              }}
+            >
               {watermarkEmail}
             </div>
           )}
@@ -1333,35 +1600,52 @@ function VideoViewerInner() {
           {expired && <VideoPaywall price={product?.price || 0} productId={productId} />}
 
           {!expired && (
-            <div style={{
-              position: "absolute", bottom: 0, left: 0, right: 0,
-              background: "linear-gradient(to top, rgba(5,8,19,0.96) 0%, rgba(5,8,19,0.6) 70%, transparent 100%)",
-              padding: "20px 22px 14px",
-              display: "flex", flexDirection: "column", gap: 12,
-              zIndex: 30
-            }}>
+            <div
+              className={`video-control-bar ${controlsVisible ? "controls-visible" : "controls-hidden"}`}
+              style={{
+                position: "absolute", bottom: 0, left: 0, right: 0,
+                background: "linear-gradient(to top, rgba(5,8,19,0.96) 0%, rgba(5,8,19,0.6) 70%, transparent 100%)",
+                padding: "20px 22px 14px",
+                display: "flex", flexDirection: "column", gap: 10,
+                zIndex: 30
+              }}
+            >
+              {/* Touch-Optimized Seek Bar */}
               <div
                 onClick={handleSeek}
+                onTouchStart={handleTouchSeek}
+                onTouchMove={handleTouchSeek}
                 style={{
-                  width: "100%", height: 6, background: "rgba(255,255,255,0.18)",
-                  borderRadius: 9999, cursor: "pointer", position: "relative",
-                  transition: "height 0.2s"
+                  width: "100%",
+                  padding: "8px 0",
+                  cursor: "pointer",
+                  touchAction: "none",
+                  position: "relative",
                 }}
-                onMouseOver={e => e.currentTarget.style.height = "8px"}
-                onMouseOut={e => e.currentTarget.style.height = "6px"}
               >
-                <div style={{
-                  height: "100%", width: `${progressPercent}%`,
-                  background: isPreview ? "linear-gradient(90deg, #F59E0B, #FBBF24)" : "linear-gradient(90deg, #10B981, #34D399)",
-                  borderRadius: 9999, transition: "width 0.1s linear",
-                  boxShadow: "0 0 10px rgba(16,185,129,0.5)"
-                }} />
+                <div
+                  style={{
+                    width: "100%", height: 6, background: "rgba(255,255,255,0.18)",
+                    borderRadius: 9999, position: "relative",
+                    transition: "height 0.2s"
+                  }}
+                  onMouseOver={e => e.currentTarget.style.height = "8px"}
+                  onMouseOut={e => e.currentTarget.style.height = "6px"}
+                >
+                  <div style={{
+                    height: "100%", width: `${progressPercent}%`,
+                    background: isPreview ? "linear-gradient(90deg, #F59E0B, #FBBF24)" : "linear-gradient(90deg, #10B981, #34D399)",
+                    borderRadius: 9999, transition: "width 0.1s linear",
+                    boxShadow: "0 0 10px rgba(16,185,129,0.5)"
+                  }} />
+                </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <button className="play-main-btn" onClick={() => setPlaying(p => !p)} title={playing ? "Pause (Space)" : "Play (Space)"}>
-                    {playing ? <Pause size={20} style={{ color: "#fff" }} /> : <Play size={20} style={{ color: "#fff", marginLeft: 2 }} />}
+              {/* Bottom Buttons Row */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <button className="play-main-btn" onClick={() => setPlaying(p => !p)} title={playing ? "Pause (Space)" : "Play (Space)"} style={{ flexShrink: 0 }}>
+                    {playing ? <Pause size={18} style={{ color: "#fff" }} /> : <Play size={18} style={{ color: "#fff", marginLeft: 2 }} />}
                   </button>
 
                   <button className="ctrl-btn hide-on-mobile" onClick={() => skipTime(-10)} title="Rewind 10s (Left Arrow)">
@@ -1387,15 +1671,15 @@ function VideoViewerInner() {
                     />
                   </div>
 
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "#9CA3AF", marginLeft: 4 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>
                     {formatTime(elapsed)} / {formatTime(totalSecs)}
                   </span>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   {hlsLevels.length > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 8, padding: "3px 10px" }}>
-                      <Sparkles size={12} style={{ color: "#10B981" }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 8, padding: "3px 8px" }}>
+                      <Sparkles size={11} style={{ color: "#10B981" }} />
                       <select
                         value={selectedLevel}
                         onChange={e => handleQualityChange(Number(e.target.value))}
@@ -1410,23 +1694,23 @@ function VideoViewerInner() {
                     </div>
                   )}
 
-                  <div className="hide-on-mobile" style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "3px 10px" }}>
-                    <Settings size={13} style={{ color: "#9CA3AF" }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "3px 8px" }}>
+                    <Settings size={12} style={{ color: "#9CA3AF" }} />
                     <select
                       value={speed}
                       onChange={e => setSpeed(Number(e.target.value))}
                       style={{ background: "transparent", border: "none", color: "#F0F4FF", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none", fontFamily: "'DM Sans', sans-serif" }}
                     >
                       <option value={0.75} style={{ background: "#0D111E" }}>0.75x</option>
-                      <option value={1.0} style={{ background: "#0D111E" }}>1.0x (Normal)</option>
+                      <option value={1.0} style={{ background: "#0D111E" }}>1.0x</option>
                       <option value={1.25} style={{ background: "#0D111E" }}>1.25x</option>
                       <option value={1.5} style={{ background: "#0D111E" }}>1.5x</option>
                       <option value={2.0} style={{ background: "#0D111E" }}>2.0x</option>
                     </select>
                   </div>
 
-                  <button className="ctrl-btn" onClick={toggleFullscreen} title="Toggle Fullscreen (F)">
-                    <Maximize2 size={18} />
+                  <button className="ctrl-btn" onClick={toggleFullscreen} title="Toggle Fullscreen (F)" style={{ padding: "6px 8px" }}>
+                    <Maximize2 size={16} />
                   </button>
                 </div>
               </div>
@@ -1438,30 +1722,34 @@ function VideoViewerInner() {
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
+            className="video-syllabus-backdrop"
             style={{
               position: "fixed", top: 48, left: 0, right: 380, bottom: 0,
-              zIndex: 85, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)"
+              zIndex: 85, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)"
             }}
           />
         )}
 
         {/* Slide-over Syllabus Drawer */}
-        <div style={{
-          position: "fixed",
-          top: 48,
-          right: 0,
-          bottom: 0,
-          width: 380,
-          zIndex: 90,
-          background: "rgba(8, 12, 22, 0.96)",
-          backdropFilter: "blur(20px)",
-          borderLeft: "1px solid rgba(255,255,255,0.1)",
-          boxShadow: "-12px 0 40px rgba(0,0,0,0.85)",
-          display: "flex",
-          flexDirection: "column",
-          transform: sidebarOpen ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)"
-        }}>
+        <div
+          className="video-syllabus-drawer"
+          style={{
+            position: "fixed",
+            top: 48,
+            right: 0,
+            bottom: 0,
+            width: 380,
+            zIndex: 90,
+            background: "rgba(8, 12, 22, 0.98)",
+            backdropFilter: "blur(20px)",
+            borderLeft: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "-12px 0 40px rgba(0,0,0,0.85)",
+            display: "flex",
+            flexDirection: "column",
+            transform: sidebarOpen ? "translateX(0)" : "translateX(100%)",
+            transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)"
+          }}
+        >
           <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, color: "#F0F4FF", margin: "0 0 4px" }}>

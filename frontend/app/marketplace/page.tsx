@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
-import api from "@/lib/axios";
+import api, { getApiBaseUrl } from "@/lib/axios";
 import { AdCard, AdBannerHorizontal, AdStrip, AdRenderer, type AdData } from "@/components/AdBanner";
 import { fetchLiveAds } from "@/lib/adsData";
 import { Search, SlidersHorizontal, TrendingUp, Zap, X, Heart, Eye, ChevronLeft, ChevronRight, Play, FileText, Sparkles, Layers, Plus, MessageSquare, ShoppingBag } from "lucide-react";
@@ -19,7 +19,7 @@ const CATEGORIES: { key: Category; icon: string; color: string; glow: string }[]
   { key: "Ads", icon: "📢", color: "#F7C948", glow: "rgba(247,201,72,0.2)" },
 ];
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 
 function mediaUrl(p: string) { return p?.startsWith("http") ? p : `${API}${p}`; }
 function isVideo(p: string) { return /\.(mp4|webm|ogg|mov|mkv|avi)$/i.test((p || "").split("?")[0].toLowerCase()); }
@@ -858,6 +858,55 @@ export default function MarketplacePage() {
           .mkt-sell-banner-desc {
             font-size: 12px !important;
           }
+
+          /* Search & Filter Row Alignment */
+          .mkt-search-filter-row {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 10px !important;
+          }
+          .mkt-search-input-wrap {
+            flex: 0 0 100% !important;
+            width: 100% !important;
+            min-width: 100% !important;
+          }
+          .mkt-sort-select {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            height: 42px !important;
+            font-size: 13px !important;
+            padding: 0 10px !important;
+          }
+          .mkt-filter-btn {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            height: 42px !important;
+            font-size: 13px !important;
+            padding: 0 12px !important;
+            justify-content: center !important;
+          }
+
+          .mkt-filter-panel {
+            padding: 16px !important;
+          }
+          .mkt-filter-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+
+          .mkt-pagination-row {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            padding-bottom: 12px !important;
+          }
+          .mkt-pagination-row button {
+            height: 34px !important;
+            padding: 0 10px !important;
+            font-size: 12px !important;
+          }
         }
       `}</style>
 
@@ -927,8 +976,8 @@ export default function MarketplacePage() {
         </div>
 
         {/* Search + Sort Row */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
+        <div className="mkt-search-filter-row" style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
+          <div className="mkt-search-input-wrap" style={{ flex: 1, minWidth: 200, position: "relative" }}>
             <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#6B7280", pointerEvents: "none" }} />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
@@ -939,12 +988,14 @@ export default function MarketplacePage() {
             />
           </div>
           <select
+            className="mkt-sort-select"
             value={sort} onChange={e => setSort(e.target.value)}
             style={{ height: 44, padding: "0 16px", background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 12, color: "#9CA3AF", fontFamily: "'DM Sans',sans-serif", fontSize: 13, outline: "none", cursor: "pointer" }}
           >
             {["Newest", "Price: Low to High", "Price: High to Low", "Most Popular"].map(o => <option key={o}>{o}</option>)}
           </select>
           <button
+            className="mkt-filter-btn"
             onClick={() => setFilterOpen(o => !o)}
             style={{ height: 44, padding: "0 18px", background: filterOpen ? "rgba(79,142,247,0.1)" : "#111827", border: `1.5px solid ${filterOpen ? "#4F8EF7" : "#1e2d45"}`, borderRadius: 12, color: filterOpen ? "#4F8EF7" : "#9CA3AF", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 13, position: "relative", transition: "all 0.2s" }}
           >
@@ -955,12 +1006,12 @@ export default function MarketplacePage() {
 
         {/* ── Filter Panel ── */}
         {filterOpen && (
-          <div style={{ background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 16, padding: "20px 24px", marginBottom: 22 }}>
+          <div className="mkt-filter-panel" style={{ background: "#111827", border: "1.5px solid #1e2d45", borderRadius: 16, padding: "20px 24px", marginBottom: 22 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
               <p style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, color: "#F0F4FF" }}>🎛 Filters</p>
               <button onClick={clearFilters} style={{ background: "transparent", border: "none", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#EF4444", cursor: "pointer" }}>Clear All</button>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+            <div className="mkt-filter-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
               <div>
                 <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "1px", color: "#6B7280", textTransform: "uppercase", marginBottom: 10 }}>Price Range (₹)</p>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1239,7 +1290,7 @@ export default function MarketplacePage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, paddingBottom: 8 }}>
+              <div className="mkt-pagination-row" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, paddingBottom: 8 }}>
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safeP <= 1} style={{ height: 36, padding: "0 14px", borderRadius: 8, background: "transparent", border: `1.5px solid ${safeP <= 1 ? "#1e2d45" : "#2a3a5a"}`, fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: safeP <= 1 ? "#374151" : "#6B7280", cursor: safeP <= 1 ? "not-allowed" : "pointer" }}>← Prev</button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
                   <button key={n} onClick={() => setPage(n)} style={{ height: 36, padding: "0 14px", borderRadius: 8, background: n === safeP ? "#4F8EF7" : "transparent", border: `1.5px solid ${n === safeP ? "#4F8EF7" : "#1e2d45"}`, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: n === safeP ? 700 : 500, color: n === safeP ? "#fff" : "#6B7280", cursor: "pointer" }}>{n}</button>

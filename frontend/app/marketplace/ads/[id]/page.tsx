@@ -8,8 +8,9 @@ import {
   ArrowLeft, Megaphone, Building2, User, Clock, Eye, 
   MousePointer, Mail, ExternalLink, Calendar, AlertCircle, Loader2, X
 } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/axios";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 
 interface LiveAd {
   id: string;

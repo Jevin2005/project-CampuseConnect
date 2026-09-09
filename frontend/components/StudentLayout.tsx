@@ -124,7 +124,7 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
       try {
         const res = await api.get("/api/marketplace/notifications");
         const data = res.data || [];
-        setNotifications(data);
+        setNotifications(data.map((n: any) => ({ ...n, read: true })));
         const count = data.filter((n: any) => !n.read).length;
         if (count > 0) {
           await api.patch("/api/marketplace/notifications/read");
@@ -185,6 +185,21 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
   const isRequestsActive = pathname.startsWith("/marketplace/requests");
   const isSellActive = pathname.startsWith("/marketplace/sell");
   const isInboxActive = pathname.startsWith("/marketplace/inbox");
+
+  // Request notifications specifically (NEW_REQUEST, REQUEST_ACCEPTED, REQUEST_REJECTED)
+  // Dot only shows when user is NOT on the requests page AND an unread request notification exists
+  const hasRequestAlert = !isRequestsActive && notifications.some(
+    (n: any) => !n.read && n.type?.toUpperCase().includes("REQUEST")
+  );
+
+  // Automatically clear request alert and mark notifications as read when visiting requests page
+  useEffect(() => {
+    if (pathname.startsWith("/marketplace/requests")) {
+      api.patch("/api/marketplace/notifications/read").catch(() => {});
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    }
+  }, [pathname]);
 
   // Safe checks for URL params on client-side
   const query = typeof window !== "undefined" ? window.location.search : "";
@@ -390,8 +405,9 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                 padding: "6px 12px 5px",
               }}>{group.group}</p>
               {group.items.map(item => {
-                const itemBadge = item.href === "/marketplace/requests" && unreadCount > 0
-                  ? <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4F8EF7" }} />
+                const isReqItem = item.href === "/marketplace/requests";
+                const itemBadge = isReqItem && hasRequestAlert
+                  ? <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "#EF4444", boxShadow: "0 0 6px rgba(239, 68, 68, 0.7)" }} />
                   : item.badge;
                 return (
                   <NavItem
@@ -528,16 +544,29 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
             </div>
           </Link>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => setMobileSearchOpen(v => !v)}
             style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
+            aria-label="Search"
           >
             <Search size={20} />
           </button>
+          <Link href="/marketplace/requests" style={{ textDecoration: "none", color: "#9CA3AF", position: "relative", display: "flex", alignItems: "center", padding: 4 }} aria-label="Requests">
+            <Bell size={20} style={{ color: isRequestsActive ? "#4F8EF7" : "#9CA3AF" }} />
+            {hasRequestAlert && (
+              <span style={{
+                position: "absolute", top: 2, right: 2,
+                width: 7, height: 7, borderRadius: "50%",
+                background: "#EF4444",
+                boxShadow: "0 0 6px rgba(239, 68, 68, 0.7)"
+              }} />
+            )}
+          </Link>
           <button
             onClick={() => setDrawerOpen(true)}
             style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
+            aria-label="Menu"
           >
             <Menu size={20} />
           </button>
@@ -648,8 +677,9 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     {group.items.map(item => {
                       const active = isActive(item.href);
-                      const itemBadge = item.href === "/marketplace/requests" && unreadCount > 0
-                        ? <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4F8EF7" }} />
+                      const isReqItem = item.href === "/marketplace/requests";
+                      const itemBadge = isReqItem && hasRequestAlert
+                        ? <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "#EF4444", boxShadow: "0 0 6px rgba(239, 68, 68, 0.7)" }} />
                         : item.badge;
                       return (
                         <Link key={item.href} href={item.href} onClick={() => setDrawerOpen(false)} style={{ textDecoration: "none" }}>
@@ -714,11 +744,12 @@ export function StudentLayout({ children, showFooter = false }: { children: Reac
         <Link href="/marketplace/requests" className={`sl-bnav-item${isRequestsActive ? " active" : ""}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none", flex: 1, position: "relative" }}>
           <Bell size={19} style={{ color: isRequestsActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }} />
           <span style={{ fontSize: 10, fontWeight: isRequestsActive ? 700 : 500, color: isRequestsActive ? "#4F8EF7" : "#6B7280", transition: "color 0.2s" }}>Requests</span>
-          {unreadCount > 0 && (
+          {hasRequestAlert && (
             <span style={{
               position: "absolute", top: 0, right: "24%",
               width: 6, height: 6, borderRadius: "50%",
-              background: "#EF4444"
+              background: "#EF4444",
+              boxShadow: "0 0 6px rgba(239, 68, 68, 0.7)"
             }} />
           )}
         </Link>

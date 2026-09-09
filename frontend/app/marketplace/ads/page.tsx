@@ -4,8 +4,9 @@ import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
 import { Megaphone, Globe, Building2, Search, RefreshCw, ExternalLink, Clock, Eye, MousePointer, AlertCircle } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/axios";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 interface LiveAd {
@@ -238,6 +239,7 @@ function AdBannerWide({ ad }: { ad: LiveAd }) {
 
   return (
     <div
+      className="strip-ad-card"
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
@@ -254,9 +256,9 @@ function AdBannerWide({ ad }: { ad: LiveAd }) {
     >
       {/* Left image strip */}
       {imgSrc && (
-        <Link href={`/marketplace/ads/${ad.id}`} onClick={() => trackClick(ad.id)} style={{ width: 220, flexShrink: 0, height: "100%", display: "block", overflow: "hidden", position: "relative" }}>
+        <Link href={`/marketplace/ads/${ad.id}`} onClick={() => trackClick(ad.id)} className="strip-ad-img" style={{ width: 220, flexShrink: 0, height: "100%", display: "block", overflow: "hidden", position: "relative" }}>
           <img src={imgSrc} alt={ad.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => (e.currentTarget.style.display = "none")} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 60%, #111827)" }} />
+          <div className="strip-ad-overlay" style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 60%, #111827)" }} />
         </Link>
       )}
       {/* If no image, a colored bar */}
@@ -268,7 +270,7 @@ function AdBannerWide({ ad }: { ad: LiveAd }) {
       )}
 
       {/* Content */}
-      <div style={{ flex: 1, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+      <div className="strip-ad-body" style={{ flex: 1, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <span style={{
@@ -294,7 +296,7 @@ function AdBannerWide({ ad }: { ad: LiveAd }) {
           </p>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+        <div className="strip-ad-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 12 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#6B7280" }}>
               <Eye size={10} style={{ color: "#4F8EF7" }} /> {ad.views.toLocaleString("en-IN")}
@@ -414,12 +416,75 @@ export default function AdsPage() {
         .ad-tab { transition: all 0.2s; }
         .ad-tab:hover { opacity: 0.9; }
         .spin { animation: spin 0.7s linear infinite; }
+
+        @media (max-width: 768px) {
+          .ads-pg { padding: 16px 14px 80px !important; }
+          .ads-hero { padding: 18px 16px !important; margin-bottom: 18px !important; }
+          .ads-hero h1 { font-size: 22px !important; }
+          .ads-stats-row { width: 100% !important; justify-content: space-between !important; gap: 12px !important; }
+          .strip-ad-card {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            min-height: auto !important;
+          }
+          .strip-ad-img {
+            width: 100% !important;
+            height: 160px !important;
+          }
+          .strip-ad-overlay {
+            background: linear-gradient(180deg, transparent 50%, #111827) !important;
+          }
+          .strip-ad-body {
+            padding: 14px 16px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+          }
+          .strip-ad-actions {
+            width: 100% !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+          }
+          .strip-ad-actions button { width: auto !important; }
+          .ads-controls-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .ad-tabs-container {
+            display: flex !important;
+            gap: 8px !important;
+            overflow-x: auto !important;
+            padding-bottom: 4px !important;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .ad-tabs-container::-webkit-scrollbar { display: none; }
+          .ad-tab { white-space: nowrap !important; flex-shrink: 0 !important; }
+        }
+        @media (max-width: 480px) {
+          .ads-stats-row {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 8px !important;
+          }
+          .strip-ad-actions {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .strip-ad-actions button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+        }
       ` }} />
 
       <div className="ads-pg" style={{ padding: "28px 32px", maxWidth: 1320, margin: "0 auto" }}>
 
         {/* Hero */}
-        <div style={{
+        <div className="ads-hero" style={{
           background: "linear-gradient(135deg,#0d1829 0%,#111827 50%,#1a1000 100%)",
           border: "1px solid rgba(247,201,72,0.2)",
           borderRadius: 20, padding: "28px 32px",
@@ -450,7 +515,7 @@ export default function AdsPage() {
             </div>
 
             {/* Quick stats */}
-            <div style={{ display: "flex", gap: 24 }}>
+            <div className="ads-stats-row" style={{ display: "flex", gap: 24 }}>
               {[
                 { label: "Your College", value: totalOwn, color: "#10B981", icon: "🏫" },
                 { label: "Cross-College", value: totalCross, color: "#F7C948", icon: "🌐" },
@@ -476,8 +541,9 @@ export default function AdsPage() {
         </div>
 
         {/* Controls row */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
+        <div className="ads-controls-row" style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
           {/* Tabs */}
+          <div className="ad-tabs-container" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {(["All", "Your College", "Cross-College"] as FilterTab[]).map(t => (
             <button
               key={t}
@@ -506,6 +572,7 @@ export default function AdsPage() {
               </span>
             </button>
           ))}
+          </div>
 
           {/* Search */}
           <div style={{ flex: 1, minWidth: 200, position: "relative" }}>

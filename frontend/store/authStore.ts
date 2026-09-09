@@ -15,8 +15,11 @@ export interface AuthUser {
   id: string;
   email: string;
   name?: string;
+  phone?: string;
+  enrollmentId?: string;
   collegeId?: string;
   collegeName?: string;
+  collegeCode?: string;
 }
 
 interface AuthState {
@@ -33,6 +36,7 @@ interface AuthState {
   instantMessage: string | null;
 
   setAuth: (token: string, user: AuthUser, role: Role, collegeId?: string) => void;
+  updateUser: (fields: Partial<AuthUser>) => void;
   clearAuth: () => void;
   setLoading: (v: boolean) => void;
   setPendingEmail: (email: string, masked: string, devOtp?: string, instantMessage?: string) => void;
@@ -56,6 +60,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       document.cookie = `accessToken=${token}; path=/; max-age=2592000; SameSite=Lax; Secure`;
     }
     set({ accessToken: token, user, role, collegeId: collegeId ?? null, isLoading: false });
+  },
+
+  updateUser: (fields) => {
+    set((state) => ({
+      user: state.user ? { ...state.user, ...fields } : null,
+    }));
   },
 
   clearAuth: () => {

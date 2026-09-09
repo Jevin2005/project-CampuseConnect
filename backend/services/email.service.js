@@ -1,32 +1,81 @@
 /**
  * Email Service
  * Uses Nodemailer to send OTP and notification emails.
+ * Includes dual-port fallback (465 SSL <-> 587 STARTTLS) and whitespace sanitization
+ * for rock-solid deliverability on cloud deployment (Render, AWS, etc.).
  */
 
 const nodemailer = require('nodemailer');
 
-const emailPort = parseInt(process.env.EMAIL_PORT || '587');
-const isSecurePort = emailPort === 465;
+const cleanPass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+const envPort   = parseInt(process.env.EMAIL_PORT || '465', 10);
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: emailPort,
-  secure: isSecurePort,
-  pool: true,
-  maxConnections: 3,
-  maxMessages: 100,
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
+// Primary Transporter: Direct SSL (Port 465 default for cloud) or user configured port
+const primaryTransporter = nodemailer.createTransport({
+  host: emailHost,
+  port: envPort,
+  secure: envPort === 465,
   family: 4, // Force IPv4 to prevent IPv6 ENETUNREACH on Render
+  connectionTimeout: 8000,
+  greetingTimeout: 8000,
+  socketTimeout: 12000,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    pass: cleanPass,
   },
   tls: {
     rejectUnauthorized: false,
   },
 });
+
+// Fallback Transporter: Alternative port (if primary is 465, fallback is 587; vice versa)
+const fallbackPort = envPort === 465 ? 587 : 465;
+const fallbackTransporter = nodemailer.createTransport({
+  host: emailHost,
+  port: fallbackPort,
+  secure: fallbackPort === 465,
+  family: 4,
+  connectionTimeout: 8000,
+  greetingTimeout: 8000,
+  socketTimeout: 12000,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: cleanPass,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
+
+/**
+ * Dispatches mail with automatic dual-port fallback
+ */
+async function dispatchMail(mailOptions) {
+  if (!process.env.EMAIL_USER || !cleanPass) {
+    console.warn(`[Email] ⚠️ EMAIL credentials missing (EMAIL_USER or EMAIL_PASS). Skipping email dispatch to ${mailOptions.to}.`);
+    return { success: false, reason: 'MISSING_CREDENTIALS' };
+  }
+
+  const fromAddress = `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
+  const payload = { ...mailOptions, from: mailOptions.from || fromAddress };
+
+  try {
+    await primaryTransporter.sendMail(payload);
+    console.log(`[Email] ✅ Email sent to ${mailOptions.to} via port ${envPort}`);
+    return { success: true };
+  } catch (err) {
+    console.warn(`[Email] Primary attempt on port ${envPort} failed (${err.message}). Trying fallback port ${fallbackPort}...`);
+    try {
+      await fallbackTransporter.sendMail(payload);
+      console.log(`[Email] ✅ Email sent to ${mailOptions.to} via fallback port ${fallbackPort}`);
+      return { success: true };
+    } catch (fallbackErr) {
+      console.error(`[Email] ❌ Failed to send email to ${mailOptions.to}:`, fallbackErr.message);
+      return { success: false, error: fallbackErr.message };
+    }
+  }
+}
 
 /**
  * Send email verification OTP during registration
@@ -72,22 +121,11 @@ async function sendRegisterVerificationEmail(to, name, otp) {
     </html>
   `;
 
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn(`[Email] ⚠️ EMAIL credentials missing. Skipping email dispatch to ${to}. OTP: ${otp}`);
-    return;
-  }
-
-  try {
-    await transporter.sendMail({
-      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to,
-      subject: `${otp} is your CampusConnect Verification Code`,
-      html,
-    });
-    console.log(`[Email] ✅ Registration verification OTP sent to ${to}`);
-  } catch (err) {
-    console.error('[Email] Failed to send registration verification:', err.message);
-  }
+  return dispatchMail({
+    to,
+    subject: `${otp} is your CampusConnect Verification Code`,
+    html,
+  });
 }
 
 /**
@@ -133,23 +171,11 @@ async function sendOtpEmail(to, otp) {
     </html>
   `;
 
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn(`[Email] ⚠️ EMAIL credentials missing. Skipping OTP dispatch to ${to}. OTP: ${otp}`);
-    return;
-  }
-
-  try {
-    await transporter.sendMail({
-      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to,
-      subject: `${otp} is your CampusConnect OTP`,
-      html,
-    });
-    console.log(`[Email] ✅ Login OTP sent to ${to}`);
-  } catch (err) {
-    console.error('[Email] Failed to send OTP:', err.message);
-    // Don't throw — in dev we just log; won't block the flow
-  }
+  return dispatchMail({
+    to,
+    subject: `${otp} is your CampusConnect OTP`,
+    html,
+  });
 }
 
 /**
@@ -168,7 +194,7 @@ async function sendApprovalEmail(to, adminName, collegeName) {
           Your college <strong style="color:#10B981;">${collegeName}</strong> has been approved on CampusConnect. 
           You can now log in to your admin dashboard and start managing your college marketplace.
         </p>
-        <a href="${process.env.FRONTEND_URL}/admin/login" 
+        <a href="${process.env.FRONTEND_URL || 'https://project-campuse-connect.vercel.app'}/admin/login" 
            style="display:inline-block;margin-top:24px;background:#10B981;color:#003824;padding:12px 24px;border-radius:9999px;text-decoration:none;font-weight:700;font-size:14px;">
           Go to Admin Login →
         </a>
@@ -176,81 +202,68 @@ async function sendApprovalEmail(to, adminName, collegeName) {
     </div>
   `;
 
-  try {
-    await transporter.sendMail({
-      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to,
-      subject: `✅ Your college "${collegeName}" has been approved`,
-      html,
-    });
-  } catch (err) {
-    console.error('[Email] Failed to send approval email:', err.message);
-  }
+  return dispatchMail({
+    to,
+    subject: `✅ Your college "${collegeName}" has been approved`,
+    html,
+  });
 }
 
 /**
  * Notify master admin of new college registration request
  */
 async function notifyMasterAdminRegistration(collegeName, adminName, adminEmail) {
-  try {
-    await transporter.sendMail({
-      from: `"CampusConnect System" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to: process.env.MASTER_EMAIL,
-      subject: `New College Registration: ${collegeName}`,
-      html: `
-        <div style="font-family:sans-serif;padding:24px;background:#111827;color:#F0F4FF;border-radius:12px;">
-          <h2>New Registration Request</h2>
-          <p><strong>College:</strong> ${collegeName}</p>
-          <p><strong>Admin:</strong> ${adminName} (${adminEmail})</p>
-          <a href="${process.env.FRONTEND_URL}/master/requests" style="background:#F7C948;color:#0A0E1A;padding:10px 20px;border-radius:9999px;text-decoration:none;font-weight:700;">
-            Review in Master Panel →
-          </a>
-        </div>
-      `,
-    });
-  } catch (err) {
-    console.error('[Email] Failed to notify master admin:', err.message);
-  }
+  return dispatchMail({
+    to: process.env.MASTER_EMAIL || 'admin@campusconnect.in',
+    subject: `New College Registration: ${collegeName}`,
+    html: `
+      <div style="font-family:sans-serif;padding:24px;background:#111827;color:#F0F4FF;border-radius:12px;">
+        <h2>New Registration Request</h2>
+        <p><strong>College:</strong> ${collegeName}</p>
+        <p><strong>Admin:</strong> ${adminName} (${adminEmail})</p>
+        <a href="${process.env.FRONTEND_URL || 'https://project-campuse-connect.vercel.app'}/master/requests" style="background:#F7C948;color:#0A0E1A;padding:10px 20px;border-radius:9999px;text-decoration:none;font-weight:700;">
+          Review in Master Panel →
+        </a>
+      </div>
+    `,
+  });
 }
 
 /**
  * Notify college admin when a new student registers and awaits approval
  */
 async function notifyCollegeAdminOfStudentRequest(adminEmail, adminName, studentName, studentEmail, collegeName) {
-  try {
-    await transporter.sendMail({
-      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to: adminEmail,
-      subject: `New Student Registration Request — ${collegeName}`,
-      html: `
-        <div style="font-family:'Segoe UI',sans-serif;max-width:480px;margin:0 auto;background:#111827;border-radius:16px;border:1px solid #1e2d45;overflow:hidden;">
-          <div style="background:linear-gradient(135deg,#0d1830,#1a2235);padding:32px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#F0F4FF;">Campus<span style="color:#10B981;">Connect</span></div>
-          </div>
-          <div style="padding:32px;">
-            <h2 style="color:#F0F4FF;margin-bottom:12px;">📋 New Student Request</h2>
-            <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">Hi ${adminName},</p>
-            <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">
-              A new student has registered for <strong style="color:#10B981;">${collegeName}</strong> and is awaiting your approval.
-            </p>
-            <div style="background:#1a2235;border:1px solid #1e2d45;border-radius:10px;padding:16px;margin:20px 0;">
-              <p style="color:#9CA3AF;font-size:13px;margin-bottom:6px;"><strong style="color:#F0F4FF;">Name:</strong> ${studentName}</p>
-              <p style="color:#9CA3AF;font-size:13px;margin:0;"><strong style="color:#F0F4FF;">Email:</strong> ${studentEmail}</p>
-            </div>
-            <a href="${process.env.FRONTEND_URL}/admin/requests"
-               style="display:inline-block;margin-top:8px;background:#10B981;color:#003824;padding:12px 24px;border-radius:9999px;text-decoration:none;font-weight:700;font-size:14px;">
-              Review Request in Admin Panel →
-            </a>
-          </div>
-          <div style="background:#0d1217;padding:20px 32px;text-align:center;color:#374151;font-size:12px;">
-            CampusConnect · Secure College Marketplace
-          </div>
+  const html = `
+    <div style="font-family:'Segoe UI',sans-serif;max-width:480px;margin:0 auto;background:#111827;border-radius:16px;border:1px solid #1e2d45;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0d1830,#1a2235);padding:32px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:#F0F4FF;">Campus<span style="color:#10B981;">Connect</span></div>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#F0F4FF;margin-bottom:12px;">📋 New Student Request</h2>
+        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">Hi ${adminName},</p>
+        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">
+          A new student has registered for <strong style="color:#10B981;">${collegeName}</strong> and is awaiting your approval.
+        </p>
+        <div style="background:#1a2235;border:1px solid #1e2d45;border-radius:10px;padding:16px;margin:20px 0;">
+          <p style="color:#9CA3AF;font-size:13px;margin-bottom:6px;"><strong style="color:#F0F4FF;">Name:</strong> ${studentName}</p>
+          <p style="color:#9CA3AF;font-size:13px;margin:0;"><strong style="color:#F0F4FF;">Email:</strong> ${studentEmail}</p>
         </div>
-      `,
-    });
-  } catch (err) {
-    console.error('[Email] Failed to notify college admin of student request:', err.message);
-  }
+        <a href="${process.env.FRONTEND_URL || 'https://project-campuse-connect.vercel.app'}/admin/requests"
+           style="display:inline-block;margin-top:8px;background:#10B981;color:#003824;padding:12px 24px;border-radius:9999px;text-decoration:none;font-weight:700;font-size:14px;">
+          Review Request in Admin Panel →
+        </a>
+      </div>
+      <div style="background:#0d1217;padding:20px 32px;text-align:center;color:#374151;font-size:12px;">
+        CampusConnect · Secure College Marketplace
+      </div>
+    </div>
+  `;
+
+  return dispatchMail({
+    to: adminEmail,
+    subject: `New Student Registration Request — ${collegeName}`,
+    html,
+  });
 }
 
 /**
@@ -269,7 +282,7 @@ async function notifyStudentApproved(studentEmail, studentName, collegeName) {
           Great news! Your account for <strong style="color:#10B981;">${collegeName}</strong> has been approved.
           You can now log in and access your college's exclusive marketplace.
         </p>
-        <a href="${process.env.FRONTEND_URL}/login"
+        <a href="${process.env.FRONTEND_URL || 'https://project-campuse-connect.vercel.app'}/login"
            style="display:inline-block;margin-top:24px;background:#10B981;color:#003824;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:700;font-size:14px;">
           Go to Marketplace →
         </a>
@@ -282,16 +295,12 @@ async function notifyStudentApproved(studentEmail, studentName, collegeName) {
       </div>
     </div>
   `;
-  try {
-    await transporter.sendMail({
-      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to: studentEmail,
-      subject: `✅ Your CampusConnect account is approved — Welcome to ${collegeName}!`,
-      html,
-    });
-  } catch (err) {
-    console.error('[Email] Failed to notify student of approval:', err.message);
-  }
+
+  return dispatchMail({
+    to: studentEmail,
+    subject: `✅ Your CampusConnect account is approved — Welcome to ${collegeName}!`,
+    html,
+  });
 }
 
 /**
@@ -319,16 +328,12 @@ async function notifyStudentRejected(studentEmail, studentName, collegeName, rea
       </div>
     </div>
   `;
-  try {
-    await transporter.sendMail({
-      from: `"CampusConnect" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to: studentEmail,
-      subject: `Your CampusConnect account request for ${collegeName} was not approved`,
-      html,
-    });
-  } catch (err) {
-    console.error('[Email] Failed to notify student of rejection:', err.message);
-  }
+
+  return dispatchMail({
+    to: studentEmail,
+    subject: `Your CampusConnect account request for ${collegeName} was not approved`,
+    html,
+  });
 }
 
 module.exports = {
@@ -339,6 +344,5 @@ module.exports = {
   notifyCollegeAdminOfStudentRequest,
   notifyStudentApproved,
   notifyStudentRejected,
+  dispatchMail,
 };
-
-

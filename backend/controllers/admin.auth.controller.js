@@ -25,6 +25,16 @@ function signRefreshToken(payload) {
   });
 }
 
+function shouldExposeOtp() {
+  return (
+    process.env.NODE_ENV !== 'production' ||
+    process.env.SHOW_DEV_OTP === 'true' ||
+    process.env.ENABLE_DEV_OTP === 'true' ||
+    !process.env.EMAIL_USER ||
+    !process.env.EMAIL_PASS
+  );
+}
+
 const { setRefreshCookie, clearRefreshCookie } = require('../services/cookie.service');
 
 /* ─── GET /api/auth/admin/check-code ──────────────────────────────── */
@@ -152,7 +162,7 @@ async function register(req, res) {
       instantMessage: `A 6-digit verification code was sent to ${otpService.maskEmail(normalizedEmail)}.`,
       maskedEmail: otpService.maskEmail(normalizedEmail),
       email: normalizedEmail,
-      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
+      devOtp: shouldExposeOtp() ? otp : undefined,
     });
   } catch (err) {
     console.error('[adminRegister] Error:', err);
@@ -329,7 +339,7 @@ async function resendRegisterOtp(req, res) {
       message: '⚡ Verification code resent successfully.',
       instantMessage: `A new code was dispatched to ${otpService.maskEmail(normalizedEmail)}.`,
       maskedEmail: otpService.maskEmail(normalizedEmail),
-      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
+      devOtp: shouldExposeOtp() ? otp : undefined,
     });
   } catch (err) {
     console.error('[adminResendRegisterOtp] Error:', err);

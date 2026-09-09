@@ -203,7 +203,6 @@ app.get('/api/system-status', async (req, res) => {
     };
   }
 
-  // 4. SMTP Email Transport Latency Check
   const emailStart = Date.now();
   try {
     const nodemailer = require('nodemailer');
@@ -215,8 +214,13 @@ app.get('/api/system-status', async (req, res) => {
         family: 4,
         auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
         tls: { rejectUnauthorized: false },
+        connectionTimeout: 3000,
+        greetingTimeout: 3000,
+        socketTimeout: 3000,
       });
-      await transporter.verify();
+      const verifyPromise = transporter.verify();
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP verification timed out after 3000ms')), 3000));
+      await Promise.race([verifyPromise, timeoutPromise]);
       diagnostics.services.emailSmtp = {
         name: 'SMTP Email Transport (Nodemailer)',
         status: 'HEALTHY',

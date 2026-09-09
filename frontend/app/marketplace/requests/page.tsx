@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
-import api from "@/lib/axios";
+import api, { getApiBaseUrl } from "@/lib/axios";
 import {
   Check, X, MessageCircle, Clock, Package, ChevronRight, RefreshCw, Laptop, FileText, Video, Phone, BookOpen, AlertCircle
 } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 
 
 function timeAgo(d: string) {
@@ -65,6 +65,7 @@ export default function RequestsPage() {
     try {
       const r = await api.get("/api/marketplace/requests/received");
       setRequests(r.data);
+      api.patch("/api/marketplace/notifications/read").catch(() => {});
     } catch { /* offline */ }
     setLoading(false);
   }, []);
@@ -76,6 +77,7 @@ export default function RequestsPage() {
     if (authLoading) return;
     if (user) {
       fetchRequests();
+      api.patch("/api/marketplace/notifications/read").catch(() => {});
     } else {
       setLoading(false);
     }
@@ -87,6 +89,7 @@ export default function RequestsPage() {
     try {
       const r = await api.patch(`/api/marketplace/requests/${id}`, { status });
       setRequests(rs => rs.map(req => req.id === id ? { ...req, status } : req));
+      api.patch("/api/marketplace/notifications/read").catch(() => {});
       showToast(status === "accepted"
         ? "Accepted! Chat thread opened in Inbox."
         : "Request declined.");

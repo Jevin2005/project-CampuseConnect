@@ -4,8 +4,11 @@
  * Now integrated with Cloudflare R2 for media URLs.
  */
 
+const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const r2 = require('../services/r2.service');
+const otpService = require('../services/otp.service');
+const { sendOtpEmail } = require('../services/email.service');
 const prisma = new PrismaClient();
 
 /* ─── Helper: extract uploaded file URLs (works with both R2 and disk) ── */
@@ -1109,7 +1112,21 @@ exports.getMyProfile = async (req, res) => {
       return res.status(401).json({ message: 'User ID missing from token' });
     }
 
-    const [listed, activeListings, sold, purchased] = await Promise.all([
+    const [student, listed, activeListings, sold, purchased] = await Promise.all([
+      prisma.student.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          enrollmentId: true,
+          isEmailVerified: true,
+          isApproved: true,
+          createdAt: true,
+          college: { select: { id: true, name: true, code: true } }
+        }
+      }),
       prisma.product.count({ where: { sellerId: userId } }),
       prisma.product.count({ where: { sellerId: userId, status: 'active', isApproved: true } }),
       prisma.order.count({ where: { sellerId: userId, status: 'COMPLETED' } }),
@@ -1127,17 +1144,41 @@ exports.getMyProfile = async (req, res) => {
       where: { sellerId: userId },
       take: 20,
       orderBy: { createdAt: 'desc' },
-      select: { id: true, title: true, price: true, status: true, isApproved: true, views: true, images: true, productType: true },
+      select: { id: true, title: true, price: true, status: true, isApproved: true, views: true, images: true, productType: true, digitalSubType: true },
     });
 
     const recentPurchases = await prisma.order.findMany({
       where: { buyerId: userId, status: 'COMPLETED' },
-      take: 5,
+      take: 10,
       orderBy: { createdAt: 'desc' },
-      include: { product: { select: { id: true, title: true, images: true, productType: true } } },
+      include: {
+        product: {
+          select: {
+            id: true,
+            title: true,
+            images: true,
+            productType: true,
+            digitalSubType: true,
+            price: true,
+          }
+        }
+      },
     });
 
     return res.json({
+      user: student ? {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        phone: student.phone,
+        enrollmentId: student.enrollmentId,
+        collegeId: student.college?.id,
+        collegeName: student.college?.name,
+        collegeCode: student.college?.code,
+        isEmailVerified: student.isEmailVerified,
+        isApproved: student.isApproved,
+        createdAt: student.createdAt,
+      } : null,
       stats: {
         listed,
         activeListings,
@@ -1153,6 +1194,178 @@ exports.getMyProfile = async (req, res) => {
     return res.status(500).json({ message: 'Error fetching profile', error: err?.message || String(err) });
   }
 };
+
+/** PUT /api/marketplace/me — update student profile information */
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'User ID missing from token' });
+    }
+
+    const { name, phone, enrollmentId } = req.body;
+
+    const dataToUpdate = {};
+    if (typeof name === 'string' && name.trim().length > 0) {
+      dataToUpdate.name = name.trim();
+    }
+    if (typeof phone === 'string') {
+      dataToUpdate.phone = phone.trim();
+    }
+    if (typeof enrollmentId === 'string') {
+      dataToUpdate.enrollmentId = enrollmentId.trim();
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: userId },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        enrollmentId: true,
+        isEmailVerified: true,
+        isApproved: true,
+        createdAt: true,
+        college: { select: { id: true, name: true, code: true } }
+      }
+    });
+
+    return res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedStudent.id,
+        name: updatedStudent.name,
+        email: updatedStudent.email,
+        phone: updatedStudent.phone,
+        enrollmentId: updatedStudent.enrollmentId,
+        collegeId: updatedStudent.college?.id,
+        collegeName: updatedStudent.college?.name,
+        collegeCode: updatedStudent.college?.code,
+        isEmailVerified: updatedStudent.isEmailVerified,
+        isApproved: updatedStudent.isApproved,
+        createdAt: updatedStudent.createdAt,
+      }
+    });
+  } catch (err) {
+    console.error('[updateMyProfile Error]:', err?.message || err);
+    return res.status(500).json({ message: 'Error updating profile', error: err?.message || String(err) });
+  }
+};
+
+/** POST /api/marketplace/me/password/send-otp — send OTP for resetting password inside profile */
+exports.sendMyPasswordOtp = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'User ID missing from token' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true },
+    });
+
+    if (!student || !student.email) {
+      return res.status(404).json({ message: 'Student account not found.' });
+    }
+
+    const normalizedEmail = student.email.trim().toLowerCase();
+    const otp = otpService.generateOtp();
+    await otpService.storeOtp('reset-pwd', normalizedEmail, otp, 600);
+
+    sendOtpEmail(normalizedEmail, otp).catch((emailErr) => {
+      console.error('[sendMyPasswordOtp] Email send failed:', emailErr.message);
+    });
+
+    return res.json({
+      success: true,
+      message: '⚡ Verification OTP sent to your registered email.',
+      maskedEmail: otpService.maskEmail(normalizedEmail),
+      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
+    });
+  } catch (err) {
+    console.error('[sendMyPasswordOtp Error]:', err?.message || err);
+    return res.status(500).json({ message: 'Failed to send verification OTP. Please try again.' });
+  }
+};
+
+/** PUT /api/marketplace/me/password — update student account password */
+exports.updateMyPassword = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'User ID missing from token' });
+    }
+
+    const { currentPassword, newPassword, otp } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true, email: true },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student account not found.' });
+    }
+
+    const normalizedEmail = (student.email || '').trim().toLowerCase();
+
+    // Branch A: Resetting using OTP (forgot current password)
+    if (otp) {
+      let verification = await otpService.verifyOtp('reset-pwd', normalizedEmail, otp);
+      if (!verification.valid) {
+        verification = await otpService.verifyOtp('otp', normalizedEmail, otp);
+      }
+      if (!verification.valid) {
+        if (verification.reason === 'EXPIRED') {
+          return res.status(400).json({ message: 'Verification OTP expired. Please request a new code.' });
+        }
+        return res.status(400).json({ message: 'Invalid verification OTP code. Please check your email and try again.' });
+      }
+    } else {
+      // Branch B: Verifying current password
+      if (student.password) {
+        if (!currentPassword) {
+          return res.status(400).json({ message: 'Current password or verification OTP is required.' });
+        }
+        const isValid = await bcrypt.compare(currentPassword, student.password);
+        if (!isValid) {
+          return res.status(401).json({ message: 'Current password is incorrect.' });
+        }
+        if (currentPassword === newPassword) {
+          return res.status(400).json({ message: 'New password cannot be identical to current password.' });
+        }
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await prisma.student.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+      },
+    });
+
+    // Audit notification
+    await createNotification(userId, 'Security Alert: Your account password was updated successfully.', 'SECURITY');
+
+    return res.json({
+      success: true,
+      message: 'Password updated successfully! Your account is now secured with your new password.',
+    });
+  } catch (err) {
+    console.error('[updateMyPassword Error]:', err?.message || err);
+    return res.status(500).json({ message: 'Failed to update password. Please try again.', error: err?.message || String(err) });
+  }
+};
+
 
 
 /** GET /api/marketplace/earnings — current student's digital seller earnings & payouts */

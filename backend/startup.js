@@ -129,6 +129,15 @@ async function runSeed() {
     });
     console.log(`   ✅ MasterAdmin ready: ${master.email}`);
 
+    // Ensure all colleges in DB are approved
+    const approvedColleges = await prisma.college.updateMany({
+      where: { isApproved: false },
+      data: { isApproved: true },
+    });
+    if (approvedColleges.count > 0) {
+      console.log(`   ✅ Auto-approved ${approvedColleges.count} pending colleges`);
+    }
+
     // Ensure RNGPIT College & Admin exist (for testing / deployed site)
     let rngpit = await prisma.college.findFirst({
       where: { OR: [{ code: 'RNGPIT123' }, { emailDomain: 'rngpit.ac.in' }] }
@@ -146,7 +155,13 @@ async function runSeed() {
       });
       console.log('   ✅ RNGPIT College created (RNGPIT123 / rngpit.ac.in)');
     } else {
-      console.log(`   ✅ RNGPIT College exists: ${rngpit.code}`);
+      if (!rngpit.isApproved) {
+        rngpit = await prisma.college.update({
+          where: { id: rngpit.id },
+          data: { isApproved: true },
+        });
+      }
+      console.log(`   ✅ RNGPIT College exists & approved: ${rngpit.code}`);
     }
 
     const adminEmail = process.env.ADMIN_EMAIL || 'jevingoti005@gmail.com';
@@ -197,6 +212,15 @@ async function runSeed() {
     });
     console.log(`   ✅ Student ready: ${student.email}`);
 
+    // Auto-approve and verify existing student accounts
+    const syncedStudents = await prisma.student.updateMany({
+      where: { OR: [{ isEmailVerified: false }, { isApproved: false }] },
+      data: { isEmailVerified: true, isApproved: true },
+    });
+    if (syncedStudents.count > 0) {
+      console.log(`   ✅ Synced ${syncedStudents.count} student accounts to verified & approved`);
+    }
+
     // Ensure Demo College exists (for testing / first-time login)
     const demoCollege = await prisma.college.findFirst({ where: { emailDomain: 'demo.edu' } });
     if (!demoCollege) {
@@ -213,6 +237,32 @@ async function runSeed() {
       console.log('   ✅ Demo College created (DEMO2024 / demo.edu)');
     } else {
       console.log(`   ✅ Demo College already exists: ${demoCollege.code}`);
+    }
+
+    const demoCollegeRef = demoCollege || await prisma.college.findFirst({ where: { code: 'DEMO2024' } });
+    if (demoCollegeRef) {
+      const demoAdminEmail = 'admin@demo.edu';
+      const demoAdminPassword = process.env.DEMO_ADMIN_PASSWORD || 'Admin@2024!';
+      const hashedDemoAdminPassword = await bcrypt.hash(demoAdminPassword, rounds);
+
+      await prisma.admin.upsert({
+        where: { email: demoAdminEmail },
+        update: {
+          password: hashedDemoAdminPassword,
+          isApproved: true,
+          isEmailVerified: true,
+          collegeId: demoCollegeRef.id,
+        },
+        create: {
+          name: 'Demo Admin',
+          email: demoAdminEmail,
+          password: hashedDemoAdminPassword,
+          collegeId: demoCollegeRef.id,
+          isApproved: true,
+          isEmailVerified: true,
+        },
+      });
+      console.log(`   ✅ Demo College Admin ready: ${demoAdminEmail} (College Code: ${demoCollegeRef.code})`);
     }
 
     console.log('✅ [Startup] Seeding complete');

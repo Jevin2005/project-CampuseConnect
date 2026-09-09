@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
+import { getApiBaseUrl } from '@/lib/axios';
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/master`;
+const API = `${typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com')}/api/master`;
 
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');

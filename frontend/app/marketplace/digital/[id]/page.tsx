@@ -363,6 +363,43 @@ export default function DigitalProductPage() {
           border-color: ${themeColor} !important;
           background: rgba(255, 255, 255, 0.02);
         }
+
+        @media (max-width: 768px) {
+          .digital-main-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 20px !important;
+          }
+          .digital-col-left, .digital-col-right {
+            display: contents !important;
+          }
+          .digital-order-showcase { order: 1 !important; }
+          .digital-order-tools { order: 2 !important; margin-bottom: -10px !important; }
+          .digital-order-purchase { order: 3 !important; }
+          .digital-order-specs { order: 4 !important; }
+          .digital-order-bundle { order: 5 !important; }
+          .digital-order-desc { order: 6 !important; }
+          .digital-order-drm { order: 7 !important; }
+          .digital-order-seller { order: 8 !important; }
+
+          .digital-page {
+            padding: 12px 14px 50px !important;
+          }
+          .showcase-frame {
+            padding: 24px 16px !important;
+          }
+          .specs-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .purchase-widget {
+            padding: 20px 16px !important;
+          }
+          .checkout-modal {
+            padding: 20px 16px !important;
+            max-height: 88vh !important;
+          }
+        }
       `}</style>
 
       {/* Toast popup */}
@@ -374,8 +411,8 @@ export default function DigitalProductPage() {
 
       {/* Payment / Secure Checkout Modal */}
       {buyModal && (
-        <div onClick={() => { if (buyStep !== "done" && !buyLoading) setBuyModal(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-          <div onClick={e => e.stopPropagation()} className="glass-panel" style={{ padding: "32px", maxWidth: 430, width: "90%", animation: "modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)", border: `1.5px solid ${themeBorder}`, boxShadow: `0 0 24px ${themeGlow}` }}>
+        <div onClick={() => { if (buyStep !== "done" && !buyLoading) setBuyModal(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} className="glass-panel checkout-modal" style={{ padding: "32px", maxWidth: 430, width: "100%", maxHeight: "90vh", overflowY: "auto", animation: "modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)", border: `1.5px solid ${themeBorder}`, boxShadow: `0 0 24px ${themeGlow}` }}>
 
             {buyStep === "confirm" && (
               <>
@@ -518,13 +555,13 @@ export default function DigitalProductPage() {
         </div>
 
         {/* Dynamic Detail Sections Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="md:grid-cols-[1fr_380px] grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="md:grid-cols-[1fr_380px] grid digital-main-grid">
 
           {/* LEFT SIDEBAR: Resource Showcase card, description, bundle items, and specifications */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          <div className="digital-col-left" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
             {/* Top Showcase Frame */}
-            <div className="glass-panel active-glow" style={{ position: "relative", overflow: "hidden", padding: "40px 32px", display: "flex", flexDirection: "column", alignItems: "center", background: `linear-gradient(135deg, rgba(10,14,26,0.9), ${themeBg})` }}>
+            <div className="glass-panel active-glow showcase-frame digital-order-showcase" style={{ position: "relative", overflow: "hidden", padding: "40px 32px", display: "flex", flexDirection: "column", alignItems: "center", background: `linear-gradient(135deg, rgba(10,14,26,0.9), ${themeBg})` }}>
               <div style={{ width: 84, height: 84, borderRadius: 20, background: themeBg, border: `1.5px solid ${themeBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, marginBottom: 18, boxShadow: `0 0 14px ${themeGlow}` }}>
                 {subtypeIcon}
               </div>
@@ -539,11 +576,11 @@ export default function DigitalProductPage() {
 
             {/* Structured Specifications Metadata */}
             {specsList.length > 0 && (
-              <div className="glass-panel" style={{ padding: "28px" }}>
+              <div className="glass-panel digital-order-specs" style={{ padding: "24px 20px" }}>
                 <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>Academic Specifications</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+                <div className="specs-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
                   {specsList.map((spec, i) => (
-                    <div key={i} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div key={i} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
                       <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.8 }}>{spec.key}</span>
                       <span style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-primary)", fontWeight: 600 }}>{spec.value}</span>
                     </div>
@@ -554,7 +591,7 @@ export default function DigitalProductPage() {
 
             {/* Semester Custom Bundle Item index list */}
             {sub === "bundle" && bundleItems.length > 0 && (
-              <div className="glass-panel" style={{ padding: "28px" }}>
+              <div className="glass-panel digital-order-bundle" style={{ padding: "28px" }}>
                 <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>Inside this Semester Pack ({bundleItems.length} resources)</h3>
 
                 <div style={{ display: "flex", flexDirection: "column", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
@@ -582,7 +619,7 @@ export default function DigitalProductPage() {
             )}
 
             {/* Cleaned Description */}
-            <div className="glass-panel" style={{ padding: "28px" }}>
+            <div className="glass-panel digital-order-desc" style={{ padding: "28px" }}>
               <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>Description & Objectives</h3>
               <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-soft)", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
                 {userDesc || "No manual description provided by the instructor."}
@@ -592,10 +629,10 @@ export default function DigitalProductPage() {
           </div>
 
           {/* RIGHT SIDEBAR: Purchase CTAs, platform stats, DRM details, Seller profile card */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="digital-col-right" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* Wishlist Header Tool */}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div className="digital-order-tools" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button onClick={handleWishlist} style={{ width: 38, height: 38, borderRadius: "50%", background: wishlisted ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${wishlisted ? "rgba(239,68,68,0.3)" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
                 <Heart size={16} style={{ color: wishlisted ? "var(--accent-red)" : "var(--text-soft)", fill: wishlisted ? "var(--accent-red)" : "none" }} />
               </button>
@@ -605,7 +642,7 @@ export default function DigitalProductPage() {
             </div>
 
             {/* Secure Purchase CTA widget */}
-            <div className="glass-panel" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="glass-panel purchase-widget digital-order-purchase" style={{ padding: "28px", display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Price display — NO platform fee shown here */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                 <div>
@@ -681,7 +718,7 @@ export default function DigitalProductPage() {
             </div>
 
             {/* DRM security box */}
-            <div style={{ background: "rgba(124, 58, 237, 0.03)", border: `1px solid ${themeBorder}`, borderRadius: 16, padding: "20px 22px" }}>
+            <div className="digital-order-drm" style={{ background: "rgba(124, 58, 237, 0.03)", border: `1px solid ${themeBorder}`, borderRadius: 16, padding: "20px 22px" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
                 <ShieldCheck size={16} style={{ color: themeColor }} />
                 <p style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: themeColor }}>Digital Content Protection</p>
@@ -705,7 +742,7 @@ export default function DigitalProductPage() {
             </div>
 
             {/* Instructor / Seller profile card */}
-            <div className="glass-panel" style={{ padding: "20px" }}>
+            <div className="glass-panel digital-order-seller" style={{ padding: "20px" }}>
               <p style={{ fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Resource Creator</p>
 
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

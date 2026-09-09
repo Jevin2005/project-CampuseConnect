@@ -34,14 +34,14 @@ export const getApiBaseUrl = (): string => {
 };
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000",
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ? "http://localhost:5000" : "https://project-campuseconnect.onrender.com"),
   withCredentials: true, // needed for HTTP-only refresh cookie
   timeout: 15000,        // Never hang indefinitely; fail fast if server is unresponsive
 });
 
-/* ── Request: attach access token + ensure local dev routing ───── */
+/* ── Request: attach access token + ensure dynamic environment routing ───── */
 api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+  if (typeof window !== "undefined") {
     config.baseURL = getApiBaseUrl();
   }
   const token = useAuthStore.getState().accessToken;

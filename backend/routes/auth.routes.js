@@ -99,6 +99,7 @@ router.post('/student/login', studentLoginLimiter, studentController.login);
 // OTP login (optional / passwordless alternative)
 router.post('/student/send-otp', sendOtpLimiter, studentController.sendOtp);
 router.post('/student/verify-otp', verifyOtpLimiter, studentController.verifyOtp);
+router.post('/student/reset-password', verifyOtpLimiter, studentController.resetPassword);
 
 // Approval status poll (for pending-approval page)
 router.get('/student/approval-status', studentController.checkApprovalStatus);

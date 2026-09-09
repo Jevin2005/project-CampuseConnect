@@ -3,12 +3,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
-import api from "@/lib/axios";
+import api, { getApiBaseUrl } from "@/lib/axios";
 import { AdStrip } from "@/components/AdBanner";
 import { fetchLiveAds } from "@/lib/adsData";
 import { Trash2, Download, Eye, BarChart3, IndianRupee, Plus, TrendingUp, ShoppingBag, Check, FileText, Package, Megaphone } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 function mediaUrl(p: string) { return p?.startsWith("http") ? p : `${API}${p}`; }
 function isVideo(p: string) { return /\.(mp4|webm|ogg|mov)$/i.test(p); }
 

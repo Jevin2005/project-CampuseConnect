@@ -46,6 +46,16 @@ function maskEmail(email) {
   return `${masked}@${domain}`;
 }
 
+function shouldExposeOtp() {
+  return (
+    process.env.NODE_ENV !== 'production' ||
+    process.env.SHOW_DEV_OTP === 'true' ||
+    process.env.ENABLE_DEV_OTP === 'true' ||
+    !process.env.EMAIL_USER ||
+    !process.env.EMAIL_PASS
+  );
+}
+
 function signAccessToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_ACCESS_EXPIRY || '15m',
@@ -171,7 +181,7 @@ async function register(req, res) {
       instantMessage: `A 6-digit verification code was sent to ${otpService.maskEmail(normalizedEmail)}.`,
       maskedEmail: otpService.maskEmail(normalizedEmail),
       email: normalizedEmail,
-      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
+      devOtp: shouldExposeOtp() ? otp : undefined,
     });
   } catch (err) {
     console.error('[studentRegister] Error:', err);
@@ -297,7 +307,7 @@ async function sendOtp(req, res) {
       instantMessage: `OTP dispatched to ${otpService.maskEmail(normalizedEmail)}.`,
       maskedEmail: otpService.maskEmail(normalizedEmail),
       email: normalizedEmail,
-      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
+      devOtp: shouldExposeOtp() ? otp : undefined,
     });
   } catch (err) {
     console.error('[sendOtp] Error:', err);
@@ -525,11 +535,102 @@ async function resendRegisterOtp(req, res) {
       message: '⚡ Verification code resent successfully.',
       instantMessage: `A new code was dispatched to ${otpService.maskEmail(normalizedEmail)}.`,
       maskedEmail: otpService.maskEmail(normalizedEmail),
-      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
+      devOtp: shouldExposeOtp() ? otp : undefined,
     });
   } catch (err) {
     console.error('[resendRegisterOtp] Error:', err);
     return res.status(500).json({ message: 'Server error. Please try again.' });
+  }
+}
+
+/* ─── POST /api/auth/student/reset-password ────────────────────────── */
+async function resetPassword(req, res) {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP code, and new password are required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
+    }
+
+    // Verify OTP using otpService
+    let verification = await otpService.verifyOtp('otp', normalizedEmail, otp);
+    if (!verification.valid) {
+      verification = await otpService.verifyOtp('reset-pwd', normalizedEmail, otp);
+    }
+
+    if (!verification.valid) {
+      if (verification.reason === 'EXPIRED') {
+        return res.status(400).json({ message: 'Verification OTP expired. Please request a new one.' });
+      }
+      return res.status(400).json({ message: 'Invalid verification OTP. Please check the code and try again.' });
+    }
+
+    // Find student
+    const student = await prisma.student.findUnique({
+      where: { email: normalizedEmail },
+      include: { college: true },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'No student account found for this email.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+    await prisma.student.update({
+      where: { email: normalizedEmail },
+      data: {
+        password: hashedPassword,
+        isEmailVerified: true,
+      },
+    });
+
+    // Check approval status
+    if (!student.isApproved) {
+      return res.json({
+        status: 'PENDING',
+        message: 'Password reset successful! Your account is pending admin approval.',
+      });
+    }
+
+    // Issue tokens for instant seamless login
+    const accessToken = signAccessToken({
+      userId: student.id,
+      role: 'STUDENT',
+      collegeId: student.collegeId,
+      email: student.email,
+    });
+
+    const refreshToken = signRefreshToken({
+      userId: student.id,
+      role: 'STUDENT',
+      tokenVersion: student.tokenVersion,
+    });
+
+    setRefreshCookie(res, refreshToken);
+
+    return res.json({
+      status: 'APPROVED',
+      message: 'Password reset successfully! You are now logged in with your new password.',
+      accessToken,
+      user: {
+        id: student.id,
+        email: student.email,
+        name: student.name,
+        collegeId: student.collegeId,
+        collegeName: student.college?.name,
+        collegeCode: student.college?.code,
+      },
+    });
+  } catch (err) {
+    console.error('[resetPassword] Error:', err);
+    return res.status(500).json({ message: 'Server error while resetting password. Please try again.' });
   }
 }
 
@@ -541,4 +642,6 @@ module.exports = {
   checkApprovalStatus,
   verifyRegisterOtp,
   resendRegisterOtp,
+  resetPassword,
 };
+

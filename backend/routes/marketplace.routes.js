@@ -52,6 +52,9 @@ router.get('/products/:id/file', auth,         ctrl.streamProductFile); // file 
 
 // Profile & stats
 router.get('/me', auth, ctrl.getMyProfile);
+router.put('/me', auth, ctrl.updateMyProfile);
+router.post('/me/password/send-otp', auth, ctrl.sendMyPasswordOtp);
+router.put('/me/password', auth, ctrl.updateMyPassword);
 router.get('/earnings', auth, ctrl.getMyEarnings);
 
 // Listings

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../store/authStore';
-import { CheckCircle2, AlertTriangle, AlertCircle, Search, Info, Phone, Calendar, CreditCard, ShieldAlert, Eye, UserX, UserCheck, Mail, ShoppingCart, Package, Check, X, Clock } from 'lucide-react';
+import { getApiBaseUrl } from '@/lib/axios';
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin`;
+const API = `${typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com')}/api/admin`;
 
 interface Student {
   id: string;
@@ -284,11 +284,27 @@ export default function StudentRequestsPage() {
         @media (max-width: 768px) {
           .rp { padding: 20px 16px; }
           .rp-title { font-size: 22px; }
+          .tabs { width: 100% !important; display: flex !important; }
+          .tab-btn { flex: 1 !important; justify-content: center !important; padding: 10px 8px !important; font-size: 13px !important; }
           .req-meta { grid-template-columns: 1fr; }
           .req-top { flex-direction: column; align-items: flex-start; gap: 12px; }
           .req-top > div:last-child { align-self: flex-start; }
-          .req-actions { flex-direction: column; width: 100%; }
-          .req-actions button { width: 100%; margin-right: 0 !important; }
+          
+          .req-actions {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+            width: 100% !important;
+          }
+          .req-actions button {
+            width: 100% !important;
+            margin: 0 !important;
+            justify-content: center !important;
+            min-height: 38px !important;
+          }
+          .req-actions .btn-approve {
+            grid-column: span 2 !important;
+          }
 
           /* Table to Cards for Approved Students */
           .tbl-card { background: none; border: none; border-radius: 0; }
@@ -324,14 +340,51 @@ export default function StudentRequestsPage() {
           .tbl td:nth-child(4)::before { content: 'Products'; font-size: 11px; color: var(--t3); font-weight: 500; }
           .tbl td:nth-child(5) { order: 5; }
           .tbl td:nth-child(5)::before { content: 'Purchases'; font-size: 11px; color: var(--t3); font-weight: 500; }
-          .tbl td:nth-child(6) { order: 6; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: 4px; justify-content: flex-end; }
+          .tbl td:nth-child(6) {
+            order: 6;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 12px !important;
+            margin-top: 4px;
+            width: 100% !important;
+          }
+          .tbl td:nth-child(6) > div {
+            width: 100% !important;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+          }
+          .tbl td:nth-child(6) button {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 8px 12px !important;
+            min-height: 36px !important;
+          }
           
           /* Modals responsive optimization */
           .modal-box { padding: 20px; }
+          .modal-actions {
+            flex-direction: column-reverse !important;
+            gap: 8px !important;
+          }
+          .modal-actions button {
+            width: 100% !important;
+            justify-content: center !important;
+            min-height: 40px !important;
+          }
           .view-modal-box { padding: 20px 16px; max-height: 90vh; overflow-y: auto; }
           .vm-grid { grid-template-columns: 1fr; gap: 10px; }
           .vm-header { flex-direction: column; align-items: center; text-align: center; gap: 10px; }
           .vm-status-row { justify-content: center; }
+          .btn-close-modal { width: 100% !important; text-align: center; }
+        }
+
+        @media (max-width: 420px) {
+          .req-actions {
+            grid-template-columns: 1fr !important;
+          }
+          .req-actions .btn-approve {
+            grid-column: span 1 !important;
+          }
         }
       `}</style>
 

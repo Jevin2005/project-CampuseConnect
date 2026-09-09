@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { StudentLayout } from "@/components/StudentLayout";
 import { useAuthStore } from "@/store/authStore";
-import api from "@/lib/axios";
+import api, { getApiBaseUrl } from "@/lib/axios";
 import { ShoppingBag, FileText, Video, Download, RefreshCw, Package, ExternalLink, BookOpen, Check, AlertCircle, IndianRupee } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || "https://project-campuseconnect.onrender.com");
 
 
 

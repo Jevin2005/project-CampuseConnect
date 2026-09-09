@@ -185,6 +185,42 @@ const STYLES = `
     .sc-sub{font-size:10px !important}
     .hdr { flex-direction: column; align-items: flex-start; gap: 12px; }
     .greeting { font-size: 22px; }
+
+    /* Quick Actions 2x2 grid on mobile */
+    .qa-row {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important;
+      margin-bottom: 20px !important;
+    }
+    .qa-btn {
+      width: 100% !important;
+      justify-content: center !important;
+      padding: 10px 8px !important;
+      font-size: 12px !important;
+      min-height: 40px !important;
+      text-align: center !important;
+    }
+
+    /* Alerts clean wrapping */
+    .alert {
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+    }
+    .alert-action {
+      margin-left: 0 !important;
+      margin-top: 4px !important;
+      align-self: flex-start !important;
+    }
+  }
+
+  @media(max-width:380px){
+    .qa-row {
+      grid-template-columns: 1fr !important;
+    }
+    .stat-grid {
+      grid-template-columns: 1fr !important;
+    }
   }
 `;
 

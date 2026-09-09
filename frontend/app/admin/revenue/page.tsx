@@ -2,8 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
 import { CircleDollarSign, Percent, ShoppingCart, Download } from 'lucide-react';
+import { getApiBaseUrl } from '@/lib/axios';
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin`;
+const API = `${typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com')}/api/admin`;
 
 interface RevenueData {
   stats: { totalSales: string; totalCut: string; totalOrders: number };
@@ -92,14 +93,20 @@ export default function RevenueAdminPage() {
         .dt{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mut)}
         .empty{text-align:center;padding:48px;color:var(--mut)}
 
+        @media (max-width: 1024px) {
+          .stat-cards {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          }
+        }
+
         @media (max-width: 768px) {
           .page { padding: 20px 16px; }
           h1 { font-size: 22px; }
-          .stat-cards { grid-template-columns: 1fr; }
+          .stat-cards { grid-template-columns: 1fr; gap: 12px; }
           .chart-card { padding: 14px; }
           .chart-title { font-size: 15px; }
-          .tx-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-          .export-btn { width: 100%; text-align: center; }
+          .tx-header { flex-direction: column; align-items: stretch; gap: 12px; }
+          .export-btn { width: 100%; text-align: center; justify-content: center; min-height: 38px; display: inline-flex; align-items: center; }
           
           /* Transaction table to cards conversion */
           .th { display: none; }

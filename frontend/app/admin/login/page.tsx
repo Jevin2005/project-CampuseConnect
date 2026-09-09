@@ -414,14 +414,70 @@ export default function AdminLoginPage() {
 
         /* ── RESPONSIVE ────────────────────────────────── */
         @media (max-width: 960px) {
-          .login-page { grid-template-columns: 1fr; height: auto; overflow: auto; }
+          .login-page { grid-template-columns: 1fr; height: auto; overflow: auto; min-height: 100vh; }
           .left, .right { overflow: visible; }
           .left { padding: 36px 24px 28px; }
           .right { border-left: none; border-top: 1px solid var(--border); padding: 32px 24px 40px; }
         }
-        @media (max-width: 500px) {
-          .left { padding: 28px 16px; }
-          .right { padding: 24px 16px 32px; }
+
+        @media (max-width: 768px) {
+          .login-page {
+            display: flex;
+            flex-direction: column;
+            height: auto;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: var(--bg);
+          }
+          .left {
+            padding: 32px 20px 12px;
+            border-bottom: none;
+            width: 100%;
+          }
+          .left-content { max-width: 100%; }
+          .left-title {
+            font-size: 24px;
+            line-height: 1.25;
+            margin-bottom: 8px;
+          }
+          .left-desc {
+            font-size: 13px;
+            margin-bottom: 14px;
+            line-height: 1.5;
+          }
+          /* Hide non-essential marketing cards on mobile so admin sees login immediately */
+          .features, .stats-strip {
+            display: none !important;
+          }
+          .right {
+            border-left: none;
+            border-top: none;
+            padding: 8px 20px 48px;
+            width: 100%;
+            max-width: 100%;
+          }
+          .form-header {
+            margin-bottom: 18px;
+          }
+          .form-title {
+            font-size: 20px;
+          }
+          .field-input {
+            height: 48px;
+            font-size: 15px;
+          }
+          .submit-btn {
+            height: 48px;
+            font-size: 15px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .left { padding: 24px 16px 8px; }
+          .right { padding: 4px 16px 36px; }
+          .role-pill { font-size: 11px; padding: 3px 10px; }
+          .left-title { font-size: 22px; }
         }
       `}</style>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import api from '@/lib/axios';
+import api, { getApiBaseUrl } from '@/lib/axios';
 import {
   Megaphone, Plus, X, Upload, Globe, Building2, Clock, Calendar,
   Eye, MousePointer, Percent, Sparkles, AlertCircle, ChevronRight, BarChart3, ExternalLink, ArrowLeft
@@ -39,7 +39,7 @@ function fmtDate(dt: string) {
   return new Date(dt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com');
 
 export default function AdvertisementManagerPage() {
   const [ads, setAds] = useState<Ad[]>([]);
@@ -2093,7 +2093,13 @@ export default function AdvertisementManagerPage() {
             width: 100% !important;
             margin-top: 4px;
           }
-          .format-pill-row { grid-template-columns: repeat(2, 1fr); }
+          .format-pill-row {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+          }
+          .format-pill-row > :last-child:nth-child(odd) {
+            grid-column: span 2 !important;
+          }
           .section-bar { flex-direction: column; align-items: flex-start; gap: 12px; }
           .filter-tabs { width: 100%; }
           .filter-tab { flex: 1; text-align: center; }
@@ -2101,9 +2107,27 @@ export default function AdvertisementManagerPage() {
 
         @media (max-width: 480px) {
           .scope-card-row { grid-template-columns: 1fr; }
-          .form-actions-row { flex-direction: column; }
-          .cancel-btn { order: 2; width: 100%; justify-content: center; }
-          .submit-btn { order: 1; width: 100%; justify-content: center; }
+          .duration-pill-row {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 6px !important;
+          }
+          .form-actions-row {
+            display: flex !important;
+            flex-direction: column-reverse !important;
+            gap: 10px !important;
+          }
+          .cancel-btn { width: 100% !important; justify-content: center !important; min-height: 42px !important; }
+          .submit-btn { width: 100% !important; justify-content: center !important; min-height: 42px !important; }
+          .modal-actions {
+            flex-direction: column-reverse !important;
+            gap: 8px !important;
+          }
+          .modal-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            min-height: 40px !important;
+          }
         }
 
         @media (max-width: 640px) {

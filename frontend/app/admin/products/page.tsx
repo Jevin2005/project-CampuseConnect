@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../store/authStore';
-import api from '@/lib/axios';
+import api, { getApiBaseUrl } from '@/lib/axios';
 import { BookOpen, Laptop, Smartphone, FileText, Video, Package, Check, Trash2, RotateCcw, Eye, Search, AlertTriangle } from 'lucide-react';
 
 type PS = 'pending' | 'active' | 'removed' | 'sold';
@@ -150,7 +150,7 @@ export default function ProductManagementPage() {
 
         @media (max-width: 1024px) {
           .stat-row {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
           }
         }
 
@@ -211,11 +211,52 @@ export default function ProductManagementPage() {
           .tr > .dt::before { content: 'Listed Date'; font-size: 11px; color: var(--mut); font-weight: 500; }
           .tr > :nth-child(6) { order: 6; display: flex; justify-content: space-between; }
           .tr > :nth-child(6)::before { content: 'Status'; font-size: 11px; color: var(--mut); font-weight: 500; }
-          .tr > .acts { order: 7; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: 4px; }
+          
+          /* Symmetrically aligned action buttons on mobile cards */
+          .tr > .acts {
+            order: 7;
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)) !important;
+            gap: 8px !important;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 12px;
+            margin-top: 4px;
+            width: 100% !important;
+          }
+          .tr > .acts > button, .tr > .acts > span {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            text-align: center !important;
+            padding: 8px 12px !important;
+            min-height: 38px !important;
+            box-sizing: border-box !important;
+          }
           
           /* Modals responsive optimization */
-          .mb { padding: 20px 16px; max-height: 90vh; overflow-y: auto; }
+          .mb { padding: 20px 16px; max-height: 90vh; overflow-y: auto; width: 95% !important; }
           .mo { padding: 10px; }
+
+          .macts {
+            flex-direction: column-reverse !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .macts .macts-right {
+            margin-left: 0 !important;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+            width: 100% !important;
+          }
+          .macts button {
+            width: 100% !important;
+            justify-content: center !important;
+            text-align: center !important;
+            padding: 10px 16px !important;
+            min-height: 40px !important;
+          }
         }
       `}</style>
 
@@ -325,7 +366,7 @@ export default function ProductManagementPage() {
                 background: 'var(--card2)'
               }}>
                 {viewModal.images.map((img, idx) => {
-                  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+                  const API_URL = typeof window !== 'undefined' ? getApiBaseUrl() : (process.env.NEXT_PUBLIC_API_URL || 'https://project-campuseconnect.onrender.com');
                   const fullImgUrl = img.startsWith('http') ? img : `${API_URL}${img}`;
                   
                   if (isVideo(img)) {
@@ -389,7 +430,7 @@ export default function ProductManagementPage() {
 
             <div className="macts" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
               <button className="bcnl" onClick={() => setViewModal(null)}>Close</button>
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              <div className="macts-right" style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                 {viewModal.status === 'pending' && !viewModal.isApproved && (
                   <>
                     <button className="bcrm" style={{ background: 'transparent', border: '1.5px solid var(--red)', color: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => { setRmModal(viewModal.id); setViewModal(null); }}>Remove <Trash2 size={12} /></button>

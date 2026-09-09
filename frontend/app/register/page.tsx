@@ -422,12 +422,59 @@ export default function StudentRegisterPage() {
           color: var(--muted);
           cursor: not-allowed;
         }
-
-        @media (max-width:680px) {
-          .form-grid { grid-template-columns:1fr; }
-          .fg.full { grid-column:auto; }
-          .card { padding:24px 20px; }
-          .reg-wrap { padding:32px 16px; }
+        @media (max-width: 768px) {
+          .reg-wrap {
+            padding: 24px 16px 40px !important;
+          }
+          .page-header {
+            margin-bottom: 22px !important;
+          }
+          .page-title {
+            font-size: 24px !important;
+            letter-spacing: -0.3px !important;
+          }
+          .page-sub {
+            font-size: 13px !important;
+          }
+          .card {
+            padding: 20px 16px !important;
+            border-radius: 14px !important;
+          }
+          .card::before {
+            left: 20px !important;
+            right: 20px !important;
+          }
+          .form-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .fg.full {
+            grid-column: span 1 !important;
+          }
+          .input {
+            padding: 12px 14px !important;
+            font-size: 14px !important;
+            height: 48px !important;
+          }
+          .submit-btn {
+            height: 48px !important;
+            font-size: 14px !important;
+            padding: 0 20px !important;
+          }
+          .info-card {
+            padding: 14px 16px !important;
+          }
+          /* Scaled OTP inputs that never overflow on mobile */
+          .otp-container {
+            gap: 6px !important;
+            margin: 20px 0 14px 0 !important;
+          }
+          .otp-input {
+            width: min(44px, calc((100% - 30px) / 6)) !important;
+            height: 52px !important;
+            font-size: 22px !important;
+            border-radius: 10px !important;
+          }
         }
       `}</style>
 

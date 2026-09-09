@@ -195,6 +195,114 @@ export default function LandingPage() {
 
   return (
     <div className="landing-page-wrapper" style={{ position: "relative", zIndex: 1, overflowX: "hidden" }}>
+      <style>{`
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce-slow { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 8px); } }
+        
+        @media (max-width: 768px) {
+          .hero-section {
+            padding: 70px 16px 50px !important;
+            min-height: auto !important;
+          }
+          .hero-h1 {
+            font-size: clamp(28px, 7.5vw, 40px) !important;
+            letter-spacing: -1px !important;
+            line-height: 1.15 !important;
+          }
+          .hero-sub {
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            margin-top: 14px !important;
+          }
+          .hero-ctas {
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 320px !important;
+            gap: 12px !important;
+          }
+          .hero-ctas a {
+            width: 100% !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+          }
+          .stats-row {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            gap: 12px !important;
+            margin-top: 30px !important;
+            width: 100% !important;
+          }
+          .stat-item {
+            flex: 1 1 80px !important;
+            min-width: 80px !important;
+          }
+          .stat-item-inner {
+            text-align: center !important;
+            padding: 0 8px !important;
+            width: 100% !important;
+          }
+          .stat-divider {
+            display: none !important;
+          }
+          .stat-number {
+            font-size: 22px !important;
+          }
+          .features-section {
+            padding: 56px 16px !important;
+          }
+          .features-heading {
+            margin-bottom: 36px !important;
+          }
+          .features-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+          .hiw-section {
+            padding: 56px 16px !important;
+          }
+          .hiw-connector {
+            display: none !important;
+          }
+          .hiw-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .hiw-step {
+            gap: 12px !important;
+          }
+          .hiw-step-icon {
+            width: 72px !important;
+            height: 72px !important;
+          }
+          .pt-section {
+            padding: 56px 16px !important;
+          }
+          .pt-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .product-type-card {
+            padding: 20px 16px !important;
+          }
+          .cta-section {
+            padding: 0 16px 56px !important;
+          }
+          .cta-box {
+            padding: 32px 18px !important;
+            border-radius: 16px !important;
+          }
+          .cta-box h2 {
+            font-size: 22px !important;
+          }
+          .cta-box a {
+            width: 100% !important;
+            max-width: 280px !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+          }
+        }
+      `}</style>
       <PublicNavbar />
 
       {/* ══════ HERO ══════ */}
@@ -647,6 +755,7 @@ function ProductTypeCard({
   const [hov, setHov] = useState(false);
   return (
     <div
+      className="product-type-card"
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{

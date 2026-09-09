@@ -168,10 +168,10 @@ function PdfPage({ data, watermarkUser, watermarkEmail }: {
   watermarkEmail: string;
 }) {
   return (
-    <div className="pdf-page-container" style={{ position: "relative", padding: "48px 56px", minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#ffffff", userSelect: "none" }}>
+    <div className="pdf-page-container" style={{ position: "relative", padding: "48px 56px", minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#ffffff", userSelect: "none", WebkitUserSelect: "none" }}>
       <div>
         {/* header row */}
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, borderBottom: "1.5px solid #f0f0f5", paddingBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, borderBottom: "1.5px solid #f0f0f5", paddingBottom: 8, gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#8E9AA8", letterSpacing: "1px", fontWeight: 700 }}>
             {data.subject}
           </span>
@@ -180,7 +180,7 @@ function PdfPage({ data, watermarkUser, watermarkEmail }: {
           </span>
         </div>
 
-        <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 16, lineHeight: 1.3 }}>
+        <h1 className="pdf-page-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 16, lineHeight: 1.3 }}>
           {data.title}
         </h1>
         <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#4F46E5", marginBottom: 12 }}>
@@ -194,10 +194,11 @@ function PdfPage({ data, watermarkUser, watermarkEmail }: {
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 6 }}>{data.eqLabel}</p>
         <div style={{
           background: "linear-gradient(135deg, #F8F7FF 0%, #F3F1FF 100%)", border: "1.5px solid rgba(139,92,246,0.12)",
-          borderRadius: 12, padding: "18px 24px", marginBottom: 20, textAlign: "center",
-          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.02)"
+          borderRadius: 12, padding: "16px 20px", marginBottom: 20, textAlign: "center",
+          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.02)",
+          overflowX: "auto", maxWidth: "100%", WebkitOverflowScrolling: "touch"
         }}>
-          <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: "#4F46E5", fontWeight: 800, wordBreak: "break-all" }}>{data.eq}</code>
+          <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: "#4F46E5", fontWeight: 800, wordBreak: "break-word" }}>{data.eq}</code>
         </div>
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", lineHeight: 1.6, fontStyle: "italic" }}>
           💡 <strong>Reference note:</strong> {data.note}
@@ -878,6 +879,10 @@ function PdfViewerInner() {
           display: none;
         }
 
+        .pdf-mobile-page-pill {
+          display: none;
+        }
+
         @media (max-width: 768px) {
           .pdf-secured-bar {
             flex-direction: row !important;
@@ -893,9 +898,9 @@ function PdfViewerInner() {
             white-space: nowrap !important;
           }
           .pdf-header {
-            height: 44px !important;
+            height: 48px !important;
             flex-direction: row !important;
-            padding: 0 12px !important;
+            padding: 0 10px !important;
             gap: 6px !important;
             align-items: center !important;
           }
@@ -904,7 +909,7 @@ function PdfViewerInner() {
             width: auto !important;
             display: flex !important;
             align-items: center !important;
-            margin-right: 8px !important;
+            gap: 6px !important;
           }
           .pdf-header-center {
             text-align: center !important;
@@ -912,6 +917,7 @@ function PdfViewerInner() {
             align-items: center !important;
             margin: 0 !important;
             flex: 1 !important;
+            padding: 0 4px !important;
           }
           .pdf-header-controls {
             width: auto !important;
@@ -919,9 +925,10 @@ function PdfViewerInner() {
             gap: 4px !important;
           }
           .pdf-workspace {
-            padding: 8px 4px !important;
+            padding: 12px 8px 50px !important;
             overflow-x: auto !important;
             -webkit-overflow-scrolling: touch !important;
+            touch-action: pan-x pan-y !important;
           }
           .pdf-document-card {
             width: 100% !important;
@@ -931,9 +938,22 @@ function PdfViewerInner() {
             aspect-ratio: auto !important;
             border-radius: 8px !important;
             box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+            margin-bottom: 14px !important;
+          }
+          .pdf-document-card.zoomed {
+            width: auto !important;
+            min-width: 100% !important;
+            max-width: none !important;
           }
           .pdf-page-container {
-            padding: 14px 14px !important;
+            padding: 20px 16px !important;
+          }
+          .pdf-page-title {
+            font-size: 18px !important;
+            line-height: 1.35 !important;
+          }
+          .pdf-mobile-page-pill {
+            display: flex !important;
           }
           .pdf-bottom-bar {
             flex-direction: row !important;
@@ -959,8 +979,18 @@ function PdfViewerInner() {
         }
 
         @media (max-width: 500px) {
-          .pdf-zoom-btn, .pdf-zoom-text, .pdf-controls-divider {
+          .pdf-zoom-btn {
             display: flex !important;
+            width: 28px !important;
+            height: 28px !important;
+          }
+          .pdf-zoom-text {
+            font-size: 9px !important;
+            min-width: 24px !important;
+          }
+          .pdf-doc-title-text {
+            max-width: 110px !important;
+            font-size: 11px !important;
           }
         }
       `}</style>
@@ -1029,7 +1059,7 @@ function PdfViewerInner() {
 
             return (
               <>
-                <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
+                <span className="pdf-doc-title-text" style={{ fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700, color: "#F0F4FF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
                   {currentDocTitle}
                 </span>
 
@@ -1085,11 +1115,40 @@ function PdfViewerInner() {
       </div>
 
       {/* ─── SECURE VIEWER WORKSPACE AREA ─── */}
-      <div className="pdf-workspace" onScroll={handleScroll} style={{
-        flex: 1, background: "#080b13",
-        display: "flex", flexDirection: "column", alignItems: "center",
-        overflowY: "auto", padding: "32px 24px",
-      }}>
+      <div
+        className="pdf-workspace"
+        onScroll={handleScroll}
+        onContextMenu={e => e.preventDefault()}
+        style={{
+          flex: 1, background: "#080b13",
+          display: "flex", flexDirection: "column", alignItems: "center",
+          overflowY: "auto", padding: "32px 24px",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+      >
+        {/* Mobile floating quick page indicator pill */}
+        <div className="pdf-mobile-page-pill" style={{
+          position: "fixed",
+          bottom: isPreview ? 48 : 40,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 80,
+          background: "rgba(10, 14, 26, 0.92)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(139, 92, 246, 0.35)",
+          borderRadius: 9999,
+          padding: "5px 14px",
+          alignItems: "center",
+          gap: 8,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.6)",
+          pointerEvents: "none"
+        }}>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#E0E7FF", fontWeight: 700 }}>
+            Page {Math.min(TOTAL_PAGES, Math.max(1, Math.round((scrollPercent / 100) * TOTAL_PAGES) || 1))} of {TOTAL_PAGES}
+          </span>
+        </div>
+
         {/* Grab Dynamic Subject Category Notes Mock */}
         {(() => {
           const noteCategory = product?.category?.toLowerCase() || "";
@@ -1107,10 +1166,10 @@ function PdfViewerInner() {
             return (
               <div
                 key={pageNum}
-                className="pdf-document-card"
+                className={`pdf-document-card ${zoom > 100 ? 'zoomed' : ''}`}
                 style={{
                   background: "#fff",
-                  width: typeof window !== "undefined" && window.innerWidth <= 768 ? "100%" : `min(100%, ${640 * zoom / 100}px)`,
+                  width: `min(100%, ${640 * zoom / 100}px)`,
                   maxWidth: "100%",
                   boxSizing: "border-box",
                   borderRadius: 8,

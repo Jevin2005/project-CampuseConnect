@@ -143,10 +143,50 @@ export default function HowItWorksPage() {
 
   return (
     <div style={{ position: "relative", zIndex: 1, overflowX: "hidden" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .hiw-hero {
+            padding: 70px 16px 48px !important;
+          }
+          .hiw-section {
+            padding: 0 16px 64px !important;
+          }
+          .hiw-tabs-strip {
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            -webkit-overflow-scrolling: touch !important;
+            margin-bottom: 28px !important;
+            scrollbar-width: none !important;
+          }
+          .hiw-tabs-strip::-webkit-scrollbar {
+            display: none !important;
+          }
+          .hiw-tabs-strip button {
+            padding: 10px 18px !important;
+            font-size: 13px !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+          }
+          .hiw-tabs-body {
+            grid-template-columns: 1fr !important;
+            gap: 28px !important;
+          }
+          .hiw-timeline-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+          }
+          .hiw-drm-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+            padding: 24px 16px !important;
+          }
+        }
+      `}</style>
       <PublicNavbar />
 
       {/* ══════ HERO ══════ */}
       <section
+        className="hiw-hero"
         ref={heroRef as React.RefObject<HTMLElement>}
         style={{
           padding: "110px 24px 72px",
@@ -207,11 +247,11 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ══════ THREE PANELS TABS ══════ */}
-      <section style={{ padding: "0 24px 96px" }}>
+      <section className="hiw-section" style={{ padding: "0 24px 96px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
 
           {/* tab strip */}
-          <div style={{
+          <div className="hiw-tabs-strip" style={{
             display: "flex", borderBottom: "1px solid #1e2d45",
             marginBottom: 48, gap: 0,
           }}>
@@ -238,6 +278,7 @@ export default function HowItWorksPage() {
 
           {/* tab body */}
           <div
+            className="hiw-tabs-body"
             ref={tabsRef as React.RefObject<HTMLDivElement>}
             style={{
               display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48,
@@ -337,7 +378,7 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ══════ PHYSICAL vs DIGITAL TIMELINE ══════ */}
-      <section style={{
+      <section className="hiw-section" style={{
         padding: "0 24px 96px",
         background: "linear-gradient(180deg, transparent, rgba(79,142,247,0.025) 50%, transparent)",
       }}>
@@ -361,6 +402,7 @@ export default function HowItWorksPage() {
           </div>
 
           <div
+            className="hiw-timeline-grid"
             ref={timelineRef as React.RefObject<HTMLDivElement>}
             style={{
               display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24,
@@ -400,7 +442,7 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ══════ DRM DEEP DIVE ══════ */}
-      <section style={{ padding: "0 24px 96px" }}>
+      <section className="hiw-section" style={{ padding: "0 24px 96px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <p style={{
@@ -420,6 +462,7 @@ export default function HowItWorksPage() {
           </div>
 
           <div
+            className="hiw-drm-grid"
             ref={drmRef as React.RefObject<HTMLDivElement>}
             style={{
               background: "rgba(124,58,237,0.05)",

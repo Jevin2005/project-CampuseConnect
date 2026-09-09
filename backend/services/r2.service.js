@@ -313,12 +313,15 @@ const LIST_CACHE_TTL_MS = 600000; // 10 minutes
  * Lists all object keys under a given prefix from local disk or R2 with instant in-memory caching.
  *
  * @param {string} prefix - R2 key prefix (e.g. "hls/{productId}/")
+ * @param {boolean} [skipCache=false] - If true, bypasses the in-memory cache
  * @returns {Promise<string[]>} Array of R2 object keys
  */
-async function listObjects(prefix) {
-  const cached = LIST_OBJECTS_CACHE.get(prefix);
-  if (cached && Date.now() - cached.timestamp < LIST_CACHE_TTL_MS) {
-    return cached.keys;
+async function listObjects(prefix, skipCache = false) {
+  if (!skipCache) {
+    const cached = LIST_OBJECTS_CACHE.get(prefix);
+    if (cached && Date.now() - cached.timestamp < LIST_CACHE_TTL_MS) {
+      return cached.keys;
+    }
   }
 
   const keys = [];
