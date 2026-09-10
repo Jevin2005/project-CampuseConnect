@@ -49,9 +49,68 @@ const fallbackTransporter = nodemailer.createTransport({
 });
 
 /**
- * Dispatches mail with automatic dual-port fallback
+ * Dispatches mail with Resend HTTP API support (to bypass Render SMTP blocks)
+ * and automatic dual-port SMTP fallback (465 SSL <-> 587 STARTTLS).
  */
 async function dispatchMail(mailOptions) {
+  // 1. If BREVO_API_KEY is configured, use Brevo HTTPS REST API (Free 300 emails/day to ANY student email)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const senderEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'jevinarcade26@gmail.com';
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': process.env.BREVO_API_KEY.trim(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: 'CampusConnect', email: senderEmail },
+          to: [{ email: mailOptions.to }],
+          subject: mailOptions.subject,
+          htmlContent: mailOptions.html,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[Email] ✅ Email sent to ${mailOptions.to} via Brevo HTTP API (messageId: ${data.messageId})`);
+        return { success: true, id: data.messageId };
+      } else {
+        console.warn(`[Email] ⚠️ Brevo API returned error:`, data);
+      }
+    } catch (brevoErr) {
+      console.warn(`[Email] ⚠️ Brevo HTTPS attempt failed (${brevoErr.message}). Trying fallbacks...`);
+    }
+  }
+
+  // 2. If RESEND_API_KEY is configured, use Resend HTTPS API (bypasses Render SMTP port blocking)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const fromAddress = process.env.EMAIL_FROM || 'CampusConnect <onboarding@resend.dev>';
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: [mailOptions.to],
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[Email] ✅ Email sent to ${mailOptions.to} via Resend HTTPS API (id: ${data.id})`);
+        return { success: true, id: data.id };
+      } else {
+        console.warn(`[Email] ⚠️ Resend API returned error:`, data);
+      }
+    } catch (resendErr) {
+      console.warn(`[Email] ⚠️ Resend HTTPS attempt failed (${resendErr.message}). Trying SMTP fallback...`);
+    }
+  }
+
   if (!process.env.EMAIL_USER || !cleanPass) {
     console.warn(`[Email] ⚠️ EMAIL credentials missing (EMAIL_USER or EMAIL_PASS). Skipping email dispatch to ${mailOptions.to}.`);
     return { success: false, reason: 'MISSING_CREDENTIALS' };
