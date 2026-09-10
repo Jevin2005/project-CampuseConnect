@@ -5,236 +5,296 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Lock,
-  ShoppingCart, ShieldAlert, Eye, FileText, Download, CheckCircle
+  ShoppingCart, ShieldAlert, Eye, FileText, Download, CheckCircle,
+  Loader2, RefreshCw, AlertCircle, FileX
 } from "lucide-react";
 import api, { getApiBaseUrl } from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
-/* ─── Dynamic Academic Notes Content Mock Database ─────────────────────────── */
-const ACADEMIC_NOTES_DATABASE: Record<string, {
-  subject: string;
-  unit: string;
-  title: string;
-  subtitle: string;
-  body: string;
-  eqLabel: string;
-  eq: string;
-  note: string;
-}[]> = {
-  ece: [
-    {
-      pageNum: 1,
-      subject: "ECE-342: ANALOG COMMUNICATIONS",
-      unit: "UNIT 1 — SIGNAL MODULATION",
-      title: "Amplitude Modulation (AM) Fundamentals",
-      subtitle: "1.1 Concept of Modulation",
-      body: "Modulation is the process of varying one or more properties of a high-frequency periodic waveform, called the carrier signal, with a modulating signal that typically contains information to be transmitted. In AM, the amplitude of the carrier wave is varied in direct proportion to the instantaneous amplitude of the message signal.",
-      eqLabel: "Standard AM Wave Equation:",
-      eq: "s(t) = [A_c + m(t)] cos(2π f_c t)",
-      note: "Where A_c is carrier amplitude, m(t) is baseband message, and f_c is carrier frequency.",
-    },
-    {
-      pageNum: 2,
-      subject: "ECE-342: ANALOG COMMUNICATIONS",
-      unit: "UNIT 1 — SIGNAL MODULATION",
-      title: "Modulation Index & Efficiency",
-      subtitle: "1.2 Modulation Index (μ)",
-      body: "The modulation index represents the extent to which the carrier amplitude varies. If μ > 1, overmodulation occurs, resulting in envelope distortion. The power efficiency of an AM wave is defined as the ratio of sideband power to the total transmitted power.",
-      eqLabel: "Modulation Efficiency Equation:",
-      eq: "η = P_sb / P_total = μ² / (2 + μ²)",
-      note: "Maximum theoretical efficiency is 33.33% when modulation index μ = 1.",
-    },
-    {
-      pageNum: 3,
-      subject: "ECE-342: ANALOG COMMUNICATIONS",
-      unit: "UNIT 2 — FREQUENCY MODULATION",
-      title: "Angle Modulation Principles",
-      subtitle: "2.1 Frequency vs Phase Modulation",
-      body: "In angle modulation, the phase or frequency of the carrier is varied. Frequency Modulation (FM) modulates the carrier frequency directly according to the message. FM offers far superior noise immunity compared to AM at the cost of significantly increased transmission bandwidth.",
-      eqLabel: "Carson's Rule for FM Bandwidth:",
-      eq: "B_T = 2(Δf + f_m)",
-      note: "Where Δf is frequency deviation and f_m is the highest message frequency component.",
-    },
-    {
-      pageNum: 4,
-      subject: "ECE-342: ANALOG COMMUNICATIONS",
-      unit: "UNIT 3 — DIGITAL SHIFT KEYING",
-      title: "Phase Shift Keying (PSK)",
-      subtitle: "3.1 Binary PSK Modulation",
-      body: "BPSK is a form of digital modulation where the phase of the carrier is shifted between 0° and 180° to represent binary states 0 and 1. It provides highly robust bit error rate (BER) performances for noisy wireless transmission links.",
-      eqLabel: "BPSK Signal Representation:",
-      eq: "s_i(t) = A_c cos(2π f_c t + θ_i),   θ_i ∈ {0, π}",
-      note: "BPSK requires coherent detection for accurate demodulation and carrier phase synchronization.",
-    }
-  ] as any,
-  cs: [
-    {
-      pageNum: 1,
-      subject: "CS-502: DESIGN & ANALYSIS OF ALGORITHMS",
-      unit: "UNIT 1 — COMPLEXITY ANALYSIS",
-      title: "Big-O Notation and Complexity classes",
-      subtitle: "1.1 Asymptotic Bounds",
-      body: "Asymptotic notation describes the behavior of algorithms as input size n approaches infinity. Big-O defines the upper bound, Big-Omega defines the lower bound, and Big-Theta represents the tight mathematical bound of algorithmic execution.",
-      eqLabel: "Mathematical definition of Big-O:",
-      eq: "f(n) = O(g(n))  iff  ∃ c, n_0 > 0 s.t. 0 ≤ f(n) ≤ c·g(n) ∀ n ≥ n_0",
-      note: "Common complexity classes order: O(1) < O(log n) < O(n) < O(n log n) < O(n²) < O(2^n).",
-    },
-    {
-      pageNum: 2,
-      subject: "CS-502: DESIGN & ANALYSIS OF ALGORITHMS",
-      unit: "UNIT 1 — COMPLEXITY ANALYSIS",
-      title: "The Master Theorem",
-      subtitle: "1.2 Recurrence Relations Solver",
-      body: "The Master Theorem provides a cookbook method for solving divide-and-conquer recurrences of the form T(n) = a·T(n/b) + f(n), where a ≥ 1 and b > 1. It compares the growth rate of f(n) with n^(log_b a).",
-      eqLabel: "Master Recurrence Relation:",
-      eq: "T(n) = a·T(n/b) + Θ(n^d),   where d ≥ 0",
-      note: "Case 1: if log_b(a) > d then T(n) = Θ(n^(log_b a)). Case 2: if log_b(a) = d then T(n) = Θ(n^d log n).",
-    },
-    {
-      pageNum: 3,
-      subject: "CS-502: DESIGN & ANALYSIS OF ALGORITHMS",
-      unit: "UNIT 2 — DYNAMIC PROGRAMMING",
-      title: "Dynamic Programming Foundations",
-      subtitle: "2.1 Memoization vs Tabulation",
-      body: "Dynamic Programming (DP) solves complex problems by breaking them down into overlapping subproblems, solving each subproblem exactly once, and storing their solutions. Memoization is a top-down cached approach, whereas Tabulation is bottom-up iterative computation.",
-      eqLabel: "0/1 Knapsack DP State Recurrence:",
-      eq: "DP[i][w] = max(DP[i-1][w], val[i-1] + DP[i-1][w-wt[i-1]])",
-      note: "Time complexity is reduced from exponential O(2^n) to pseudo-polynomial O(n·W).",
-    },
-    {
-      pageNum: 4,
-      subject: "CS-502: DESIGN & ANALYSIS OF ALGORITHMS",
-      unit: "UNIT 3 — GRAPH ALGORITHMS",
-      title: "Single Source Shortest Path",
-      subtitle: "3.1 Dijkstra's Greedy Strategy",
-      body: "Dijkstra's algorithm finds the shortest path from a single source vertex to all other vertices in a weighted graph with non-negative edge weights. It iteratively selects the unvisited vertex with the minimum tentative distance.",
-      eqLabel: "Relaxation Edge Condition:",
-      eq: "if (dist[u] + weight(u, v) < dist[v]) { dist[v] = dist[u] + weight(u, v) }",
-      note: "Using a Binary Heap priority queue, Dijkstra runs in O((V + E) log V) time complexity.",
-    }
-  ] as any,
-  physics: [
-    {
-      pageNum: 1,
-      subject: "PHY-301: QUANTUM MECHANICS",
-      unit: "UNIT 1 — WAVE PARTICLE DUALITY",
-      title: "The Schrödinger Wave Equation",
-      subtitle: "1.1 Postulates of Quantum Mechanics",
-      body: "Physical states of a quantum particle are represented by a complex wave function Ψ(x, t). The square of the wave function's absolute value represents the probability density of finding the particle at a given coordinate position.",
-      eqLabel: "Time-Dependent Schrödinger Equation:",
-      eq: "iℏ ∂/∂t Ψ(x, t) = [ - (ℏ² / 2m) ∂²/∂x² + V(x, t) ] Ψ(x, t)",
-      note: "Where ℏ is the reduced Planck constant, m is particle mass, and V is potential energy.",
-    },
-    {
-      pageNum: 2,
-      subject: "PHY-301: QUANTUM MECHANICS",
-      unit: "UNIT 1 — WAVE PARTICLE DUALITY",
-      title: "Heisenberg Uncertainty Principle",
-      subtitle: "1.2 Conjugate Operators Limit",
-      body: "The uncertainty principle states that it is mathematically impossible to measure both the exact coordinate position and linear momentum of a subatomic particle simultaneously with absolute precision.",
-      eqLabel: "Uncertainty Relation Bound:",
-      eq: "σ_x · σ_p ≥ ℏ / 2",
-      note: "This limit arises from the wave-like nature of matter and the non-commutative properties of quantum operators.",
-    },
-    {
-      pageNum: 3,
-      subject: "PHY-301: QUANTUM MECHANICS",
-      unit: "UNIT 2 — POTENTIAL BARRIERS",
-      title: "Infinite Potential Square Well",
-      subtitle: "2.1 Particle in a Box",
-      body: "A particle is confined between infinite potential walls V(x) = 0 for 0 < x < L, and V(x) = ∞ elsewhere. The boundary conditions force the wavefunction to be zero at the walls, leading to quantized discrete energy states.",
-      eqLabel: "Quantized Energy Wavefunction:",
-      eq: "E_n = n² π² ℏ² / (2 m L²),   n = 1, 2, 3...",
-      note: "The zero-point energy (n = 1) is non-zero, confirming quantum particles can never be perfectly at rest.",
-    },
-    {
-      pageNum: 4,
-      subject: "PHY-301: QUANTUM MECHANICS",
-      unit: "UNIT 3 — STATISTICAL DISTRIBUTIONS",
-      title: "Quantum Statistical Mechanics",
-      subtitle: "3.1 Fermions vs Bosons",
-      body: "Subatomic particles are divided into Fermions (spin 1/2, obey Pauli exclusion principle) and Bosons (integer spin, can occupy identical states). These lead to completely different probability distributions at thermal equilibrium.",
-      eqLabel: "Fermi-Dirac Distribution Equation:",
-      eq: "f(E) = 1 / [ e^((E - E_F) / k_B T) + 1 ]",
-      note: "Where E_F is the Fermi level, k_B is Boltzmann constant, and T is temperature.",
-    }
-  ] as any
-};
-
-/* ─── PDF page renderer component ───────────────────────────────────────── */
-function PdfPage({ data, watermarkUser, watermarkEmail }: {
-  data: any;
-  watermarkUser: string;
-  watermarkEmail: string;
+/* ─── Realistic Document Skeleton Loader Component ────────────────────────── */
+function PdfDocumentSkeleton({
+  pageNum,
+  zoom,
+  isFirstPage = false,
+  statusMessage = "Loading document pages...",
+}: {
+  pageNum: number;
+  zoom: number;
+  isFirstPage?: boolean;
+  statusMessage?: string;
 }) {
   return (
-    <div className="pdf-page-container" style={{ position: "relative", padding: "48px 56px", minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#ffffff", userSelect: "none", WebkitUserSelect: "none" }}>
+    <div
+      className="pdf-document-card pdf-skeleton-card"
+      style={{
+        background: "#ffffff",
+        width: `min(100%, ${(640 * zoom) / 100}px)`,
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        borderRadius: 8,
+        boxShadow: "0 12px 60px rgba(0, 0, 0, 0.8)",
+        position: "relative",
+        overflow: "hidden",
+        minHeight: `${Math.max(680, (820 * zoom) / 100)}px`,
+        marginBottom: 20,
+        flexShrink: 0,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        padding: "44px 50px",
+        userSelect: "none",
+      }}
+    >
       <div>
-        {/* header row */}
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, borderBottom: "1.5px solid #f0f0f5", paddingBottom: 8, gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#8E9AA8", letterSpacing: "1px", fontWeight: 700 }}>
-            {data.subject}
-          </span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#8E9AA8", letterSpacing: "1px", fontWeight: 700 }}>
-            {data.unit}
-          </span>
+        {/* Document Header Skeleton */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
+            borderBottom: "1.5px solid #f1f5f9",
+            paddingBottom: 12,
+          }}
+        >
+          <div className="doc-shimmer" style={{ width: 140, height: 12, borderRadius: 4 }} />
+          <div className="doc-shimmer" style={{ width: 80, height: 12, borderRadius: 4 }} />
         </div>
 
-        <h1 className="pdf-page-title" style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 16, lineHeight: 1.3 }}>
-          {data.title}
-        </h1>
-        <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: "#4F46E5", marginBottom: 12 }}>
-          {data.subtitle}
-        </h2>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.8, marginBottom: 20, textAlign: "justify" }}>
-          {data.body}
-        </p>
-
-        {/* equation panel */}
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 6 }}>{data.eqLabel}</p>
-        <div style={{
-          background: "linear-gradient(135deg, #F8F7FF 0%, #F3F1FF 100%)", border: "1.5px solid rgba(139,92,246,0.12)",
-          borderRadius: 12, padding: "16px 20px", marginBottom: 20, textAlign: "center",
-          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.02)",
-          overflowX: "auto", maxWidth: "100%", WebkitOverflowScrolling: "touch"
-        }}>
-          <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: "#4F46E5", fontWeight: 800, wordBreak: "break-word" }}>{data.eq}</code>
+        {/* Title Bar Skeleton */}
+        <div style={{ marginBottom: 24 }}>
+          <div className="doc-shimmer" style={{ width: "72%", height: 22, borderRadius: 6, marginBottom: 10 }} />
+          <div className="doc-shimmer" style={{ width: "45%", height: 14, borderRadius: 4 }} />
         </div>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#6B7280", lineHeight: 1.6, fontStyle: "italic" }}>
-          💡 <strong>Reference note:</strong> {data.note}
-        </p>
+
+        {/* Paragraph 1 Skeleton */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+          <div className="doc-shimmer" style={{ width: "100%", height: 11, borderRadius: 3 }} />
+          <div className="doc-shimmer" style={{ width: "97%", height: 11, borderRadius: 3 }} />
+          <div className="doc-shimmer" style={{ width: "92%", height: 11, borderRadius: 3 }} />
+          <div className="doc-shimmer" style={{ width: "76%", height: 11, borderRadius: 3 }} />
+        </div>
+
+        {/* Diagram / Box / Equation Placeholder */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+            border: "1.5px dashed #cbd5e1",
+            borderRadius: 12,
+            padding: "26px 20px",
+            marginBottom: 28,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+          }}
+        >
+          <div className="doc-shimmer" style={{ width: 42, height: 42, borderRadius: 8 }} />
+          <div className="doc-shimmer" style={{ width: "55%", height: 12, borderRadius: 4 }} />
+        </div>
+
+        {/* Paragraph 2 Skeleton */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          <div className="doc-shimmer" style={{ width: "98%", height: 11, borderRadius: 3 }} />
+          <div className="doc-shimmer" style={{ width: "94%", height: 11, borderRadius: 3 }} />
+          <div className="doc-shimmer" style={{ width: "88%", height: 11, borderRadius: 3 }} />
+          <div className="doc-shimmer" style={{ width: "62%", height: 11, borderRadius: 3 }} />
+        </div>
       </div>
 
-      {/* page footer */}
-      <div style={{
-        display: "flex", justifyContent: "space-between", borderTop: "1.5px solid #f0f0f5", paddingTop: 12, marginTop: 24
-      }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>🛡️ SECURED DIGITAL ASSET</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#4F46E5", fontWeight: 800 }}>PAGE {data.pageNum} OF 4</span>
+      {/* Document Footer Skeleton */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderTop: "1.5px solid #f1f5f9",
+          paddingTop: 16,
+          marginTop: 20,
+        }}
+      >
+        <div className="doc-shimmer" style={{ width: 130, height: 10, borderRadius: 3 }} />
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#94a3b8", fontWeight: 700 }}>
+          PAGE {pageNum}
+        </div>
       </div>
 
-      {/* WATERMARK BACKGROUND (DYNAMIC OVERLAY) */}
-      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", userSelect: "none", overflow: "hidden", zIndex: 10 }}>
-        {Array.from({ length: 15 }).map((_, index) => {
-          const row = Math.floor(index / 3);
-          const col = index % 3;
-          return (
-            <div key={index} style={{
-              position: "absolute",
-              top: `${row * 22 + 6}%`,
-              left: `${col * 35 - 5}%`,
-              transform: "rotate(-25deg)",
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 10,
-              color: "rgba(79, 70, 229, 0.07)",
+      {/* Floating Centerpiece Indicator on the Primary Loading Page */}
+      {isFirstPage && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "rgba(10, 14, 26, 0.92)",
+            backdropFilter: "blur(16px)",
+            border: "1px solid rgba(139, 92, 246, 0.4)",
+            borderRadius: 16,
+            padding: "26px 36px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+            zIndex: 30,
+            maxWidth: "88%",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              background: "rgba(139, 92, 246, 0.15)",
+              border: "1.5px solid rgba(139, 92, 246, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 20px rgba(139,92,246,0.25)",
+            }}
+          >
+            <Loader2 size={24} className="animate-spin" style={{ color: "#A78BFA" }} />
+          </div>
+          <h4
+            style={{
+              fontFamily: "'Sora', sans-serif",
+              fontSize: 16,
               fontWeight: 700,
-              whiteSpace: "nowrap",
-              letterSpacing: "0.5px"
-            }}>
-              {watermarkUser} ({watermarkEmail}) • CampusConnect SECURED • DO NOT REPRODUCE
-            </div>
-          );
-        })}
+              color: "#F0F4FF",
+              margin: 0,
+            }}
+          >
+            Loading Document...
+          </h4>
+          <p
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 12,
+              color: "#94A3B8",
+              margin: 0,
+            }}
+          >
+            {statusMessage}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── PDF Error State Card ────────────────────────────────────────────────── */
+function PdfErrorCard({
+  message,
+  onRetry,
+  productId,
+}: {
+  message: string;
+  onRetry: () => void;
+  productId: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "rgba(15, 23, 42, 0.92)",
+        border: "1px solid rgba(239, 68, 68, 0.35)",
+        borderRadius: 16,
+        padding: "36px 32px",
+        maxWidth: 480,
+        width: "92%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+        gap: 16,
+        boxShadow: "0 16px 50px rgba(0, 0, 0, 0.6)",
+        marginTop: 40,
+        userSelect: "none",
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          background: "rgba(239, 68, 68, 0.15)",
+          border: "2px solid rgba(239, 68, 68, 0.4)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <AlertCircle size={28} style={{ color: "#EF4444" }} />
+      </div>
+
+      <h3
+        style={{
+          fontFamily: "'Sora', sans-serif",
+          fontSize: 18,
+          fontWeight: 700,
+          color: "#F87171",
+          margin: 0,
+        }}
+      >
+        Unable to Load Document
+      </h3>
+
+      <p
+        style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 13,
+          color: "#94A3B8",
+          lineHeight: 1.6,
+          margin: 0,
+          maxWidth: 380,
+        }}
+      >
+        {message || "We could not retrieve or decrypt the document file. Please check your network connection or try again."}
+      </p>
+
+      <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
+        <button
+          onClick={onRetry}
+          style={{
+            height: 38,
+            padding: "0 18px",
+            borderRadius: 8,
+            background: "#8B5CF6",
+            border: "none",
+            color: "#ffffff",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            boxShadow: "0 4px 14px rgba(139, 92, 246, 0.35)",
+          }}
+        >
+          <RefreshCw size={14} /> Retry Loading
+        </button>
+
+        <Link href={`/marketplace/digital/${productId}`} style={{ textDecoration: "none" }}>
+          <button
+            style={{
+              height: 38,
+              padding: "0 18px",
+              borderRadius: 8,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#E2E8F0",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Product Details
+          </button>
+        </Link>
       </div>
     </div>
   );
@@ -364,11 +424,13 @@ function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEma
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState(false);
+  const [pageRendering, setPageRendering] = useState(true);
   const renderTaskRef = useRef<any>(null);
 
   useEffect(() => {
     if (!pdfDocument || !canvasRef.current) return;
     let active = true;
+    setPageRendering(true);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -402,15 +464,20 @@ function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEma
       renderTask.promise.then(() => {
         if (active) {
           renderTaskRef.current = null;
+          setPageRendering(false);
         }
       }).catch((err: any) => {
         if (err.name !== "RenderingCancelledException" && err.message !== "Rendering cancelled, page change") {
           console.error("Render failed for page " + pageNum, err);
         }
+        if (active) setPageRendering(false);
       });
     }).catch((err: any) => {
       console.error("Error loading page " + pageNum, err);
-      setError(true);
+      if (active) {
+        setError(true);
+        setPageRendering(false);
+      }
     });
 
     return () => {
@@ -432,8 +499,18 @@ function PdfPageCanvas({ pdfDocument, pageNum, zoom, watermarkUser, watermarkEma
   }
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#ffffff" }}>
-      <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "auto" }} />
+    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#ffffff", minHeight: pageRendering ? 380 : "auto" }}>
+      <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "auto", opacity: pageRendering ? 0.35 : 1, transition: "opacity 0.2s" }} />
+
+      {pageRendering && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(10, 14, 26, 0.82)", padding: "6px 14px", borderRadius: 9999, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>
+            <Loader2 size={12} className="animate-spin" style={{ color: "#A78BFA" }} />
+            <span>Rendering Page {pageNum}...</span>
+          </div>
+        </div>
+      )}
+
       {/* WATERMARK BACKGROUND (DYNAMIC OVERLAY) ON CANVAS */}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", userSelect: "none", overflow: "hidden", zIndex: 10 }}>
         {Array.from({ length: 15 }).map((_, index) => {
@@ -494,6 +571,9 @@ function PdfViewerInner() {
   const [pdfjsLoaded, setPdfjsLoaded] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
   const [numPages, setNumPages] = useState<number>(0);
+  const [pdfLoading, setPdfLoading] = useState(true);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // DRM overlays trigger
   const [focusLost, setFocusLost] = useState(false);
@@ -578,16 +658,22 @@ function PdfViewerInner() {
         setProduct(prodRes.data);
 
         // 2. Fetch purchases to see if student has purchased this
-        const ordersRes = await api.get("/api/marketplace/orders");
-        const orders = ordersRes.data || [];
+        if (user) {
+          try {
+            const ordersRes = await api.get("/api/marketplace/orders");
+            const orders = ordersRes.data || [];
 
-        const hasOrder = orders.some(
-          (o: any) => o.productId === productId && o.status === "COMPLETED"
-        );
-        const isSeller = prodRes.data.sellerId === user?.id;
+            const hasOrder = orders.some(
+              (o: any) => o.productId === productId && o.status === "COMPLETED"
+            );
+            const isSeller = prodRes.data.sellerId === user?.id;
 
-        if (hasOrder || isSeller) {
-          setPurchased(true);
+            if (hasOrder || isSeller) {
+              setPurchased(true);
+            }
+          } catch (orderErr) {
+            console.warn("Could not check orders:", orderErr);
+          }
         }
       } catch (err: any) {
         console.error("Failed to load product/orders:", err);
@@ -597,13 +683,13 @@ function PdfViewerInner() {
       }
     };
 
-    if (user) {
+    if (user || searchParams.get("preview") === "true") {
       loadData();
     } else if (!authLoading) {
       // Not logged in: force to login page
       router.push(`/login?redirect=/marketplace/viewer/pdf?id=${productId}`);
     }
-  }, [productId, user, authLoading, router]);
+  }, [productId, user, authLoading, router, searchParams]);
 
   // Load PDF file if uploaded
   useEffect(() => {
@@ -618,9 +704,11 @@ function PdfViewerInner() {
     const pdfjsLib = (window as any).pdfjsLib;
 
     const fetchPdf = async () => {
+      setPdfLoading(true);
+      setPdfError(null);
       try {
         const isPreviewRequested = searchParams.get("preview") === "true";
-        const isSeller = product?.sellerId === user?.id;
+        const isSeller = user && product?.sellerId === user?.id;
         const isPreview = isPreviewRequested || (!purchased && !isSeller);
 
         const response = await api.get(
@@ -632,15 +720,24 @@ function PdfViewerInner() {
 
         const uint8Data = new Uint8Array(response.data);
         const loadingTask = pdfjsLib.getDocument({ data: uint8Data });
-        loadingTask.promise.then((pdf: any) => {
-          if (!active) return;
-          setPdfDocument(pdf);
-          setNumPages(pdf.numPages);
-        }).catch((err: any) => {
-          console.log("PDF parse notice, rendering styled academic notes view:", err);
-        });
+        const pdf = await loadingTask.promise;
+        if (!active) return;
+        setPdfDocument(pdf);
+        setNumPages(pdf.numPages);
+        setPdfLoading(false);
       } catch (err: any) {
-        console.log("Secure file stream notice, rendering styled academic notes view:", err);
+        if (!active) return;
+        console.error("Secure PDF stream or parse error:", err);
+        let errMsg = "Failed to load the document file. Please retry.";
+        if (err?.response?.status === 403) {
+          errMsg = "Access restricted: purchase required to view this document.";
+        } else if (err?.response?.status === 404) {
+          errMsg = "No document file was found for this listing.";
+        } else if (err?.message) {
+          errMsg = err.message;
+        }
+        setPdfError(errMsg);
+        setPdfLoading(false);
       }
     };
 
@@ -649,17 +746,17 @@ function PdfViewerInner() {
     return () => {
       active = false;
     };
-  }, [pdfjsLoaded, product, purchased, productId, searchParams, user, devToolsOpen, activeDocIndex]);
+  }, [pdfjsLoaded, product, purchased, productId, searchParams, user, devToolsOpen, activeDocIndex, retryCount]);
 
   // Determine DRM preview parameters
   const isPreviewRequested = searchParams.get("preview") === "true";
-  const isSeller = product?.sellerId === user?.id;
+  const isSeller = user && product?.sellerId === user?.id;
 
   // Strict Preview Rules: Forced preview if NOT purchased AND NOT the seller
   const isPreview = isPreviewRequested || (!purchased && !isSeller);
 
   const PREVIEW_LIMIT = 2;
-  const TOTAL_PAGES = pdfDocument ? numPages : 4;
+  const TOTAL_PAGES = pdfDocument ? numPages : (isPreview ? PREVIEW_LIMIT : 1);
 
   // 🛡️ DRM Event Listeners: Focus Loss & Keyboard PrintScreen Control
   useEffect(() => {
@@ -793,12 +890,36 @@ function PdfViewerInner() {
     );
   }
 
-  const watermarkUser = user?.name || " rahul.sharma";
-  const watermarkEmail = user?.email || "student@campusconnect.in";
+  const watermarkUser = user?.name || "CampusConnect Reader";
+  const watermarkEmail = user?.email || "preview.reader@campusconnect";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#060913", overflow: "hidden", position: "relative" }}>
       <style>{`
+        @keyframes docShimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+
+        .doc-shimmer {
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%) !important;
+          background-size: 200% 100% !important;
+          animation: docShimmer 1.8s infinite linear !important;
+        }
+
+        .pdf-skeleton-card {
+          animation: skeletonFadeIn 0.3s ease-out;
+        }
+
+        @keyframes skeletonFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
         @media print {
           body, html, #__next, .pdf-workspace, .pdf-document-card, .pdf-page-container {
             display: none !important;
@@ -1084,7 +1205,7 @@ function PdfViewerInner() {
           })()}
 
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#8E9AA8", flexShrink: 0, background: "rgba(255,255,255,0.05)", padding: "1px 6px", borderRadius: 4 }}>
-            {isPreview ? `2 Pgs` : `${TOTAL_PAGES} Pgs`}
+            {pdfLoading ? "Loading..." : isPreview ? `${Math.min(numPages || PREVIEW_LIMIT, PREVIEW_LIMIT)} Pgs (Preview)` : `${TOTAL_PAGES} Pgs`}
           </span>
         </div>
 
@@ -1128,38 +1249,51 @@ function PdfViewerInner() {
         }}
       >
         {/* Mobile floating quick page indicator pill */}
-        <div className="pdf-mobile-page-pill" style={{
-          position: "fixed",
-          bottom: isPreview ? 48 : 40,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 80,
-          background: "rgba(10, 14, 26, 0.92)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(139, 92, 246, 0.35)",
-          borderRadius: 9999,
-          padding: "5px 14px",
-          alignItems: "center",
-          gap: 8,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.6)",
-          pointerEvents: "none"
-        }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#E0E7FF", fontWeight: 700 }}>
-            Page {Math.min(TOTAL_PAGES, Math.max(1, Math.round((scrollPercent / 100) * TOTAL_PAGES) || 1))} of {TOTAL_PAGES}
-          </span>
-        </div>
+        {!pdfLoading && !pdfError && pdfDocument && (
+          <div className="pdf-mobile-page-pill" style={{
+            position: "fixed",
+            bottom: isPreview ? 48 : 40,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 80,
+            background: "rgba(10, 14, 26, 0.92)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(139, 92, 246, 0.35)",
+            borderRadius: 9999,
+            padding: "5px 14px",
+            alignItems: "center",
+            gap: 8,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.6)",
+            pointerEvents: "none"
+          }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#E0E7FF", fontWeight: 700 }}>
+              Page {Math.min(TOTAL_PAGES, Math.max(1, Math.round((scrollPercent / 100) * TOTAL_PAGES) || 1))} of {TOTAL_PAGES}
+            </span>
+          </div>
+        )}
 
-        {/* Grab Dynamic Subject Category Notes Mock */}
-        {(() => {
-          const noteCategory = product?.category?.toLowerCase() || "";
-          let dataSet = ACADEMIC_NOTES_DATABASE.ece;
-          if (noteCategory.includes("computer") || noteCategory.includes("algorithm") || noteCategory.includes("science") || noteCategory.includes("code")) {
-            dataSet = ACADEMIC_NOTES_DATABASE.cs;
-          } else if (noteCategory.includes("physic") || noteCategory.includes("quantum") || noteCategory.includes("mechanic")) {
-            dataSet = ACADEMIC_NOTES_DATABASE.physics;
-          }
-
-          return Array.from({ length: TOTAL_PAGES }).map((_, index) => {
+        {/* ─── DOCUMENT WORKSPACE VIEW ─── */}
+        {pdfLoading ? (
+          /* Realistic Document Page Skeletons while fetching / parsing */
+          Array.from({ length: isPreview ? PREVIEW_LIMIT : 2 }).map((_, index) => (
+            <PdfDocumentSkeleton
+              key={`skeleton-${index}`}
+              pageNum={index + 1}
+              zoom={zoom}
+              isFirstPage={index === 0}
+              statusMessage="Fetching and decrypting document pages..."
+            />
+          ))
+        ) : pdfError ? (
+          /* Proper Error State Card with Retry */
+          <PdfErrorCard
+            message={pdfError}
+            onRetry={() => setRetryCount(c => c + 1)}
+            productId={productId}
+          />
+        ) : pdfDocument ? (
+          /* Real PDF Document Pages via PDF.js Canvas */
+          Array.from({ length: TOTAL_PAGES }).map((_, index) => {
             const pageNum = index + 1;
             const isPageLocked = isPreview && pageNum > PREVIEW_LIMIT;
 
@@ -1183,21 +1317,13 @@ function PdfViewerInner() {
                 }}
               >
                 <div style={{ filter: isPageLocked ? "blur(8px)" : "none", transition: "filter 0.3s", height: "100%" }}>
-                  {pdfDocument ? (
-                    <PdfPageCanvas
-                      pdfDocument={pdfDocument}
-                      pageNum={pageNum}
-                      zoom={zoom}
-                      watermarkUser={watermarkUser}
-                      watermarkEmail={watermarkEmail}
-                    />
-                  ) : (
-                    <PdfPage
-                      data={dataSet[Math.min(pageNum - 1, dataSet.length - 1)]}
-                      watermarkUser={watermarkUser}
-                      watermarkEmail={watermarkEmail}
-                    />
-                  )}
+                  <PdfPageCanvas
+                    pdfDocument={pdfDocument}
+                    pageNum={pageNum}
+                    zoom={zoom}
+                    watermarkUser={watermarkUser}
+                    watermarkEmail={watermarkEmail}
+                  />
                 </div>
 
                 {/* Paywall Blocker Overlay */}
@@ -1210,8 +1336,15 @@ function PdfViewerInner() {
                 )}
               </div>
             );
-          });
-        })()}
+          })
+        ) : (
+          <PdfDocumentSkeleton
+            pageNum={1}
+            zoom={zoom}
+            isFirstPage={true}
+            statusMessage="Initializing secure viewer..."
+          />
+        )}
       </div>
 
       {/* ─── BOTTOM SECURITY META BAR (COMPACT SLEEK) ─── */}

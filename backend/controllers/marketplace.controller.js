@@ -1536,8 +1536,11 @@ exports.streamProductFile = async (req, res) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     // 2. Enforce purchase check if not the seller and not previewing
-    const isSeller = product.sellerId === req.user.id;
+    const isSeller = req.user ? product.sellerId === req.user.id : false;
     if (!isSeller && !isPreview) {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Authentication required to access full document.' });
+      }
       const order = await prisma.order.findFirst({
         where: {
           buyerId: req.user.id,

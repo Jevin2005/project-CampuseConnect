@@ -46,7 +46,7 @@ router.post('/ads/:id/click',     adCtrl.trackAdClick);
 // Public browsing — no login needed; logged-in users get college-scoped results
 router.get('/products',          optionalAuth, ctrl.getProducts);
 router.get('/products/:id',      optionalAuth, ctrl.getProductById);
-router.get('/products/:id/file', auth,         ctrl.streamProductFile); // file access still requires login
+router.get('/products/:id/file', optionalAuth, ctrl.streamProductFile); // preview allowed with optionalAuth, full access verified inside
 
 /* ─── Authenticated Student ──────────────────────────────────────────── */
 
