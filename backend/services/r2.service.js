@@ -182,6 +182,46 @@ async function getObjectStream(key) {
   throw new Error(`File asset not found on local disk or R2: ${cleanKey}`);
 }
 
+/** Stream an object from local disk or R2 with ContentLength and headers for accelerated playback */
+async function getObjectResponse(key) {
+  let cleanKey = key;
+  if (!cleanKey) throw new Error('Object key is required');
+  if (cleanKey.startsWith('http://') || cleanKey.startsWith('https://')) {
+    try {
+      cleanKey = new URL(cleanKey).pathname.replace(/^\//, '');
+    } catch (_) {
+      cleanKey = cleanKey.replace(/^\//, '');
+    }
+  } else {
+    cleanKey = cleanKey.replace(/^\//, '');
+  }
+  try {
+    cleanKey = decodeURIComponent(cleanKey);
+  } catch (_) {}
+
+  // 1. Check local disk storage first
+  const localPath = resolveLocalPath(cleanKey);
+  if (localPath) {
+    const stat = fs.statSync(localPath);
+    return {
+      stream: fs.createReadStream(localPath),
+      contentLength: stat.size,
+    };
+  }
+
+  // 2. Fall back to Cloudflare R2 S3 SDK if configured
+  if (isConfigured()) {
+    const response = await R2.send(new GetObjectCommand({ Bucket: BUCKET, Key: cleanKey }));
+    return {
+      stream: response.Body,
+      contentLength: response.ContentLength,
+      contentType: response.ContentType,
+    };
+  }
+
+  throw new Error(`File asset not found on local disk or R2: ${cleanKey}`);
+}
+
 /** Fetch object text content from local disk or R2 */
 async function getObjectText(key) {
   let cleanKey = key;
@@ -415,6 +455,7 @@ module.exports = {
   presignedUpload,
   isConfigured,
   getObjectStream,
+  getObjectResponse,
   getObjectText,
   getObjectStreamByUrl,
   resolveLocalPath,

@@ -591,8 +591,96 @@ function VideoViewerInner() {
     const isHls = activeVideoUrl.includes(".m3u8") || activeVideoUrl.includes("/segment");
     const HlsClass = (window as any).Hls;
 
-    // 1. Native Safari / iOS HLS support
-    if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
+    // 1. Prioritize Hls.js on all supported browsers (Chrome, Edge, Firefox, macOS Safari)
+    if (isHls && HlsClass && HlsClass.isSupported()) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      const hlsInstance = new HlsClass({
+        capLevelToPlayerSize: true,
+        autoStartLoad: true,
+        // High-speed buffering & prefetching
+        maxBufferLength: 60,              // Buffer 60 seconds ahead
+        maxMaxBufferLength: 120,          // Max buffer 2 minutes ahead
+        maxBufferSize: 128 * 1024 * 1024, // 128MB buffer size
+        maxBufferHole: 0.8,
+        highBufferWatchdogPeriod: 2,
+        nudgeOffset: 0.1,
+        nudgeMaxRetry: 5,
+        startLevel: -1,                   // Auto adaptive start
+        testBandwidth: true,
+        abrEwmaDefaultEstimate: 5000000,  // Fast initial connection speed estimate (5 Mbps)
+        abrBandWidthFactor: 0.95,
+        enableWorker: true,               // Web Worker decoding
+        lowLatencyMode: false,            // Fast VOD buffer streaming
+        progressive: true,                // Stream progressive chunk playback
+        backBufferLength: 60,             // Fast rewinds without re-downloading
+        fragLoadingTimeOut: 20000,
+        manifestLoadingTimeOut: 15000,
+        fragLoadingMaxRetry: 6,
+        xhrSetup: (xhr: XMLHttpRequest) => {
+          xhr.withCredentials = false;
+        },
+      });
+
+      hlsRef.current = hlsInstance;
+      hlsInstance.loadSource(activeVideoUrl);
+      hlsInstance.attachMedia(video);
+
+      hlsInstance.on(HlsClass.Events.FRAG_LOADING, () => {
+        if (playing) setIsBuffering(true);
+      });
+      hlsInstance.on(HlsClass.Events.FRAG_BUFFERED, () => {
+        setIsBuffering(false);
+        updateBufferProgress();
+      });
+
+      const updateLevels = (data?: any) => {
+        const lvls = (data && data.levels && data.levels.length > 0) ? data.levels : hlsInstance.levels;
+        if (lvls && lvls.length > 0) {
+          const parsed = lvls.map((lvl: any, idx: number) => ({
+            id: idx,
+            name: lvl.height ? `${lvl.height}p ${lvl.height >= 720 ? "HD" : ""}`.trim() : `Quality ${idx + 1}`,
+          }));
+          setHlsLevels([{ id: -1, name: "Auto (Adaptive)" }, ...parsed]);
+        }
+      };
+
+      hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (_event: any, data: any) => {
+        setIsBuffering(false);
+        updateLevels(data);
+        if (playing) {
+          hlsInstance.startLoad();
+          video.play().catch(err => console.log("HLS play interrupted:", err));
+        }
+      });
+
+      hlsInstance.on(HlsClass.Events.LEVEL_LOADED, () => {
+        updateLevels();
+      });
+
+      hlsInstance.on(HlsClass.Events.ERROR, (_event: any, data: any) => {
+        if (data.fatal) {
+          setIsBuffering(false);
+          if (data.type === HlsClass.ErrorTypes.NETWORK_ERROR) {
+            console.warn('[HLS.js] Network error — attempting recovery:', data.details);
+            hlsInstance.startLoad();
+          } else {
+            console.error('[HLS.js] Fatal error:', data.type, data.details);
+            hlsInstance.destroy();
+            hlsRef.current = null;
+          }
+        }
+      });
+
+      return () => {
+        hlsInstance.destroy();
+        hlsRef.current = null;
+      };
+    } else if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
+      // 2. iOS Mobile Safari fallback where MediaSource isn't available
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
@@ -602,84 +690,8 @@ function VideoViewerInner() {
       if (playing) {
         video.play().catch(err => console.log("Safari HLS play interrupted:", err));
       }
-      return;
-    }
-
-    // 2. Chrome / Firefox / Edge via Hls.js
-    if (isHls) {
-      if (HlsClass && HlsClass.isSupported()) {
-        if (hlsRef.current) {
-          hlsRef.current.destroy();
-          hlsRef.current = null;
-        }
-
-        const hlsInstance = new HlsClass({
-          capLevelToPlayerSize: true,
-          autoStartLoad: true,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          maxBufferSize: 60 * 1024 * 1024,
-          backBufferLength: 30,
-          maxBufferHole: 0.5,
-          startLevel: -1,
-          enableWorker: true,
-          lowLatencyMode: true,
-          xhrSetup: (xhr: XMLHttpRequest) => {
-            xhr.withCredentials = false;
-          },
-        });
-
-        hlsRef.current = hlsInstance;
-        hlsInstance.loadSource(activeVideoUrl);
-        hlsInstance.attachMedia(video);
-
-        hlsInstance.on(HlsClass.Events.FRAG_LOADING, () => {
-          if (playing) setIsBuffering(true);
-        });
-        hlsInstance.on(HlsClass.Events.FRAG_BUFFERED, () => {
-          setIsBuffering(false);
-          updateBufferProgress();
-        });
-
-        hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (_event: any, data: any) => {
-          setIsBuffering(false);
-          if (data.levels && data.levels.length > 0) {
-            const parsed = data.levels.map((lvl: any, idx: number) => ({
-              id: idx,
-              name: lvl.height ? `${lvl.height}p` : `Level ${idx + 1}`,
-            }));
-            setHlsLevels([{ id: -1, name: "Auto (Adaptive)" }, ...parsed]);
-          }
-          if (playing) {
-            hlsInstance.startLoad();
-            video.play().catch(err => console.log("HLS play interrupted:", err));
-          }
-        });
-
-        hlsInstance.on(HlsClass.Events.ERROR, (_event: any, data: any) => {
-          if (data.fatal) {
-            setIsBuffering(false);
-            if (data.type === HlsClass.ErrorTypes.NETWORK_ERROR) {
-              console.warn('[HLS.js] Network error — attempting recovery:', data.details);
-              hlsInstance.startLoad();
-            } else {
-              console.error('[HLS.js] Fatal error:', data.type, data.details);
-              hlsInstance.destroy();
-              hlsRef.current = null;
-            }
-          }
-        });
-
-        return () => {
-          hlsInstance.destroy();
-          hlsRef.current = null;
-        };
-      } else {
-        // Wait for HLS CDN script to finish loading; do not set .m3u8 directly to video.src on Chrome
-        return;
-      }
-    } else {
-      // Direct raw video file (e.g. mp4, webm)
+    } else if (!isHls) {
+      // 3. Direct raw video file (e.g. mp4, webm)
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
@@ -1742,22 +1754,37 @@ function VideoViewerInner() {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                  {hlsLevels.length > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 8, padding: "3px 8px" }}>
-                      <Sparkles size={11} style={{ color: "#10B981" }} />
-                      <select
-                        value={selectedLevel}
-                        onChange={e => handleQualityChange(Number(e.target.value))}
-                        style={{ background: "transparent", border: "none", color: "#10B981", fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none", fontFamily: "'DM Sans', sans-serif" }}
-                      >
-                        {hlsLevels.map(lvl => (
-                          <option key={lvl.id} value={lvl.id} style={{ background: "#0D111E", color: "#fff" }}>
-                            {lvl.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  {/* Quality adjust option - always visible with instant resolution switching */}
+                  <div
+                    title="Adjust Video Quality (HD / SD / Fast / Auto)"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)",
+                      borderRadius: 8, padding: "3px 8px"
+                    }}
+                  >
+                    <Sparkles size={11} style={{ color: "#10B981" }} />
+                    <select
+                      value={selectedLevel}
+                      onChange={e => handleQualityChange(Number(e.target.value))}
+                      style={{
+                        background: "transparent", border: "none", color: "#10B981",
+                        fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none",
+                        fontFamily: "'DM Sans', sans-serif"
+                      }}
+                    >
+                      {(hlsLevels.length > 0 ? hlsLevels : [
+                        { id: -1, name: "Auto (Adaptive)" },
+                        { id: 0, name: "720p HD" },
+                        { id: 1, name: "480p SD" },
+                        { id: 2, name: "360p Fast" },
+                      ]).map(lvl => (
+                        <option key={lvl.id} value={lvl.id} style={{ background: "#0D111E", color: "#fff" }}>
+                          {lvl.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "3px 8px" }}>
                     <Settings size={12} style={{ color: "#9CA3AF" }} />

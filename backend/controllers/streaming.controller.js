@@ -498,10 +498,13 @@ exports.proxyHlsSegment = async (req, res) => {
       }
     }
 
-    const objStream = await r2.getObjectStream(key);
+    const { stream: objStream, contentLength } = await r2.getObjectResponse(key);
     res.setHeader('Content-Type', contentType);
     res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return objStream.pipe(res);
   } catch (err) {
     console.error('[proxyHlsSegment Error]', req.query?.key || req.params?.filename, err.message);
