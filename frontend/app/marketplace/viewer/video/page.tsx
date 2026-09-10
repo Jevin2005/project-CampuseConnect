@@ -327,10 +327,25 @@ function VideoViewerInner() {
       setHlsSupported(true);
       return;
     }
+    const existing = document.getElementById("cc-hls-script");
+    if (existing) {
+      existing.addEventListener("load", () => setHlsSupported(true));
+      if ((window as any).Hls) setHlsSupported(true);
+      return;
+    }
     const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/hls.js@latest";
+    script.id = "cc-hls-script";
+    script.src = "https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js";
     script.async = true;
     script.onload = () => setHlsSupported(true);
+    script.onerror = () => {
+      // Fallback CDN if primary fails
+      const fallback = document.createElement("script");
+      fallback.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js";
+      fallback.async = true;
+      fallback.onload = () => setHlsSupported(true);
+      document.head.appendChild(fallback);
+    };
     document.head.appendChild(script);
   }, []);
 
@@ -338,13 +353,19 @@ function VideoViewerInner() {
     if (!productId) return;
     setLoading(true);
 
+    let isMounted = true;
+    // Safety timeout: never freeze the screen on initial loader more than 4 seconds
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 4000);
+
     const loadData = async () => {
       try {
         let fetchedProductData: any = null;
         try {
           const prodRes = await api.get(`/api/marketplace/products/${productId}`);
           fetchedProductData = prodRes.data;
-          setProduct(prodRes.data);
+          if (isMounted) setProduct(prodRes.data);
         } catch (prodErr) {
           console.log("Product metadata fetch notice:", prodErr);
         }
@@ -358,7 +379,7 @@ function VideoViewerInner() {
             );
             const sellerMatch = fetchedProductData?.sellerId === user?.id;
 
-            if (userOrder || sellerMatch) {
+            if (isMounted && (userOrder || sellerMatch)) {
               setPurchased(true);
             }
           } catch (orderErr) {
@@ -368,37 +389,39 @@ function VideoViewerInner() {
 
         try {
           const hlsRes = await api.get(`/api/student/content/product/${productId}?videoIndex=0${isPreviewRequested ? '&preview=true' : ''}`);
-          if (hlsRes.data?.masterProxyUrl) {
+          if (isMounted && hlsRes.data?.masterProxyUrl) {
             setProductStatus(hlsRes.data?.productStatus || 'active');
             setHlsMasterUrl(hlsRes.data.masterProxyUrl);
             setHlsUrlCache(prev => ({ ...prev, 0: hlsRes.data.masterProxyUrl }));
-          } else if (hlsRes.data?.productStatus) {
+          } else if (isMounted && hlsRes.data?.productStatus) {
             setProductStatus(hlsRes.data.productStatus);
           }
         } catch (hlsErr: any) {
-          if (hlsErr?.response?.data?.productStatus) {
+          if (isMounted && hlsErr?.response?.data?.productStatus) {
             setProductStatus(hlsErr.response.data.productStatus);
           }
           console.log('HLS playlist fallback:', hlsErr);
         }
       } catch (err: any) {
         console.error("Failed to load video product:", err);
-        setError("This secure video stream could not be loaded or verified.");
+        if (isMounted) setError("This secure video stream could not be loaded or verified.");
       } finally {
-        setLoading(false);
+        clearTimeout(safetyTimer);
+        if (isMounted) setLoading(false);
       }
     };
 
-    if (user || isPreviewRequested) {
-      loadData();
-    } else if (!authLoading) {
-      router.push(`/login?redirect=/marketplace/viewer/video?id=${productId}`);
-    }
-  }, [productId, user, authLoading, router, isPreviewRequested]);
+    loadData();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
+  }, [productId, user, isPreviewRequested]);
 
   useEffect(() => {
     let checkInterval: any;
-    const threshold = 160;
+    const threshold = 280;
 
     const detectDevTools = () => {
       const isMobile = typeof window !== "undefined" && (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768);
@@ -415,23 +438,17 @@ function VideoViewerInner() {
       }
     };
 
-    checkInterval = setInterval(detectDevTools, 1500);
+    checkInterval = setInterval(detectDevTools, 2000);
     return () => clearInterval(checkInterval);
   }, []);
 
   useEffect(() => {
-    const handleBlur = () => setFocusLost(true);
-    const handleFocus = () => setFocusLost(false);
-
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (videoRef.current && !videoRef.current.paused) {
           videoRef.current.pause();
           setPlaying(false);
         }
-        setFocusLost(true);
-      } else {
-        setFocusLost(false);
       }
     };
 
@@ -479,15 +496,11 @@ function VideoViewerInner() {
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("contextmenu", handleContextMenu);
@@ -526,7 +539,7 @@ function VideoViewerInner() {
 
   // Fetch HLS master URL for any video index when the user switches lessons
   useEffect(() => {
-    if (!productId || !accessToken) return;
+    if (!productId) return;
     if (hlsUrlCache[currentLessonIdx]) return; // already cached
 
     let isSubscribed = true;
@@ -551,7 +564,7 @@ function VideoViewerInner() {
     return () => {
       isSubscribed = false;
     };
-  }, [currentLessonIdx, productId, accessToken, isPreview]);
+  }, [currentLessonIdx, productId, isPreview]);
 
   // True while we're fetching the HLS URL for a non-zero video index
   const [hlsLoading, setHlsLoading] = useState(false);
@@ -567,7 +580,6 @@ function VideoViewerInner() {
 
   useEffect(() => {
     const video = videoRef.current;
-    // Don't attempt to load HLS until we have a real URL
     if (!video || !activeVideoUrl) {
       if (hlsRef.current) {
         hlsRef.current.destroy();
@@ -579,72 +591,95 @@ function VideoViewerInner() {
     const isHls = activeVideoUrl.includes(".m3u8") || activeVideoUrl.includes("/segment");
     const HlsClass = (window as any).Hls;
 
-    if (isHls && HlsClass && HlsClass.isSupported()) {
+    // 1. Native Safari / iOS HLS support
+    if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
+      video.src = activeVideoUrl;
+      video.load();
+      if (playing) {
+        video.play().catch(err => console.log("Safari HLS play interrupted:", err));
+      }
+      return;
+    }
 
-      const hlsInstance = new HlsClass({
-        capLevelToPlayerSize: true,
-        autoStartLoad: true,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        maxBufferSize: 60 * 1024 * 1024,
-        backBufferLength: 30,
-        maxBufferHole: 0.5,
-        startLevel: -1,
-        enableWorker: true,
-        lowLatencyMode: true,
-        xhrSetup: (xhr: XMLHttpRequest) => {
-          xhr.withCredentials = false;
-        },
-      });
-
-      hlsRef.current = hlsInstance;
-      hlsInstance.loadSource(activeVideoUrl);
-      hlsInstance.attachMedia(video);
-
-      hlsInstance.on(HlsClass.Events.FRAG_LOADING, () => {
-        setIsBuffering(true);
-      });
-      hlsInstance.on(HlsClass.Events.FRAG_BUFFERED, () => {
-        setIsBuffering(false);
-        updateBufferProgress();
-      });
-
-      hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (_event: any, data: any) => {
-        if (data.levels && data.levels.length > 0) {
-          const parsed = data.levels.map((lvl: any, idx: number) => ({
-            id: idx,
-            name: lvl.height ? `${lvl.height}p` : `Level ${idx + 1}`,
-          }));
-          setHlsLevels([{ id: -1, name: "Auto (Adaptive)" }, ...parsed]);
+    // 2. Chrome / Firefox / Edge via Hls.js
+    if (isHls) {
+      if (HlsClass && HlsClass.isSupported()) {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
         }
-        if (playing) {
-          hlsInstance.startLoad();
-          video.play().catch(err => console.log("HLS play interrupted:", err));
-        }
-      });
 
-      hlsInstance.on(HlsClass.Events.ERROR, (_event: any, data: any) => {
-        if (data.fatal) {
-          if (data.type === HlsClass.ErrorTypes.NETWORK_ERROR) {
-            console.warn('[HLS.js] Network error — attempting recovery:', data.details);
-            hlsInstance.startLoad();
-          } else {
-            console.error('[HLS.js] Fatal error:', data.type, data.details);
-            hlsInstance.destroy();
-            hlsRef.current = null;
+        const hlsInstance = new HlsClass({
+          capLevelToPlayerSize: true,
+          autoStartLoad: true,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          maxBufferSize: 60 * 1024 * 1024,
+          backBufferLength: 30,
+          maxBufferHole: 0.5,
+          startLevel: -1,
+          enableWorker: true,
+          lowLatencyMode: true,
+          xhrSetup: (xhr: XMLHttpRequest) => {
+            xhr.withCredentials = false;
+          },
+        });
+
+        hlsRef.current = hlsInstance;
+        hlsInstance.loadSource(activeVideoUrl);
+        hlsInstance.attachMedia(video);
+
+        hlsInstance.on(HlsClass.Events.FRAG_LOADING, () => {
+          if (playing) setIsBuffering(true);
+        });
+        hlsInstance.on(HlsClass.Events.FRAG_BUFFERED, () => {
+          setIsBuffering(false);
+          updateBufferProgress();
+        });
+
+        hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (_event: any, data: any) => {
+          setIsBuffering(false);
+          if (data.levels && data.levels.length > 0) {
+            const parsed = data.levels.map((lvl: any, idx: number) => ({
+              id: idx,
+              name: lvl.height ? `${lvl.height}p` : `Level ${idx + 1}`,
+            }));
+            setHlsLevels([{ id: -1, name: "Auto (Adaptive)" }, ...parsed]);
           }
-        }
-      });
+          if (playing) {
+            hlsInstance.startLoad();
+            video.play().catch(err => console.log("HLS play interrupted:", err));
+          }
+        });
 
-      return () => {
-        hlsInstance.destroy();
-        hlsRef.current = null;
-      };
+        hlsInstance.on(HlsClass.Events.ERROR, (_event: any, data: any) => {
+          if (data.fatal) {
+            setIsBuffering(false);
+            if (data.type === HlsClass.ErrorTypes.NETWORK_ERROR) {
+              console.warn('[HLS.js] Network error — attempting recovery:', data.details);
+              hlsInstance.startLoad();
+            } else {
+              console.error('[HLS.js] Fatal error:', data.type, data.details);
+              hlsInstance.destroy();
+              hlsRef.current = null;
+            }
+          }
+        });
+
+        return () => {
+          hlsInstance.destroy();
+          hlsRef.current = null;
+        };
+      } else {
+        // Wait for HLS CDN script to finish loading; do not set .m3u8 directly to video.src on Chrome
+        return;
+      }
     } else {
+      // Direct raw video file (e.g. mp4, webm)
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
@@ -655,7 +690,7 @@ function VideoViewerInner() {
         video.play().catch(err => console.log("Direct play interrupted:", err));
       }
     }
-  }, [activeVideoUrl]);
+  }, [activeVideoUrl, hlsSupported]);
 
   const handleQualityChange = (levelId: number) => {
     setSelectedLevel(levelId);
@@ -673,7 +708,6 @@ function VideoViewerInner() {
       video.play().catch(err => console.log("Play interrupted:", err));
     } else {
       video.pause();
-      if (hlsRef.current) hlsRef.current.stopLoad();
     }
   }, [playing, expired, devToolsOpen, focusLost]);
 
@@ -805,11 +839,11 @@ function VideoViewerInner() {
     });
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div style={{ background: "#060913", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
         <div style={{ width: 48, height: 48, border: "3px solid rgba(16,185,129,0.15)", borderTopColor: "#10B981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", fontWeight: 500 }}>Validating DRM security & video stream...</p>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#9CA3AF", fontWeight: 500 }}>Connecting secure video stream...</p>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -1489,18 +1523,17 @@ function VideoViewerInner() {
                 ref={videoRef}
                 onTimeUpdate={() => { handleTimeUpdate(); updateBufferProgress(); }}
                 onLoadedMetadata={handleLoadedMetadata}
-                onWaiting={() => setIsBuffering(true)}
+                onWaiting={() => { if (playing) setIsBuffering(true); }}
                 onSeeking={() => setIsBuffering(true)}
-                onLoadStart={() => setIsBuffering(true)}
-                onStalled={() => setIsBuffering(true)}
+                onLoadStart={() => { if (playing) setIsBuffering(true); }}
+                onStalled={() => { if (playing) setIsBuffering(true); }}
                 onCanPlay={() => { setIsBuffering(false); updateBufferProgress(); }}
                 onPlaying={() => { setIsBuffering(false); updateBufferProgress(); }}
+                onError={() => setIsBuffering(false)}
                 onProgress={updateBufferProgress}
                 onEnded={() => setPlaying(false)}
                 onClick={() => {
-                  if (typeof window !== "undefined" && window.innerWidth > 768) {
-                    setPlaying(p => !p);
-                  }
+                  setPlaying(p => !p);
                 }}
                 playsInline
                 style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", cursor: "pointer" }}
@@ -1520,8 +1553,8 @@ function VideoViewerInner() {
                 </div>
               )}
 
-              {/* Simple Centered Video Spinner Loader */}
-              {isBuffering && !expired && (
+              {/* Centered Buffering Spinner - only when actively buffering during playback */}
+              {isBuffering && playing && !expired && (
                 <div style={{
                   position: "absolute",
                   inset: 0,
@@ -1543,6 +1576,38 @@ function VideoViewerInner() {
                     boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)"
                   }} />
                   <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
+
+              {/* Big Centered Play Button when Paused */}
+              {!playing && !isBuffering && !expired && (
+                <div
+                  onClick={() => setPlaying(true)}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    zIndex: 24,
+                    background: "rgba(0, 0, 0, 0.15)",
+                    transition: "background 0.2s ease"
+                  }}
+                >
+                  <div style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #10B981, #059669)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 0 30px rgba(16, 185, 129, 0.5)",
+                    cursor: "pointer"
+                  }}>
+                    <Play size={28} style={{ color: "#ffffff", marginLeft: 3, fill: "#ffffff" }} />
+                  </div>
                 </div>
               )}
             </>
