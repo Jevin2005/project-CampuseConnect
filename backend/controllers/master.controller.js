@@ -30,12 +30,23 @@ async function getColleges(req, res) {
       });
       const revenue = revenueAgg._sum.amount || 0;
 
+      const adminList = (college.admins || []).map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        isApproved: a.isApproved,
+        isEmailVerified: a.isEmailVerified,
+        joined: a.createdAt,
+      }));
+
       if (!college.isApproved) {
         pending.push({
           id: college.id,
           name: college.name,
-          admin: firstAdmin?.name || 'Unknown',
-          email: firstAdmin?.email || 'Unknown',
+          admin: firstAdmin?.name || 'No Admin',
+          email: firstAdmin?.email || '',
+          adminEmail: firstAdmin?.email || '',
+          admins: adminList,
           city: college.city || 'Unknown',
           type: college.type || 'Unknown',
           domain: college.emailDomain,
@@ -46,6 +57,9 @@ async function getColleges(req, res) {
         active.push({
           id: college.id,
           name: college.name,
+          admin: firstAdmin?.name || 'No Admin Assigned',
+          adminEmail: firstAdmin?.email || '',
+          admins: adminList,
           city: college.city || 'Unknown',
           type: college.type || 'Unknown',
           code: college.code,

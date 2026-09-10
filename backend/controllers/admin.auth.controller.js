@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 const otpService = require('../services/otp.service');
-const { sendApprovalEmail, notifyMasterAdminRegistration, sendRegisterVerificationEmail } = require('../services/email.service');
+const { sendApprovalEmail, notifyMasterAdminRegistration, sendRegisterVerificationEmail, sendOtpEmail } = require('../services/email.service');
 
 const prisma = new PrismaClient();
 
@@ -189,18 +189,30 @@ async function login(req, res) {
     });
 
     if (!admin) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      const student = await prisma.student.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (student) {
+        return res.status(400).json({
+          message: 'This email is registered as a Student account. Please log in using the Student Login page (/login).',
+        });
+      }
+      return res.status(401).json({ message: 'No administrator account found with this email address.' });
     }
 
     // Verify college code matches admin's college
     if ((admin.college?.code || '').trim().toUpperCase() !== normalizedCode) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({
+        message: `College code "${normalizedCode}" does not match this administrator's registered college. Please check your college code.`,
+      });
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, admin.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({
+        message: 'Incorrect password. If you forgot your password, please use "Forgot password?" to reset it.',
+      });
     }
 
     // Check if email verified
@@ -347,6 +359,138 @@ async function resendRegisterOtp(req, res) {
   }
 }
 
+/* ─── POST /api/auth/admin/forgot-password ────────────────────────── */
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const admin = await prisma.admin.findUnique({
+      where: { email: normalizedEmail },
+      include: { college: true },
+    });
+
+    if (!admin) {
+      return res.status(404).json({
+        message: 'No administrator account found with this email address.',
+      });
+    }
+
+    const otp = otpService.generateOtp();
+    await otpService.storeOtp('otp', normalizedEmail, otp, 600);
+    await otpService.storeOtp('reset-pwd', normalizedEmail, otp, 600);
+
+    sendOtpEmail(normalizedEmail, otp).catch((emailErr) => {
+      console.error('[adminForgotPassword] Email send failed:', emailErr.message);
+    });
+
+    return res.json({
+      message: '⚡ One-Time Password sent to your admin email.',
+      instantMessage: `OTP dispatched to ${otpService.maskEmail(normalizedEmail)}.`,
+      maskedEmail: otpService.maskEmail(normalizedEmail),
+      email: normalizedEmail,
+      userType: 'COLLEGE_ADMIN',
+      devOtp: shouldExposeOtp() ? otp : undefined,
+    });
+  } catch (err) {
+    console.error('[adminForgotPassword] Error:', err);
+    return res.status(500).json({ message: 'Server error. Please try again.' });
+  }
+}
+
+/* ─── POST /api/auth/admin/reset-password ─────────────────────────── */
+async function resetPassword(req, res) {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP code, and new password are required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
+    }
+
+    let verification = await otpService.verifyOtp('otp', normalizedEmail, otp);
+    if (!verification.valid) {
+      verification = await otpService.verifyOtp('reset-pwd', normalizedEmail, otp);
+    }
+
+    if (!verification.valid) {
+      if (verification.reason === 'EXPIRED') {
+        return res.status(400).json({ message: 'Verification OTP expired. Please request a new one.' });
+      }
+      return res.status(400).json({ message: 'Invalid verification OTP. Please check the code and try again.' });
+    }
+
+    const admin = await prisma.admin.findUnique({
+      where: { email: normalizedEmail },
+      include: { college: true },
+    });
+
+    if (!admin) {
+      return res.status(404).json({ message: 'No administrator account found with this email.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+    await prisma.admin.update({
+      where: { email: normalizedEmail },
+      data: {
+        password: hashedPassword,
+        isEmailVerified: true,
+      },
+    });
+
+    if (!admin.isApproved || !admin.college?.isApproved) {
+      return res.json({
+        status: 'PENDING',
+        role: 'COLLEGE_ADMIN',
+        message: 'Password reset successful! Your college registration is under review.',
+      });
+    }
+
+    const accessToken = signAccessToken({
+      userId: admin.id,
+      role: 'COLLEGE_ADMIN',
+      collegeId: admin.collegeId,
+      email: admin.email,
+    });
+
+    const refreshToken = signRefreshToken({
+      userId: admin.id,
+      role: 'COLLEGE_ADMIN',
+      tokenVersion: admin.tokenVersion,
+    });
+
+    setRefreshCookie(res, refreshToken);
+
+    return res.json({
+      status: 'APPROVED',
+      role: 'COLLEGE_ADMIN',
+      message: 'Password reset successfully! You are now logged in to your admin account.',
+      accessToken,
+      user: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        collegeId: admin.collegeId,
+        collegeName: admin.college?.name,
+        collegeCode: admin.college?.code,
+      },
+    });
+  } catch (err) {
+    console.error('[adminResetPassword] Error:', err);
+    return res.status(500).json({ message: 'Server error while resetting password. Please try again.' });
+  }
+}
+
 module.exports = {
   checkCollegeCode,
   register,
@@ -354,4 +498,6 @@ module.exports = {
   logout,
   verifyRegisterOtp,
   resendRegisterOtp,
+  forgotPassword,
+  resetPassword,
 };

@@ -197,7 +197,7 @@ export default function CollegeRequestsPage() {
           <table className="tbl">
             <thead>
               <tr>
-                {['College','City','Code','Students','Products','Revenue','Status','Joined'].map(h => (
+                {['College','Admin','City','Code','Students','Products','Revenue','Status','Joined'].map(h => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
@@ -206,6 +206,12 @@ export default function CollegeRequestsPage() {
               {active.map(a => (
                 <tr key={a.id}>
                   <td data-label="College" style={{ color: '#F0F4FF', fontWeight: 600 }}>{a.name}</td>
+                  <td data-label="Admin">
+                    <div style={{ color: '#F0F4FF', fontWeight: 600, fontSize: 13 }}>{a.admin || '—'}</div>
+                    {a.adminEmail && (
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: '#9CA3AF' }}>{a.adminEmail}</div>
+                    )}
+                  </td>
                   <td data-label="City">{a.city}</td>
                   <td data-label="Code" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{a.code}</td>
                   <td data-label="Students" style={{ color: '#4F8EF7' }}>{a.students?.toLocaleString()}</td>

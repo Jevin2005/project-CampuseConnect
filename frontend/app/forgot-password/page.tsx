@@ -71,6 +71,8 @@ export default function ForgotPasswordPage() {
     }
   };
 
+  const [userRole, setUserRole] = useState<'STUDENT' | 'COLLEGE_ADMIN'>('STUDENT');
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp.trim() || otp.trim().length !== 6) {
@@ -92,6 +94,7 @@ export default function ForgotPasswordPage() {
     try {
       const { data } = await api.post<{
         status: 'APPROVED' | 'PENDING';
+        role?: 'STUDENT' | 'COLLEGE_ADMIN';
         message: string;
         accessToken?: string;
         user?: any;
@@ -101,6 +104,8 @@ export default function ForgotPasswordPage() {
         newPassword: newPassword.trim(),
       });
 
+      const role = data.role === 'COLLEGE_ADMIN' ? 'COLLEGE_ADMIN' : 'STUDENT';
+      setUserRole(role);
       setStep('done');
 
       if (data.status === 'PENDING') {
@@ -108,13 +113,21 @@ export default function ForgotPasswordPage() {
           router.push('/pending-approval');
         }, 2000);
       } else if (data.status === 'APPROVED' && data.accessToken && data.user) {
-        setAuth(data.accessToken, data.user, 'STUDENT', data.user.collegeId);
+        setAuth(data.accessToken, data.user, role, data.user.collegeId);
         setTimeout(() => {
-          router.push('/marketplace');
+          if (role === 'COLLEGE_ADMIN') {
+            router.push('/admin/dashboard');
+          } else {
+            router.push('/marketplace');
+          }
         }, 1500);
       } else {
         setTimeout(() => {
-          router.push('/login');
+          if (role === 'COLLEGE_ADMIN') {
+            router.push('/admin/login');
+          } else {
+            router.push('/login');
+          }
         }, 2000);
       }
     } catch (err: any) {
@@ -487,7 +500,7 @@ export default function ForgotPasswordPage() {
                   className="btn btn-green"
                   disabled={resetting || passwordsMatch === false || otp.length !== 6}
                 >
-                  {resetting ? 'Resetting & Logging in...' : 'Reset Password & Access Market →'}
+                  {resetting ? 'Resetting & Logging in...' : 'Reset Password & Continue →'}
                 </button>
               </form>
 
@@ -506,7 +519,9 @@ export default function ForgotPasswordPage() {
               <div className="success-icon">🎉</div>
               <h1 style={{ marginBottom: 10 }}>Password Reset!</h1>
               <p className="sub" style={{ marginBottom: 20 }}>
-                Your account password was updated successfully. Taking you directly to CampusConnect...
+                {userRole === 'COLLEGE_ADMIN'
+                  ? 'Your administrator password was updated successfully. Taking you directly to the Admin Dashboard...'
+                  : 'Your account password was updated successfully. Taking you directly to CampusConnect...'}
               </p>
               <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid rgba(16,185,129,0.3)', borderTopColor: '#10B981', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
             </div>

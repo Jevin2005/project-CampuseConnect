@@ -51,7 +51,7 @@ export default function StudentRequestsPage() {
   const [suspendModal, setSuspendModal] = useState<Student | null>(null);
   const [viewModal, setViewModal] = useState<(Student & { status: 'pending' | 'approved' }) | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const { accessToken } = useAuthStore();
+  const { accessToken, role } = useAuthStore();
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -59,6 +59,10 @@ export default function StudentRequestsPage() {
   };
 
   const fetchStudents = async () => {
+    if (!accessToken || role !== 'COLLEGE_ADMIN') {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`${API}/students`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -77,8 +81,12 @@ export default function StudentRequestsPage() {
   };
 
   useEffect(() => {
-    if (accessToken) fetchStudents();
-  }, [accessToken]);
+    if (accessToken && role === 'COLLEGE_ADMIN') {
+      fetchStudents();
+    } else {
+      setLoading(false);
+    }
+  }, [accessToken, role]);
 
   const handleApprove = async (student: Student) => {
     setActionLoading(student.id);

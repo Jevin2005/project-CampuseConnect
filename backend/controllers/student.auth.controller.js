@@ -205,8 +205,16 @@ async function login(req, res) {
       include: { college: true },
     });
 
-    // Don't reveal whether the email exists
+    // Don't reveal whether the email exists, but provide a helpful hint if it's an admin
     if (!student || !student.password) {
+      const admin = await prisma.admin.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (admin) {
+        return res.status(400).json({
+          message: 'This email belongs to a College Administrator. Please log in at the Admin Portal (/admin/login).',
+        });
+      }
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
@@ -287,15 +295,24 @@ async function sendOtp(req, res) {
       where: { email: normalizedEmail },
     });
 
+    let admin = null;
     if (!student) {
+      admin = await prisma.admin.findUnique({
+        where: { email: normalizedEmail },
+        include: { college: true },
+      });
+    }
+
+    if (!student && !admin) {
       return res.status(404).json({
-        message: 'No account found with this email. Please register first.',
+        message: 'No account found with this email. Please check your email or register first.',
         status: 'NOT_FOUND',
       });
     }
 
     const otp = otpService.generateOtp();
     await otpService.storeOtp('otp', normalizedEmail, otp, 600);
+    await otpService.storeOtp('reset-pwd', normalizedEmail, otp, 600);
 
     // Send email asynchronously
     sendOtpEmail(normalizedEmail, otp).catch((emailErr) => {
@@ -307,6 +324,7 @@ async function sendOtp(req, res) {
       instantMessage: `OTP dispatched to ${otpService.maskEmail(normalizedEmail)}.`,
       maskedEmail: otpService.maskEmail(normalizedEmail),
       email: normalizedEmail,
+      userType: admin ? 'COLLEGE_ADMIN' : 'STUDENT',
       devOtp: shouldExposeOtp() ? otp : undefined,
     });
   } catch (err) {
@@ -341,17 +359,57 @@ async function verifyOtp(req, res) {
       include: { college: true },
     });
 
-    // If student doesn't exist → they need to register first
     if (!student) {
-      return res.status(404).json({
-        message: 'No account found for this email. Please register first.',
-        status: 'NOT_FOUND',
+      // Check if this is a college admin
+      const admin = await prisma.admin.findUnique({
+        where: { email: normalizedEmail },
+        include: { college: true },
+      });
+
+      if (!admin) {
+        return res.status(404).json({
+          message: 'No account found for this email. Please register first.',
+          status: 'NOT_FOUND',
+        });
+      }
+
+      if (!admin.isApproved || !admin.college?.isApproved) {
+        return res.json({ status: 'PENDING', role: 'COLLEGE_ADMIN' });
+      }
+
+      const accessToken = signAccessToken({
+        userId: admin.id,
+        role: 'COLLEGE_ADMIN',
+        collegeId: admin.collegeId,
+        email: admin.email,
+      });
+
+      const refreshToken = signRefreshToken({
+        userId: admin.id,
+        role: 'COLLEGE_ADMIN',
+        tokenVersion: admin.tokenVersion,
+      });
+
+      setRefreshCookie(res, refreshToken);
+
+      return res.json({
+        status: 'APPROVED',
+        role: 'COLLEGE_ADMIN',
+        accessToken,
+        user: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          collegeId: admin.collegeId,
+          collegeName: admin.college?.name,
+          collegeCode: admin.college?.code,
+        },
       });
     }
 
     // Pending
     if (!student.isApproved) {
-      return res.json({ status: 'PENDING' });
+      return res.json({ status: 'PENDING', role: 'STUDENT' });
     }
 
     // Approved → issue tokens
@@ -372,6 +430,7 @@ async function verifyOtp(req, res) {
 
     return res.json({
       status: 'APPROVED',
+      role: 'STUDENT',
       accessToken,
       user: {
         id: student.id,
@@ -577,11 +636,66 @@ async function resetPassword(req, res) {
       include: { college: true },
     });
 
-    if (!student) {
-      return res.status(404).json({ message: 'No student account found for this email.' });
-    }
-
     const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+    if (!student) {
+      // Check if this is a college admin account
+      const admin = await prisma.admin.findUnique({
+        where: { email: normalizedEmail },
+        include: { college: true },
+      });
+
+      if (!admin) {
+        return res.status(404).json({ message: 'No account found for this email.' });
+      }
+
+      await prisma.admin.update({
+        where: { email: normalizedEmail },
+        data: {
+          password: hashedPassword,
+          isEmailVerified: true,
+        },
+      });
+
+      if (!admin.isApproved || !admin.college?.isApproved) {
+        return res.json({
+          status: 'PENDING',
+          role: 'COLLEGE_ADMIN',
+          message: 'Password reset successful! Your college admin registration is under review.',
+        });
+      }
+
+      // Issue tokens for instant seamless login as College Admin
+      const accessToken = signAccessToken({
+        userId: admin.id,
+        role: 'COLLEGE_ADMIN',
+        collegeId: admin.collegeId,
+        email: admin.email,
+      });
+
+      const refreshToken = signRefreshToken({
+        userId: admin.id,
+        role: 'COLLEGE_ADMIN',
+        tokenVersion: admin.tokenVersion,
+      });
+
+      setRefreshCookie(res, refreshToken);
+
+      return res.json({
+        status: 'APPROVED',
+        role: 'COLLEGE_ADMIN',
+        message: 'Password reset successfully! You are now logged in to your administrator account.',
+        accessToken,
+        user: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          collegeId: admin.collegeId,
+          collegeName: admin.college?.name,
+          collegeCode: admin.college?.code,
+        },
+      });
+    }
 
     await prisma.student.update({
       where: { email: normalizedEmail },
@@ -595,6 +709,7 @@ async function resetPassword(req, res) {
     if (!student.isApproved) {
       return res.json({
         status: 'PENDING',
+        role: 'STUDENT',
         message: 'Password reset successful! Your account is pending admin approval.',
       });
     }
@@ -617,6 +732,7 @@ async function resetPassword(req, res) {
 
     return res.json({
       status: 'APPROVED',
+      role: 'STUDENT',
       message: 'Password reset successfully! You are now logged in with your new password.',
       accessToken,
       user: {

@@ -207,10 +207,135 @@ const S = `
 .pill:hover { border-color: rgba(99,130,190,.35); }
 .pill-mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--gold); background: rgba(247,201,72,.06); border-color: rgba(247,201,72,.2); }
 
-/* Admin email row */
-.admin-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.admin-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 6px var(--blue); flex-shrink: 0; }
-.admin-email { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Admin Section */
+.admin-section {
+  background: rgba(14, 21, 37, 0.75);
+  border: 1px solid rgba(99, 130, 190, 0.16);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.admin-sec-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.admin-sec-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.admin-count-pill {
+  font-size: 10px;
+  color: var(--t3);
+  background: rgba(20, 30, 55, 0.8);
+  border: 1px solid rgba(99, 130, 190, 0.2);
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.admin-card-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(20, 30, 55, 0.6);
+  border: 1px solid rgba(99, 130, 190, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+}
+.admin-card-item:hover {
+  border-color: rgba(79, 142, 247, 0.35);
+  background: rgba(20, 30, 55, 0.9);
+}
+.admin-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(79, 142, 247, 0.25), rgba(124, 58, 237, 0.25));
+  border: 1px solid rgba(79, 142, 247, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: #F0F4FF;
+  flex-shrink: 0;
+}
+.admin-details {
+  flex: 1;
+  min-width: 0;
+}
+.admin-top-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.admin-name {
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+.status-verified {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--green);
+}
+.status-unverified {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--gold2);
+}
+.status-approved {
+  background: rgba(79, 142, 247, 0.12);
+  border: 1px solid rgba(79, 142, 247, 0.3);
+  color: var(--blue);
+}
+.admin-email-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--t2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.admin-empty-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--t3);
+  background: rgba(20, 30, 55, 0.4);
+  border-radius: 8px;
+}
 
 /* Divider */
 .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin-bottom: 18px; }
@@ -292,16 +417,31 @@ const S = `
 }
 `;
 
-interface College {
-  id: string; name: string; city: string; type: string;
-  code: string; domain: string; students: number; products: number;
-  revenue: string; revenueRaw: number; revPct: number; joined: string;
+interface AdminDetail {
+  id: string;
+  name: string;
+  email: string;
+  isApproved: boolean;
+  isEmailVerified: boolean;
+  joined?: string;
 }
 
-// Extended interface with admin info from the response
-interface CollegeWithAdmin extends College {
+interface CollegeWithAdmin {
+  id: string;
+  name: string;
+  city: string;
+  type: string;
+  code: string;
+  domain: string;
+  students: number;
+  products: number;
+  revenue: string;
+  revenueRaw: number;
+  revPct: number;
+  joined: string;
+  admin?: string;
   adminEmail?: string;
-  admins?: number;
+  admins?: AdminDetail[];
 }
 
 export default function AllCollegesPage() {
@@ -423,7 +563,6 @@ export default function AllCollegesPage() {
         ) : (
           <div className="grid">
             {filtered.map(c => {
-              const adminEmail = (c as any).adminEmail;
               return (
                 <div className="ccard" key={c.id}>
                   {/* Top */}
@@ -440,14 +579,57 @@ export default function AllCollegesPage() {
                     {c.domain && <span className="pill pill-mono">@{c.domain}</span>}
                   </div>
 
-                  {/* Admin email */}
-                  {adminEmail && (
-                    <div className="admin-row">
-                      <span className="admin-dot" />
-                      <span className="admin-email">{adminEmail}</span>
+                  {/* College Administrator(s) Section */}
+                  <div className="admin-section">
+                    <div className="admin-sec-hdr">
+                      <span className="admin-sec-title">
+                        <span>🛡️</span> College Administrator
+                      </span>
+                      {c.admins && c.admins.length > 1 && (
+                        <span className="admin-count-pill">{c.admins.length} Admins</span>
+                      )}
                     </div>
-                  )}
-                  {!adminEmail && <div style={{ marginBottom: 16 }} />}
+                    {c.admins && c.admins.length > 0 ? (
+                      <div className="admin-list">
+                        {c.admins.map((adm) => (
+                          <div className="admin-card-item" key={adm.id || adm.email}>
+                            <div className="admin-avatar">
+                              {(adm.name || 'A').slice(0, 2).toUpperCase()}
+                            </div>
+                            <div className="admin-details">
+                              <div className="admin-top-line">
+                                <span className="admin-name">{adm.name || 'Admin'}</span>
+                                <span className={`status-pill ${adm.isApproved ? 'status-approved' : 'status-unverified'}`}>
+                                  {adm.isApproved ? 'Approved' : 'Pending'}
+                                </span>
+                                <span className={`status-pill ${adm.isEmailVerified ? 'status-verified' : 'status-unverified'}`}>
+                                  {adm.isEmailVerified ? 'Verified' : 'Unverified'}
+                                </span>
+                              </div>
+                              <span className="admin-email-text">{adm.email}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : c.adminEmail ? (
+                      <div className="admin-card-item">
+                        <div className="admin-avatar">
+                          {(c.admin || 'A').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="admin-details">
+                          <div className="admin-top-line">
+                            <span className="admin-name">{c.admin || 'Admin'}</span>
+                          </div>
+                          <span className="admin-email-text">{c.adminEmail}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="admin-empty-box">
+                        <span>⚠️</span>
+                        <span>No administrator assigned yet</span>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="divider" />
 

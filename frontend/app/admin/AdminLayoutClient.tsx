@@ -32,27 +32,45 @@ export default function AdminLayoutClient({ children }: AdminLayoutClientProps) 
   const router = useRouter();
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const user = useAuthStore((state) => state.user);
+  const role = useAuthStore((state) => state.role);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchPendingCount = async () => {
+    if (!accessToken || role !== 'COLLEGE_ADMIN') return;
     try {
       const res = await api.get('/api/admin/dashboard');
       if (res.data && typeof res.data.stats?.pendingStudents === 'number') {
         setPendingCount(res.data.stats.pendingStudents);
       }
-    } catch (err) {
-      console.error('Failed to fetch pending requests count:', err);
+    } catch (err: any) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        clearAuth();
+        router.replace('/admin/login');
+      }
     }
   };
 
+  const isAuthPage = pathname === '/admin/login' || pathname === '/admin/register';
+
   useEffect(() => {
-    if (user) {
+    if (isAuthPage) return;
+    if (mounted && (!accessToken || role !== 'COLLEGE_ADMIN')) {
+      router.replace('/admin/login');
+      return;
+    }
+    if (user && role === 'COLLEGE_ADMIN') {
       fetchPendingCount();
       const interval = setInterval(fetchPendingCount, 15000);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, role, accessToken, isAuthPage, mounted, router]);
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -74,7 +92,6 @@ export default function AdminLayoutClient({ children }: AdminLayoutClientProps) 
   };
 
   // Auth pages (login, register) — render without sidebar
-  const isAuthPage = pathname === '/admin/login' || pathname === '/admin/register';
   if (isAuthPage) {
     return (
       <>
@@ -85,6 +102,17 @@ export default function AdminLayoutClient({ children }: AdminLayoutClientProps) 
         `}</style>
         {children}
       </>
+    );
+  }
+
+  if (mounted && (!accessToken || role !== 'COLLEGE_ADMIN')) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0A0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 32, height: 32, border: '3px solid rgba(16,185,129,0.2)', borderTopColor: '#10B981', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+          <p>Redirecting to Administrator Login…</p>
+        </div>
+      </div>
     );
   }
 

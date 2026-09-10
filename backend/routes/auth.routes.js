@@ -112,6 +112,9 @@ router.post('/admin/register/verify', adminController.verifyRegisterOtp);
 router.post('/admin/register/resend', adminController.resendRegisterOtp);
 router.post('/admin/login', adminLoginLimiter, adminController.login);
 router.post('/admin/logout', adminController.logout);
+router.post('/admin/forgot-password', sendOtpLimiter, adminController.forgotPassword);
+router.post('/admin/send-otp', sendOtpLimiter, adminController.forgotPassword);
+router.post('/admin/reset-password', verifyOtpLimiter, adminController.resetPassword);
 
 
 /* ─── Master Auth Routes ───────────────────────────────────────────── */
